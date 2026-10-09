@@ -652,6 +652,253 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #3a3a3a;
         }
+
+        /* Step indicator */
+        .step-indicator {
+            background: #1a1a1a;
+            border: 1px solid #2a2a2a;
+            border-radius: 12px;
+            padding: 16px;
+            margin-top: 8px;
+            max-width: 520px;
+        }
+
+        .step-progress {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .step-node {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .step-node.active {
+            background: rgba(132, 189, 0, 0.15);
+            color: #84BD00;
+            border: 1px solid rgba(132, 189, 0, 0.4);
+        }
+
+        .step-node.completed {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .step-node.pending {
+            background: #141414;
+            color: #666;
+            border: 1px solid #2a2a2a;
+        }
+
+        .step-arrow {
+            color: #444;
+            font-size: 10px;
+        }
+
+        .step-typing {
+            font-size: 13px;
+            color: #888;
+            margin-top: 8px;
+            font-style: italic;
+        }
+
+        .step-typing-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 14px;
+            background: #84BD00;
+            margin-left: 2px;
+            animation: blink 1s infinite;
+            vertical-align: middle;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* Upload zone */
+        .upload-zone {
+            border: 2px dashed #2a2a2a;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.2s;
+            margin-top: 12px;
+            cursor: pointer;
+        }
+
+        .upload-zone:hover, .upload-zone.drag-over {
+            border-color: #84BD00;
+            background: rgba(132, 189, 0, 0.05);
+        }
+
+        .upload-zone-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .upload-zone-text {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+
+        .upload-zone-hint {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .upload-zone-browse {
+            color: #84BD00;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        /* Check results */
+        .check-result {
+            background: #141414;
+            border: 1px solid #2a2a2a;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+
+        .check-result.success {
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+
+        .check-result.warning {
+            border-color: rgba(234, 179, 8, 0.3);
+        }
+
+        .check-result.error {
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .check-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .check-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .check-icon {
+            font-size: 14px;
+            width: 20px;
+            text-align: center;
+        }
+
+        .check-icon.pass { color: #22c55e; }
+        .check-icon.fail { color: #ef4444; }
+        .check-icon.warn { color: #eab308; }
+
+        /* Inline edit */
+        .field-edit-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding: 6px 0;
+            font-size: 12px;
+        }
+
+        .field-edit-label {
+            color: #888;
+            min-width: 120px;
+        }
+
+        .field-edit-value {
+            flex: 1;
+            background: #141414;
+            border: 1px solid #2a2a2a;
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: #e4e4e4;
+            font-size: 12px;
+            outline: none;
+        }
+
+        .field-edit-value:focus {
+            border-color: #84BD00;
+        }
+
+        .field-edit-save {
+            padding: 4px 10px;
+            background: #84BD00;
+            color: #121314;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .field-edit-save:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .blurry-notice {
+            background: rgba(234, 179, 8, 0.1);
+            border: 1px solid rgba(234, 179, 8, 0.3);
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #eab308;
+        }
+
+        .blurry-notice strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        /* Submission result */
+        .submission-result {
+            background: #1a1a1a;
+            border: 2px solid #84BD00;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        .submission-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .submission-ref {
+            font-size: 18px;
+            font-weight: 700;
+            color: #84BD00;
+            margin: 12px 0;
+            font-family: monospace;
+        }
+
+        .submission-detail {
+            font-size: 13px;
+            color: #888;
+            margin: 6px 0;
+        }
+
+        .submission-detail strong {
+            color: #e4e4e4;
+        }
     </style>
 </head>
 <body>
@@ -665,6 +912,69 @@
         // ---- In-chat application wizard cards (rendered inside chat messages, no page overlay) ----
         function WizardCardShell({ children }) {
             return <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '16px', marginTop: '8px', maxWidth: '520px' }}>{children}</div>;
+        }
+
+        // Step indicator component
+        function StepIndicator({ steps, currentStep }) {
+            const stepLabels = {
+                name: '1.Name',
+                id_upload: '2.National ID',
+                passport_upload: '3.Passport',
+                review: '4.Review',
+                submit: '5.Submit',
+                success: '✓Done'
+            };
+
+            return (
+                <div className="step-indicator">
+                    <div className="step-progress">
+                        {steps.map((step, idx) => {
+                            const isActive = step === currentStep;
+                            const stepOrder = ['name', 'id_upload', 'passport_upload', 'review', 'submit', 'success'];
+                            const isCompleted = stepOrder.indexOf(step) < stepOrder.indexOf(currentStep);
+                            const statusClass = isActive ? 'active' : isCompleted ? 'completed' : 'pending';
+                            return (
+                                <React.Fragment key={step}>
+                                    <div className={`step-node ${statusClass}`}>
+                                        {isCompleted && <span>✓</span>}
+                                        {stepLabels[step] || step}
+                                    </div>
+                                    {idx < steps.length - 1 && <span className="step-arrow">→</span>}
+                                </React.Fragment>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        }
+
+        // Typing animation component
+        function TypingText({ text }) {
+            const [displayed, setDisplayed] = useState('');
+            const [done, setDone] = useState(false);
+
+            useEffect(() => {
+                setDisplayed('');
+                setDone(false);
+                let i = 0;
+                const interval = setInterval(() => {
+                    if (i < text.length) {
+                        setDisplayed(text.slice(0, i + 1));
+                        i++;
+                    } else {
+                        setDone(true);
+                        clearInterval(interval);
+                    }
+                }, 30);
+                return () => clearInterval(interval);
+            }, [text]);
+
+            return (
+                <div className="step-typing">
+                    {displayed}
+                    {!done && <span className="step-typing-cursor"></span>}
+                </div>
+            );
         }
 
         function WizardOffer({ onYes, onNo }) {
@@ -694,55 +1004,238 @@
         function WizardUpload({ docs, uploaded, busy, onFile, isId, pretty }) {
             return (
                 <WizardCardShell>
+                    <StepIndicator
+                        steps={['name', 'id_upload', 'passport_upload', 'review']}
+                        currentStep="id_upload"
+                    />
+
                     {docs.map(d => {
                         const done = uploaded.some(u => u.docType === d);
                         const working = busy === d;
                         return (
-                            <div key={d} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '8px 0' }}>
-                                <div>
-                                    <div style={{ fontSize: '14px', fontWeight: 500, color: done ? '#22c55e' : '#ccc' }}>{done ? '✅ ' : '📄 '}{pretty(d)}</div>
-                                    <div style={{ fontSize: '11px', color: '#888' }}>{isId(d) ? 'PDF or scanned PDF, max 10 MB' : 'PDF or image, max 10 MB'}</div>
+                            <div key={d} style={{ marginTop: '16px' }}>
+                                <div style={{ fontSize: '14px', fontWeight: 500, color: done ? '#22c55e' : '#ccc', marginBottom: '8px' }}>
+                                    {done ? '✅' : '📄'} {pretty(d)} {done ? '(Uploaded)' : working ? '(Checking...)' : ''}
                                 </div>
-                                <label className="btn btn-secondary" style={{ cursor: done || working ? 'default' : 'pointer', opacity: done || working ? 0.6 : 1 }}>
-                                    <input type="file" style={{ display: 'none' }} disabled={done || working}
-                                        accept={isId(d) ? '.pdf,application/pdf' : '.pdf,.png,.jpg,.jpeg,.tiff,.bmp'}
-                                        onChange={e => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (f) onFile(f, d); }} />
-                                    {working ? 'Checking...' : done ? 'Uploaded' : 'Choose file'}
-                                </label>
+
+                                {done ? null : (
+                                    <div
+                                        className="upload-zone"
+                                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
+                                        onDragLeave={(e) => { e.currentTarget.classList.remove('drag-over'); }}
+                                        onDrop={(e) => {
+                                            e.preventDefault();
+                                            e.currentTarget.classList.remove('drag-over');
+                                            const file = e.dataTransfer.files[0];
+                                            if (file) onFile(file, d);
+                                        }}
+                                        onClick={() => {
+                                            if (!working) {
+                                                const input = document.createElement('input');
+                                                input.type = 'file';
+                                                input.accept = isId(d) ? '.pdf,application/pdf' : '.pdf,.png,.jpg,.jpeg,.tiff,.bmp';
+                                                input.onchange = (ev) => {
+                                                    const f = ev.target.files[0];
+                                                    if (f) onFile(f, d);
+                                                };
+                                                input.click();
+                                            }
+                                        }}
+                                    >
+                                        <div className="upload-zone-icon">📁</div>
+                                        <div className="upload-zone-text">
+                                            Drag and drop your {pretty(d)} here, or{' '}
+                                            <span className="upload-zone-browse">browse files</span>
+                                        </div>
+                                        <div className="upload-zone-hint">
+                                            {isId(d) ? 'PDF or scanned PDF, max 10 MB' : 'PDF or image, max 10 MB'}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         );
                     })}
-                    <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>You can also use the paperclip in the message box. Sensitive details are masked in this chat.</div>
+                    <div style={{ fontSize: '12px', color: '#888', marginTop: '12px' }}>
+                        You can also drag files directly into the chat window, or use the paperclip button.
+                    </div>
                 </WizardCardShell>
             );
         }
 
-        function WizardReview({ name, docs, mask, pretty, disabled, onConfirm, onReplace, onRestart }) {
+        // Check results component
+        function CheckResults({ checks }) {
+            if (!checks || checks.length === 0) return null;
+            return (
+                <div>
+                    {checks.map((c, idx) => (
+                        <div key={idx} style={{ marginTop: '8px' }}>
+                            <div className={`check-result ${c.isBlurry ? 'warning' : 'success'}`}>
+                                {c.malwareScan !== 'clean' ? (
+                                    <div className="check-item">
+                                        <span className="check-icon fail">⚠</span>
+                                        <span>Malware scan: {c.malwareScan === 'infected' ? 'Failed - file may be harmful' : 'Pending'}</span>
+                                    </div>
+                                ) : (
+                                    <div className="check-item">
+                                        <span className="check-icon pass">✓</span>
+                                        <span>Malware scan: Passed</span>
+                                    </div>
+                                )}
+                                {c.pdfValid !== undefined && (
+                                    <div className="check-item">
+                                        <span className={c.pdfValid ? 'check-icon pass' : 'check-icon fail'}>{c.pdfValid ? '✓' : '✗'}</span>
+                                        <span>PDF validity: {c.pdfValid ? 'Valid PDF' : 'Invalid PDF'}</span>
+                                    </div>
+                                )}
+                                {c.qualityScore !== undefined && (
+                                    <div className="check-item">
+                                        <span className={c.qualityScore >= 0.6 ? 'check-icon pass' : 'check-icon warn'}>{c.qualityScore >= 0.6 ? '✓' : '⚠'}</span>
+                                        <span>Quality score: {(c.qualityScore * 100).toFixed(0)}%</span>
+                                    </div>
+                                )}
+                                {c.isBlurry && c.blurryFields && c.blurryFields.length > 0 && (
+                                    <div className="check-item">
+                                        <span className="check-icon warn">⚠</span>
+                                        <span>Blurry fields: {c.blurryFields.join(', ')}</span>
+                                    </div>
+                                )}
+                            </div>
+                            {c.isBlurry && c.blurryFields && (
+                                <div className="blurry-notice">
+                                    <strong>⚠ Document appears blurry</strong>
+                                    The following fields couldn't be extracted clearly: <strong>{c.blurryFields.join(', ')}</strong>.
+                                    <br/>Please upload a clearer version for better accuracy.
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            );
+        }
+
+        function SuccessResult({ name, service, refId, status, processingTime }) {
+            return (
+                <div className="submission-result">
+                    <div className="submission-icon">✅</div>
+                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#ccc', marginBottom: '8px' }}>Application Submitted</div>
+                    <div className="submission-ref">{refId || 'Generating...'}</div>
+                    <div className="submission-detail"><strong>Name:</strong> {name}</div>
+                    <div className="submission-detail"><strong>Service:</strong> {service}</div>
+                    <div className="submission-detail"><strong>Status:</strong> {status}</div>
+                    <div className="submission-detail"><strong>Estimated processing time:</strong> {processingTime}</div>
+                    <div style={{ fontSize: '12px', color: '#888', marginTop: '12px' }}>
+                        We will notify you here as soon as there is an update.
+                    </div>
+                </div>
+            );
+        }
+
+        function WizardReview({ name, docs, mask, pretty, disabled, onConfirm, onReplace, onRestart, onEdit }) {
             const [shown, setShown] = useState({});
+            const [editingField, setEditingField] = useState(null);
+            const [editValue, setEditValue] = useState('');
+            const [editSaving, setEditSaving] = useState(false);
             const toggle = k => setShown(p => ({ ...p, [k]: !p[k] }));
+
+            const startEdit = (fieldKey, currentValue) => {
+                setEditingField(fieldKey);
+                setEditValue(currentValue);
+            };
+
+            const saveEdit = async () => {
+                setEditSaving(true);
+                try {
+                    const result = await onEdit(editingField, editValue);
+                    if (result) {
+                        setEditingField(null);
+                    }
+                } catch (e) {
+                    console.error('Edit failed:', e);
+                } finally {
+                    setEditSaving(false);
+                }
+            };
+
             return (
                 <WizardCardShell>
-                    <div style={{ fontSize: '13px' }}><span style={{ color: '#888' }}>Applicant: </span><strong>{name}</strong></div>
+                    <StepIndicator
+                        steps={['name', 'id_upload', 'passport_upload', 'review', 'submit']}
+                        currentStep="review"
+                    />
+
+                    <div style={{ fontSize: '13px', marginTop: '12px' }}>
+                        <span style={{ color: '#888' }}>Applicant: </span><strong>{name}</strong>
+                    </div>
+
                     {docs.map(d => (
-                        <div key={d.docType} style={{ marginTop: '12px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <strong style={{ fontSize: '13px' }}>{pretty(d.docType)}</strong>
+                        <div key={d.docType} style={{ marginTop: '16px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                <strong style={{ fontSize: '14px' }}>{pretty(d.docType)}</strong>
                                 <button className="btn btn-ghost" disabled={disabled} onClick={() => onReplace(d.docType)} style={{ padding: '2px 8px', fontSize: '12px' }}>Replace</button>
                             </div>
+
+                            {/* Show check results */}
+                            <CheckResults checks={[{
+                                malwareScan: d.malwareScan,
+                                pdfValid: d.pdfValid,
+                                qualityScore: d.qualityScore,
+                                isBlurry: d.isBlurry,
+                                blurryFields: d.blurryFields
+                            }]} />
+
+                            {/* Show extracted fields with inline edit */}
                             {Object.entries(d.extractedFields || {}).map(([k, v]) => {
                                 const key = d.docType + k;
                                 const m = mask(k, v);
                                 const sensitive = m !== String(v);
+                                const isEditing = editingField === key;
+
                                 return (
-                                    <div key={k} style={{ display: 'flex', gap: '8px', fontSize: '12px', padding: '3px 0' }}>
+                                    <div key={k} style={{ display: 'flex', gap: '8px', fontSize: '12px', padding: '6px 0', alignItems: 'center' }}>
                                         <span style={{ color: '#888', minWidth: '130px' }}>{k.replace(/_/g, ' ')}</span>
-                                        <span style={{ wordBreak: 'break-word' }}>{shown[key] ? String(v) : m}</span>
-                                        {sensitive && <button className="btn btn-ghost" onClick={() => toggle(key)} style={{ padding: '0 6px', fontSize: '11px' }}>{shown[key] ? 'Hide' : 'Show'}</button>}
+                                        {isEditing ? (
+                                            <React.Fragment>
+                                                <input
+                                                    className="field-edit-value"
+                                                    value={editValue}
+                                                    onChange={e => setEditValue(e.target.value)}
+                                                    autoFocus
+                                                    style={{ flex: 1 }}
+                                                />
+                                                <button className="field-edit-save" onClick={saveEdit} disabled={editSaving || !editValue.trim()}>
+                                                    {editSaving ? '...' : 'Save'}
+                                                </button>
+                                                <button className="btn btn-ghost" onClick={() => setEditingField(null)} style={{ padding: '0 6px', fontSize: '11px' }}>Cancel</button>
+                                            </React.Fragment>
+                                        ) : (
+                                            <React.Fragment>
+                                                <span style={{ wordBreak: 'break-word', flex: 1, cursor: 'pointer' }} onClick={() => startEdit(key, v)}>
+                                                    {shown[key] ? String(v) : m}
+                                                </span>
+                                                <button className="btn btn-ghost" onClick={() => toggle(key)} style={{ padding: '0 6px', fontSize: '11px' }}>
+                                                    {shown[key] ? 'Hide' : 'Show'}
+                                                </button>
+                                                <button className="btn btn-ghost" onClick={() => startEdit(key, v)} style={{ padding: '0 6px', fontSize: '11px' }} title="Edit this field">✏️</button>
+                                            </React.Fragment>
+                                        )}
                                     </div>
                                 );
                             })}
+
+                            {/* Fallback if no extracted fields */}
+                            {!d.extractedFields || Object.keys(d.extractedFields).length === 0 ? (
+                                <div style={{ fontSize: '12px', color: '#666', fontStyle: 'italic', padding: '8px 0' }}>
+                                    No data extracted from this document yet.
+                                </div>
+                            ) : null}
                         </div>
                     ))}
+
+                    {/* Edit instructions */}
+                    <div style={{ fontSize: '11px', color: '#666', marginTop: '12px', fontStyle: 'italic' }}>
+                        💡 Tip: Click ✏️ next to any field to edit it, or type "My DOB is wrong, it is actually DD/MM/YYYY" in the chat.
+                    </div>
+
                     <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
                         <button className="btn btn-primary" disabled={disabled} onClick={onConfirm}>Confirm and submit</button>
                         <button className="btn btn-secondary" disabled={disabled} onClick={onRestart}>Start over</button>
@@ -1295,7 +1788,6 @@
 
             const wizardSubmitReview = async () => {
                 if (wizardStep !== 'review') return;
-                addMessage('user', 'Confirm and submit');
                 setWizardStep('submitting');
                 setLoading(true);
                 try {
@@ -1311,13 +1803,16 @@
                         return;
                     }
                     const refId = data.data?.reference_id;
+                    const procTime = data.data?.processing_time || '2-3 business days';
                     setWizardStep('success');
-                    addMessage('assistant',
-                        `Done. Your ${wizardService.name} is submitted.\n\n` +
-                        `Status: Submitted\n` +
-                        `Reference: ${refId}\n` +
-                        `Processing time: ${data.data?.processing_time || '2-3 business days'}\n` +
-                        `I will notify you here as soon as there is an update.`, null, { type: 'wizard_review' });
+                    addMessage('assistant', 'Your application has been successfully submitted!', null, {
+                        type: 'wizard_success',
+                        name: wizardName,
+                        service: wizardService?.name || '',
+                        refId: refId,
+                        status: data.data?.status || 'Submitted',
+                        processingTime: procTime
+                    });
                     loadDocuments();
                 } catch (e) {
                     setWizardStep('review');
@@ -1338,6 +1833,45 @@
                 if (wizardService) beginService(wizardService);
             };
 
+            // Inline edit handler
+            const wizardEditField = async (fieldKey, newValue) => {
+                if (!newValue || newValue.trim().length < 2) {
+                    addMessage('assistant', 'Please enter a valid value for this field.');
+                    return null;
+                }
+                setLoading(true);
+                try {
+                    const token = getToken();
+                    const res = await fetch(`${API_BASE}/wizard/${wizardAppId}/edit?token=${encodeURIComponent(token)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ field_key: fieldKey, new_value: newValue.trim() })
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.success) {
+                        addMessage('assistant', `Could not update that field: ${data.detail || data.error || 'Unknown error'}. Please try again.`);
+                        return null;
+                    }
+                    addMessage('assistant', `✓ Updated: ${newValue.trim()}. Please review the full information below.`);
+                    // Re-fetch review data
+                    const reviewRes = await fetch(`${API_BASE}/wizard/${wizardAppId}/review?token=${encodeURIComponent(token)}`);
+                    const reviewData = await reviewRes.json().catch(() => ({}));
+                    if (reviewData.success && reviewData.data) {
+                        const docs = (reviewData.data.documents || []).map(d => ({
+                            ...d,
+                            extractedFields: d.extracted_fields || d.extractedFields || {}
+                        }));
+                        setWizardDocs(docs);
+                    }
+                    return true;
+                } catch (e) {
+                    addMessage('assistant', `Could not reach the server: ${e.message}. Please try again.`);
+                    return null;
+                } finally {
+                    setLoading(false);
+                }
+            };
+
             // Called from the message list: {renderWizardMessage(msg)}. Only the newest card of each kind is shown.
             const renderWizardMessage = (msg) => {
                 if (!msg.type || msg.dismissed) return null;
@@ -1355,7 +1889,11 @@
                 }
                 if (msg.type === 'wizard_review') {
                     return <WizardReview name={wizardName} docs={wizardDocs} mask={maskWizardValue} pretty={prettyDoc}
-                        disabled={wizardStep !== 'review'} onConfirm={wizardSubmitReview} onReplace={wizardReplaceDoc} onRestart={wizardRestart} />;
+                        disabled={wizardStep !== 'review'} onConfirm={wizardSubmitReview} onReplace={wizardReplaceDoc} onRestart={wizardRestart} onEdit={wizardEditField} />;
+                }
+                if (msg.type === 'wizard_success') {
+                    return <SuccessResult name={msg.name} service={msg.service} refId={msg.refId}
+                        status={msg.status} processingTime={msg.processingTime} />;
                 }
                 return null;
             };

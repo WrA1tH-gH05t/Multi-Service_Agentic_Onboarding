@@ -46,6 +46,22 @@ class DocumentClarityCheck:
 
 
 @dataclass
+class DocumentUpload:
+    """Stores upload and validation result for a single document."""
+    file_url: str = ""
+    file_name: str = ""
+    doc_type: str = ""  # "national_id", "passport", "other"
+    malware_scan: str = "pending"  # "clean", "infected", "pending"
+    pdf_valid: bool = False
+    is_blurry: bool = False
+    blurry_fields: List[str] = field(default_factory=list)  # fields that couldn't be extracted
+    quality_score: float = 0.0
+    extracted_fields: Dict[str, str] = field(default_factory=dict)
+    confidence: float = 0.0
+    uploaded_at: Optional[datetime] = None
+
+
+@dataclass
 class IDFieldExtraction:
     """Stores extracted fields from ID document."""
     full_name: str = ""
@@ -70,11 +86,10 @@ class WizardSession:
     # Step 1: Name
     applicant_name: str = ""
 
-    # Step 2: National ID
-    id_file_url: str = ""
-    id_file_name: str = ""
-    id_clarity_check: Optional[DocumentClarityCheck] = None
-    id_extraction: Optional[IDFieldExtraction] = None
+    # Step 2: Document uploads (can be multiple: national_id, passport, etc.)
+    documents: List[DocumentUpload] = field(default_factory=list)
+    id_clarity_check: Optional[DocumentClarityCheck] = None  # legacy, kept for compat
+    id_extraction: Optional[IDFieldExtraction] = None  # legacy, kept for compat
     id_validation_status: IDValidationStatus = IDValidationStatus.PENDING
 
     # Step 3: Review
@@ -181,25 +196,62 @@ class WizardStateManager:
         session.update_step(WizardStep.ID_UPLOAD)
         return session
 
-    def set_id_upload(
+    def add_document(
         self,
         session_id: str,
         file_url: str,
         file_name: str,
-    ) -> Optional[WizardSession]:
-        """Record ID document upload (Step 2)."""
+        doc_type: str = "national_id",
+    ) -> Optional[DocumentUpload]:
+        """Add a new document upload (Step 2)."""
         session = self._sessions.get(session_id)
         if not session:
             return None
-        session.id_file_url = file_url
-        session.id_file_name = file_name
-        session.id_clarity_check = DocumentClarityCheck(
-            doc_type="national_id",
-            status=ClarityStatus.PENDING,
+        doc = DocumentUpload(
+            file_url=file_url,
+            file_name=file_name,
+            doc_type=doc_type,
         )
-        session.id_validation_status = IDValidationStatus.PENDING
+        session.documents.append(doc)
         session.updated_at = datetime.now(timezone.utc)
-        return session
+        return doc
+
+    def get_document_by_type(self, session_id: str, doc_type: str) -> Optional[DocumentUpload]:
+        """Get the first document of a given type."""
+        session = self._sessions.get(session_id)
+        if not session:
+            return None
+        for doc in session.documents:
+            if doc.doc_type == doc_type:
+                return doc
+        return None
+
+    def update_document_checks(
+        self,
+        session_id: str,
+        doc_type: str,
+        malware_scan: str = "clean",
+        pdf_valid: bool = False,
+        is_blurry: bool = False,
+        blurry_fields: Optional[List[str]] = None,
+        quality_score: float = 0.0,
+        extracted_fields: Optional[Dict[str, str]] = None,
+        confidence: float = 0.0,
+    ) -> Optional[DocumentUpload]:
+        """Update validation and extraction results for a document."""
+        doc = self.get_document_by_type(session_id, doc_type)
+        if not doc:
+            return None
+        doc.malware_scan = malware_scan
+        doc.pdf_valid = pdf_valid
+        doc.is_blurry = is_blurry
+        doc.blurry_fields = blurry_fields or []
+        doc.quality_score = quality_score
+        doc.extracted_fields = extracted_fields or {}
+        doc.confidence = confidence
+        doc.uploaded_at = datetime.now(timezone.utc)
+        self.updated_at = datetime.now(timezone.utc)
+        return doc
 
     def update_clarity_check(
         self,
@@ -245,6 +297,29 @@ class WizardStateManager:
         )
         # Auto-advance to review
         session.update_step(WizardStep.REVIEW)
+        session.updated_at = datetime.now(timezone.utc)
+        return session
+
+    def apply_field_edit(self, session_id: str, field_name: str, new_value: str) -> Optional[WizardSession]:
+        """Apply an inline edit to a field during review (Step 3)."""
+        session = self._sessions.get(session_id)
+        if not session:
+            return None
+
+        # Update the field in the extracted data
+        if session.id_extraction:
+            if field_name in ("full_name", "national_id_number", "date_of_birth",
+                            "gender", "nationality", "expiry_date"):
+                setattr(session.id_extraction, field_name, new_value)
+                session.id_extraction.raw_fields[field_name] = new_value
+            else:
+                session.id_extraction.raw_fields[field_name] = new_value
+
+        # Also update extracted_fields for all documents
+        for doc in session.documents:
+            if field_name in doc.extracted_fields:
+                doc.extracted_fields[field_name] = new_value
+
         session.updated_at = datetime.now(timezone.utc)
         return session
 

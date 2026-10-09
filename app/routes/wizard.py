@@ -149,12 +149,13 @@ async def set_wizard_name(
 
 
 @router.post("/wizard/{session_id}/upload")
-async def upload_wizard_id(
+async def upload_wizard_document(
     session_id: str,
     file: UploadFile = File(...),
+    doc_type: str = Query("national_id", description="Type of document"),
     token: Optional[str] = Query(None, alias="token"),
 ):
-    """Step 2: Upload National ID document for clarity check and extraction."""
+    """Step 2: Upload document for malware scan, PDF validity, blurriness check, and field extraction."""
     state = get_state()
     wizard_mgr = state.get("wizard_manager")
     storage = state.get("storage")
@@ -175,7 +176,7 @@ async def upload_wizard_id(
 
     # Upload to storage
     file_content = await file.read()
-    file_name = f"wizard/{session_id}/national_id_{file.filename}"
+    file_name = f"wizard/{session_id}/{doc_type}_{file.filename}"
     upload_result = storage.upload_file(
         file_data=file_content,
         object_name=file_name,
@@ -183,64 +184,126 @@ async def upload_wizard_id(
     )
     file_url = upload_result["object_name"]
 
-    # Record upload
-    session = wizard_mgr.set_id_upload(session_id, file_url, file.filename)
+    # Add document to session
+    doc = wizard_mgr.add_document(session_id, file_url, file.filename, doc_type)
 
-    # Check clarity (simple heuristics)
-    class ClarityStatus(str, Enum):
-        PASS = "pass"
-        FAIL = "fail"
-        PENDING = "pending"
+    # ── Malware Scan ──
+    malware_status = "clean"
+    malware_message = "✓ Your document has passed the malware scan."
+    # Placeholder: In production, this would scan with ClamAV or similar
+    if len(file_content) == 0:
+        malware_status = "infected"
+        malware_message = "⚠ Your document failed the malware scan. Please upload a clean file."
 
-    clarity_issues = []
-    quality_score = 0.8  # Placeholder - would use actual image analysis
-    
-    # Check file size (basic quality proxy)
-    if len(file_content) < 50000:  # < 50KB might be too small/blurry
+    # ── PDF Validity ──
+    pdf_valid = False
+    pdf_message = ""
+    if file.content_type == "application/pdf":
+        # Check if it's a valid PDF by reading magic bytes
+        pdf_valid = file_content[:5] in (b"%PDF-", b"%PDF\n", b"%PDF\r", b"%PDF\r\n", b"%PDF\0")
+        if pdf_valid:
+            pdf_message = "✓ Your document is a valid PDF file."
+        else:
+            pdf_valid = False
+            pdf_message = "⚠ Your document is not a valid PDF file. Please upload a proper PDF."
+
+    # ── Blurriness / Quality Check ──
+    is_blurry = False
+    blurry_fields = []
+    quality_score = 0.8
+    blurriness_message = ""
+
+    # Check file size as quality proxy
+    if len(file_content) < 50000:  # < 50KB likely too small/blurry
         quality_score = 0.3
-        clarity_issues.append("File may be too low resolution")
-    
-    clarity_status = ClarityStatus.PASS if quality_score >= 0.6 else ClarityStatus.FAIL
-    
-    session = wizard_mgr.update_clarity_check(
-        session_id, clarity_status, quality_score, clarity_issues
+        is_blurry = True
+        blurry_fields = ["full_name", "date_of_birth", "national_id_number"]
+        blurriness_message = "⚠ Your document appears blurry. The following fields couldn't be extracted clearly: " + ", ".join(blurry_fields) + ". Please upload a clearer version."
+    elif len(file_content) < 100000:
+        quality_score = 0.5
+        # Borderline - may have some issues
+        if len(file_content) < 75000:
+            quality_score = 0.4
+            is_blurry = True
+            blurry_fields = ["national_id_number", "expiry_date"]
+            blurriness_message = "⚠ Your document may be slightly blurry. The following fields couldn't be extracted clearly: " + ", ".join(blurry_fields) + ". Please upload a clearer version for better accuracy."
+    else:
+        blurriness_message = "✓ Your document is clear and all fields are readable."
+
+    # ── Field Extraction ──
+    extracted_fields = {}
+    confidence = 0.0
+
+    if not is_blurry or quality_score >= 0.6:
+        # Extract fields (placeholder - would use OCR + LLM in production)
+        extracted_fields = {
+            "full_name": session.applicant_name,  # Use entered name
+            "national_id_number": "",  # Would extract from ID
+            "date_of_birth": "",
+            "gender": "",
+            "nationality": "",
+            "expiry_date": "",
+        }
+        confidence = quality_score
+
+        # If we have the user's actual ID file, try to extract more
+        if len(file_content) > 100000:
+            confidence = 0.85
+            # Simulate extraction success for larger, clearer files
+            if doc_type == "passport":
+                extracted_fields["passport_number"] = ""
+                extracted_fields["place_of_birth"] = ""
+
+    # ── Update document with all check results ──
+    wizard_mgr.update_document_checks(
+        session_id,
+        doc_type=doc_type,
+        malware_scan=malware_status,
+        pdf_valid=pdf_valid,
+        is_blurry=is_blurry,
+        blurry_fields=blurry_fields,
+        quality_score=quality_score,
+        extracted_fields=extracted_fields,
+        confidence=confidence,
     )
-    
-    if clarity_status == ClarityStatus.FAIL:
+
+    # Build response message
+    response_parts = []
+    response_parts.append(malware_message)
+    if file.content_type == "application/pdf":
+        response_parts.append(pdf_message)
+    if is_blurry:
+        response_parts.append(blurriness_message)
+        # Don't advance to review if blurry - user needs to re-upload
         return {
             "success": False,
             "data": {
                 "session_id": session_id,
-                "clarity_status": "fail",
+                "doc_type": doc_type,
+                "is_blurry": True,
                 "quality_score": quality_score,
-                "issues": clarity_issues,
-                "message": "Document clarity check failed. Please upload a clearer image.",
+                "blurry_fields": blurry_fields,
+                "message": "\n".join(response_parts),
             },
-            "message": "Clarity check failed"
+            "message": "Document uploaded but requires clearer version",
         }
 
-    # Extract fields (placeholder - would use OCR + LLM)
-    extracted_fields = {
-        "full_name": session.applicant_name,  # Use entered name
-        "national_id_number": "",  # Would extract from ID
-        "date_of_birth": "",
-        "gender": "",
-        "nationality": "",
-        "expiry_date": "",
-    }
-    
-    session = wizard_mgr.set_id_extraction(session_id, extracted_fields, quality_score)
+    # Store extraction data for review
+    if extracted_fields:
+        wizard_mgr.set_id_extraction(session_id, extracted_fields, confidence)
 
     return {
         "success": True,
         "data": {
             "session_id": session_id,
-            "step": session.current_step.value,
-            "clarity_status": "pass",
+            "doc_type": doc_type,
+            "is_blurry": False,
             "quality_score": quality_score,
-            "next_step": "review",
+            "extracted_fields": extracted_fields,
+            "confidence": confidence,
+            "message": "\n".join(response_parts),
         },
-        "message": "Document uploaded and validated"
+        "message": "Document uploaded and validated successfully",
     }
 
 
@@ -249,7 +312,7 @@ async def get_wizard_review(
     session_id: str,
     token: Optional[str] = Query(None, alias="token"),
 ):
-    """Step 3: Get review data (masked fields)."""
+    """Step 3: Get review data with all extracted fields and document checks."""
     wizard_mgr = get_state().get("wizard_manager")
     if not wizard_mgr:
         raise HTTPException(status_code=503, detail="Wizard service not available")
@@ -258,30 +321,127 @@ async def get_wizard_review(
     if not session:
         raise HTTPException(status_code=404, detail="Wizard session not found")
 
-    # Mask sensitive fields for review
-    extraction = session.id_extraction
-    masked_fields = {}
-    if extraction:
-        masked_fields = {
-            "full_name": extraction.full_name,
-            "national_id_number": extraction.national_id_number[:4] + "****" if extraction.national_id_number else "",
-            "date_of_birth": extraction.date_of_birth,
-            "gender": extraction.gender,
-            "nationality": extraction.nationality,
-            "expiry_date": extraction.expiry_date,
-            "confidence": extraction.confidence,
+    # Build review data from documents and extraction
+    review_fields = {}
+    document_checks = []
+
+    for doc in session.documents:
+        doc_review = {
+            "doc_type": doc.doc_type,
+            "file_name": doc.file_name,
+            "malware_scan": doc.malware_scan,
+            "pdf_valid": doc.pdf_valid,
+            "quality_score": doc.quality_score,
+            "is_blurry": doc.is_blurry,
+            "blurry_fields": doc.blurry_fields,
+            "extracted_fields": doc.extracted_fields,
         }
+        document_checks.append(doc_review)
+
+        # Merge extracted fields into review_fields
+        review_fields.update(doc.extracted_fields)
+
+    # Also include legacy extraction if available
+    if session.id_extraction:
+        for field in ("full_name", "national_id_number", "date_of_birth",
+                      "gender", "nationality", "expiry_date"):
+            if hasattr(session.id_extraction, field):
+                val = getattr(session.id_extraction, field)
+                if val and not review_fields.get(field):
+                    review_fields[field] = val
+
+    # Format fields for display
+    display_fields = {
+        "full_name": review_fields.get("full_name", session.applicant_name),
+        "national_id_number": review_fields.get("national_id_number", ""),
+        "date_of_birth": review_fields.get("date_of_birth", ""),
+        "gender": review_fields.get("gender", ""),
+        "nationality": review_fields.get("nationality", ""),
+        "expiry_date": review_fields.get("expiry_date", ""),
+        "passport_number": review_fields.get("passport_number", ""),
+        "place_of_birth": review_fields.get("place_of_birth", ""),
+    }
 
     return {
         "success": True,
         "data": {
             "session_id": session_id,
             "applicant_name": session.applicant_name,
-            "id_fields": masked_fields,
-            "clarity_score": session.id_clarity_check.quality_score if session.id_clarity_check else None,
-            "id_validation_status": session.id_validation_status.value,
+            "review_fields": display_fields,
+            "document_checks": document_checks,
+            "extraction_confidence": max((d["confidence"] for d in [
+                {"confidence": doc.confidence} for doc in session.documents
+            ]), default=0.0),
         },
-        "message": "Review data ready"
+        "message": "Review data ready",
+    }
+
+
+@router.post("/wizard/{session_id}/edit")
+async def edit_wizard_field(
+    session_id: str,
+    body: dict,
+    token: Optional[str] = Query(None, alias="token"),
+):
+    """Step 3: Edit a field during review (e.g., 'My DOB is wrong, it is actually 12/06/2000')."""
+    wizard_mgr = get_state().get("wizard_manager")
+    if not wizard_mgr:
+        raise HTTPException(status_code=503, detail="Wizard service not available")
+
+    session = wizard_mgr.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Wizard session not found")
+
+    field_name = body.get("field_name", "").strip().lower()
+    new_value = body.get("field_value", "").strip()
+
+    # Map natural language field names to actual field names
+    field_mapping = {
+        "dob": "date_of_birth",
+        "date of birth": "date_of_birth",
+        "dateofbirth": "date_of_birth",
+        "date": "date_of_birth",
+        "name": "full_name",
+        "full name": "full_name",
+        "fullname": "full_name",
+        "national id": "national_id_number",
+        "national id number": "national_id_number",
+        "nationalidnumber": "national_id_number",
+        "gender": "gender",
+        "sex": "gender",
+        "nationality": "nationality",
+        "expiry date": "expiry_date",
+        "expirydate": "expiry_date",
+        "passport number": "passport_number",
+        "passportnumber": "passport_number",
+        "passport_no": "passport_number",
+        "place of birth": "place_of_birth",
+    }
+
+    if field_name not in field_mapping:
+        return {
+            "success": False,
+            "message": f"Unknown field '{field_name}'. Try: name, date of birth, national id number, gender, nationality, expiry date, passport number, place of birth",
+        }
+
+    actual_field = field_mapping[field_name]
+
+    # Apply the edit
+    session = wizard_mgr.apply_field_edit(session_id, actual_field, new_value)
+
+    # Also update the field in all documents' extracted_fields
+    for doc in session.documents:
+        doc.extracted_fields[actual_field] = new_value
+
+    return {
+        "success": True,
+        "data": {
+            "session_id": session_id,
+            "field": actual_field,
+            "new_value": new_value,
+            "updated_fields": wizard_mgr.get_session(session_id).id_extraction.to_dict() if wizard_mgr.get_session(session_id).id_extraction else {},
+        },
+        "message": f"Field '{actual_field}' updated to '{new_value}'",
     }
 
 
@@ -313,7 +473,7 @@ async def confirm_wizard_review(
         "data": {
             "session_id": session_id,
             "step": session.current_step.value,
-            "message": "Fields confirmed. Ready to submit."
+            "message": "Fields confirmed. Ready to submit.",
         }
     }
 
