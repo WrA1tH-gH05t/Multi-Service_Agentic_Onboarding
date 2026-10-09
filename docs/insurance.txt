@@ -1,0 +1,13 @@
+Insurance Registration (Coming Soon)
+
+Status: Not yet available
+
+Planned Requirements:
+- National ID card
+- Medical report from certified healthcare provider
+- Proof of address
+
+Expected Processing Time:
+3-5 business days
+
+This service is planned for future implementation and is not currently available for registration.

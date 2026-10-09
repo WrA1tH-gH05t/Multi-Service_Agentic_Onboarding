@@ -1,0 +1,13 @@
+Utility Connection (Coming Soon)
+
+Status: Not yet available
+
+Planned Requirements:
+- National ID card
+- Property deed or rental agreement
+- Proof of address
+
+Expected Processing Time:
+2-3 business days
+
+This service is planned for future implementation and is not currently available for registration.

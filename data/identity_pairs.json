@@ -1,0 +1,1382 @@
+{
+  "metadata": {
+    "description": "Matched and mismatched identity pairs for premium service validation testing",
+    "total_matched": 40,
+    "total_mismatched": 12,
+    "total": 52,
+    "purpose": "Test validation agent: matched pairs should PASS, mismatched pairs should FAIL",
+    "construction": "Names and DOBs from MIDV golden dataset; document numbers fabricated; one copy of each identity edited to create mismatches"
+  },
+  "matched_pairs": [
+    {
+      "id": "matched_01",
+      "identity": {
+        "name": "AHMED AL-RASHID",
+        "dob": "1985-03-15"
+      },
+      "id_fields": {
+        "name": "AHMED AL-RASHID",
+        "date_of_birth": "1985-03-15",
+        "document_number": "ID-8001",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "AHMED AL-RASHID",
+        "date_of_birth": "1985-03-15",
+        "document_number": "P-9001",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": true
+    },
+    {
+      "id": "matched_02",
+      "identity": {
+        "name": "SOPAN CHAKRABORTY",
+        "dob": "1990-07-22"
+      },
+      "id_fields": {
+        "name": "SOPAN CHAKRABORTY",
+        "date_of_birth": "1990-07-22",
+        "document_number": "ID-8002",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "SOPAN CHAKRABORTY",
+        "date_of_birth": "1990-07-22",
+        "document_number": "P-9002",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "handheld",
+      "capture_condition_passport": "cluttered",
+      "is_match": true
+    },
+    {
+      "id": "matched_03",
+      "identity": {
+        "name": "MARTIN HANSEN",
+        "dob": "1988-11-03"
+      },
+      "id_fields": {
+        "name": "MARTIN HANSEN",
+        "date_of_birth": "1988-11-03",
+        "document_number": "ID-8003",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "MARTIN HANSEN",
+        "date_of_birth": "1988-11-03",
+        "document_number": "P-9003",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "cluttered",
+      "capture_condition_passport": "partial",
+      "is_match": true
+    },
+    {
+      "id": "matched_04",
+      "identity": {
+        "name": "KUMAR VENKATESH",
+        "dob": "1992-01-18"
+      },
+      "id_fields": {
+        "name": "KUMAR VENKATESH",
+        "date_of_birth": "1992-01-18",
+        "document_number": "ID-8004",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "KUMAR VENKATESH",
+        "date_of_birth": "1992-01-18",
+        "document_number": "P-9004",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "partial",
+      "capture_condition_passport": "table",
+      "is_match": true
+    },
+    {
+      "id": "matched_05",
+      "identity": {
+        "name": "AMARA Diallo",
+        "dob": "1987-05-29"
+      },
+      "id_fields": {
+        "name": "AMARA Diallo",
+        "date_of_birth": "1987-05-29",
+        "document_number": "ID-8005",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "AMARA Diallo",
+        "date_of_birth": "1987-05-29",
+        "document_number": "P-9005",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": true
+    },
+    {
+      "id": "matched_06",
+      "identity": {
+        "name": "JIA WEI ZHANG",
+        "dob": "1991-09-12"
+      },
+      "id_fields": {
+        "name": "JIA WEI ZHANG",
+        "date_of_birth": "1991-09-12",
+        "document_number": "ID-8006",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "JIA WEI ZHANG",
+        "date_of_birth": "1991-09-12",
+        "document_number": "P-9006",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "handheld",
+      "capture_condition_passport": "cluttered",
+      "is_match": true
+    },
+    {
+      "id": "matched_07",
+      "identity": {
+        "name": "LARS PETERSSON",
+        "dob": "1986-12-07"
+      },
+      "id_fields": {
+        "name": "LARS PETERSSON",
+        "date_of_birth": "1986-12-07",
+        "document_number": "ID-8007",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "LARS PETERSSON",
+        "date_of_birth": "1986-12-07",
+        "document_number": "P-9007",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "cluttered",
+      "capture_condition_passport": "partial",
+      "is_match": true
+    },
+    {
+      "id": "matched_08",
+      "identity": {
+        "name": "FATIMA AL-HUSSEIN",
+        "dob": "1993-04-14"
+      },
+      "id_fields": {
+        "name": "FATIMA AL-HUSSEIN",
+        "date_of_birth": "1993-04-14",
+        "document_number": "ID-8008",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "FATIMA AL-HUSSEIN",
+        "date_of_birth": "1993-04-14",
+        "document_number": "P-9008",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "partial",
+      "capture_condition_passport": "table",
+      "is_match": true
+    },
+    {
+      "id": "matched_09",
+      "identity": {
+        "name": "CARLOS MENDEZ",
+        "dob": "1989-08-25"
+      },
+      "id_fields": {
+        "name": "CARLOS MENDEZ",
+        "date_of_birth": "1989-08-25",
+        "document_number": "ID-8009",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "CARLOS MENDEZ",
+        "date_of_birth": "1989-08-25",
+        "document_number": "P-9009",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": true
+    },
+    {
+      "id": "matched_10",
+      "identity": {
+        "name": "NGUYEN THI LAN",
+        "dob": "1994-02-03"
+      },
+      "id_fields": {
+        "name": "NGUYEN THI LAN",
+        "date_of_birth": "1994-02-03",
+        "document_number": "ID-8010",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "NGUYEN THI LAN",
+        "date_of_birth": "1994-02-03",
+        "document_number": "P-9010",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "handheld",
+      "capture_condition_passport": "cluttered",
+      "is_match": true
+    },
+    {
+      "id": "matched_11",
+      "identity": {
+        "name": "THOMAS MUELLER",
+        "dob": "1984-06-19"
+      },
+      "id_fields": {
+        "name": "THOMAS MUELLER",
+        "date_of_birth": "1984-06-19",
+        "document_number": "ID-8011",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "THOMAS MUELLER",
+        "date_of_birth": "1984-06-19",
+        "document_number": "P-9011",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "cluttered",
+      "capture_condition_passport": "partial",
+      "is_match": true
+    },
+    {
+      "id": "matched_12",
+      "identity": {
+        "name": "RACHEL KAHN",
+        "dob": "1991-10-31"
+      },
+      "id_fields": {
+        "name": "RACHEL KAHN",
+        "date_of_birth": "1991-10-31",
+        "document_number": "ID-8012",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "RACHEL KAHN",
+        "date_of_birth": "1991-10-31",
+        "document_number": "P-9012",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "partial",
+      "capture_condition_passport": "table",
+      "is_match": true
+    },
+    {
+      "id": "matched_13",
+      "identity": {
+        "name": "PETROS PAPADOPOULOS",
+        "dob": "1987-03-08"
+      },
+      "id_fields": {
+        "name": "PETROS PAPADOPOULOS",
+        "date_of_birth": "1987-03-08",
+        "document_number": "ID-8013",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "PETROS PAPADOPOULOS",
+        "date_of_birth": "1987-03-08",
+        "document_number": "P-9013",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": true
+    },
+    {
+      "id": "matched_14",
+      "identity": {
+        "name": "OLUWASEUN ADEBAYO",
+        "dob": "1990-12-21"
+      },
+      "id_fields": {
+        "name": "OLUWASEUN ADEBAYO",
+        "date_of_birth": "1990-12-21",
+        "document_number": "ID-8014",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "OLUWASEUN ADEBAYO",
+        "date_of_birth": "1990-12-21",
+        "document_number": "P-9014",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "handheld",
+      "capture_condition_passport": "cluttered",
+      "is_match": true
+    },
+    {
+      "id": "matched_15",
+      "identity": {
+        "name": "HIROKI TANAKA",
+        "dob": "1988-07-16"
+      },
+      "id_fields": {
+        "name": "HIROKI TANAKA",
+        "date_of_birth": "1988-07-16",
+        "document_number": "ID-8015",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "HIROKI TANAKA",
+        "date_of_birth": "1988-07-16",
+        "document_number": "P-9015",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.92,
+      "passport_confidence": 0.89,
+      "capture_condition_id": "cluttered",
+      "capture_condition_passport": "partial",
+      "is_match": true
+    },
+    {
+      "id": "matched_16",
+      "identity": {
+        "name": "ELIF YILMAZ",
+        "dob": "1991-05-10"
+      },
+      "id_fields": {
+        "name": "ELIF YILMAZ",
+        "date_of_birth": "1991-05-10",
+        "document_number": "ID-8116",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "ELIF YILMAZ",
+        "date_of_birth": "1991-05-10",
+        "document_number": "P-9116",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "cluttered",
+      "is_match": true
+    },
+    {
+      "id": "matched_17",
+      "identity": {
+        "name": "RAJESH PATEL",
+        "dob": "1987-08-23"
+      },
+      "id_fields": {
+        "name": "RAJESH PATEL",
+        "date_of_birth": "1987-08-23",
+        "document_number": "ID-8117",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "RAJESH PATEL",
+        "date_of_birth": "1987-08-23",
+        "document_number": "P-9117",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "handheld",
+      "capture_condition_passport": "partial",
+      "is_match": true
+    },
+    {
+      "id": "matched_18",
+      "identity": {
+        "name": "MARIA GONZALEZ",
+        "dob": "1993-02-14"
+      },
+      "id_fields": {
+        "name": "MARIA GONZALEZ",
+        "date_of_birth": "1993-02-14",
+        "document_number": "ID-8118",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "MARIA GONZALEZ",
+        "date_of_birth": "1993-02-14",
+        "document_number": "P-9118",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "cluttered",
+      "capture_condition_passport": "table",
+      "is_match": true
+    },
+    {
+      "id": "matched_19",
+      "identity": {
+        "name": "ANDERS NILSSON",
+        "dob": "1985-11-30"
+      },
+      "id_fields": {
+        "name": "ANDERS NILSSON",
+        "date_of_birth": "1985-11-30",
+        "document_number": "ID-8119",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "ANDERS NILSSON",
+        "date_of_birth": "1985-11-30",
+        "document_number": "P-9119",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "partial",
+      "capture_condition_passport": "handheld",
+      "is_match": true
+    },
+    {
+      "id": "matched_20",
+      "identity": {
+        "name": "SOFIA ROMERO",
+        "dob": "1990-06-05"
+      },
+      "id_fields": {
+        "name": "SOFIA ROMERO",
+        "date_of_birth": "1990-06-05",
+        "document_number": "ID-8120",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "SOFIA ROMERO",
+        "date_of_birth": "1990-06-05",
+        "document_number": "P-9120",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "cluttered",
+      "is_match": true
+    },
+    {
+      "id": "matched_21",
+      "identity": {
+        "name": "YUSUF OZTURK",
+        "dob": "1988-01-25"
+      },
+      "id_fields": {
+        "name": "YUSUF OZTURK",
+        "date_of_birth": "1988-01-25",
+        "document_number": "ID-8121",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "YUSUF OZTURK",
+        "date_of_birth": "1988-01-25",
+        "document_number": "P-9121",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "handheld",
+      "capture_condition_passport": "partial",
+      "is_match": true
+    },
+    {
+      "id": "matched_22",
+      "identity": {
+        "name": "CLAIRE DUPONT",
+        "dob": "1992-09-18"
+      },
+      "id_fields": {
+        "name": "CLAIRE DUPONT",
+        "date_of_birth": "1992-09-18",
+        "document_number": "ID-8122",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "CLAIRE DUPONT",
+        "date_of_birth": "1992-09-18",
+        "document_number": "P-9122",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "cluttered",
+      "capture_condition_passport": "table",
+      "is_match": true
+    },
+    {
+      "id": "matched_23",
+      "identity": {
+        "name": "DAVID CHEN",
+        "dob": "1986-04-07"
+      },
+      "id_fields": {
+        "name": "DAVID CHEN",
+        "date_of_birth": "1986-04-07",
+        "document_number": "ID-8123",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "DAVID CHEN",
+        "date_of_birth": "1986-04-07",
+        "document_number": "P-9123",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "partial",
+      "capture_condition_passport": "handheld",
+      "is_match": true
+    },
+    {
+      "id": "matched_24",
+      "identity": {
+        "name": "AMINA HASSAN",
+        "dob": "1994-07-12"
+      },
+      "id_fields": {
+        "name": "AMINA HASSAN",
+        "date_of_birth": "1994-07-12",
+        "document_number": "ID-8124",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "AMINA HASSAN",
+        "date_of_birth": "1994-07-12",
+        "document_number": "P-9124",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "cluttered",
+      "is_match": true
+    },
+    {
+      "id": "matched_25",
+      "identity": {
+        "name": "LUKAS SCHMIDT",
+        "dob": "1989-12-01"
+      },
+      "id_fields": {
+        "name": "LUKAS SCHMIDT",
+        "date_of_birth": "1989-12-01",
+        "document_number": "ID-8125",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "LUKAS SCHMIDT",
+        "date_of_birth": "1989-12-01",
+        "document_number": "P-9125",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "handheld",
+      "capture_condition_passport": "partial",
+      "is_match": true
+    },
+    {
+      "id": "matched_26",
+      "identity": {
+        "name": "PRIYA SHARMA",
+        "dob": "1991-03-22"
+      },
+      "id_fields": {
+        "name": "PRIYA SHARMA",
+        "date_of_birth": "1991-03-22",
+        "document_number": "ID-8126",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "PRIYA SHARMA",
+        "date_of_birth": "1991-03-22",
+        "document_number": "P-9126",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "cluttered",
+      "capture_condition_passport": "table",
+      "is_match": true
+    },
+    {
+      "id": "matched_27",
+      "identity": {
+        "name": "OSCAR LINDQVIST",
+        "dob": "1987-10-16"
+      },
+      "id_fields": {
+        "name": "OSCAR LINDQVIST",
+        "date_of_birth": "1987-10-16",
+        "document_number": "ID-8127",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "OSCAR LINDQVIST",
+        "date_of_birth": "1987-10-16",
+        "document_number": "P-9127",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "partial",
+      "capture_condition_passport": "handheld",
+      "is_match": true
+    },
+    {
+      "id": "matched_28",
+      "identity": {
+        "name": "ZARA KHAN",
+        "dob": "1993-08-09"
+      },
+      "id_fields": {
+        "name": "ZARA KHAN",
+        "date_of_birth": "1993-08-09",
+        "document_number": "ID-8128",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "ZARA KHAN",
+        "date_of_birth": "1993-08-09",
+        "document_number": "P-9128",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "cluttered",
+      "is_match": true
+    },
+    {
+      "id": "matched_29",
+      "identity": {
+        "name": "EMIL JORGENSEN",
+        "dob": "1985-05-28"
+      },
+      "id_fields": {
+        "name": "EMIL JORGENSEN",
+        "date_of_birth": "1985-05-28",
+        "document_number": "ID-8129",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "EMIL JORGENSEN",
+        "date_of_birth": "1985-05-28",
+        "document_number": "P-9129",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "handheld",
+      "capture_condition_passport": "partial",
+      "is_match": true
+    },
+    {
+      "id": "matched_30",
+      "identity": {
+        "name": "LEILA MOUSSA",
+        "dob": "1990-11-14"
+      },
+      "id_fields": {
+        "name": "LEILA MOUSSA",
+        "date_of_birth": "1990-11-14",
+        "document_number": "ID-8130",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "LEILA MOUSSA",
+        "date_of_birth": "1990-11-14",
+        "document_number": "P-9130",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "cluttered",
+      "capture_condition_passport": "table",
+      "is_match": true
+    },
+    {
+      "id": "matched_31",
+      "identity": {
+        "name": "ALEXANDER KOSTIC",
+        "dob": "1988-02-19"
+      },
+      "id_fields": {
+        "name": "ALEXANDER KOSTIC",
+        "date_of_birth": "1988-02-19",
+        "document_number": "ID-8131",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "ALEXANDER KOSTIC",
+        "date_of_birth": "1988-02-19",
+        "document_number": "P-9131",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "partial",
+      "capture_condition_passport": "handheld",
+      "is_match": true
+    },
+    {
+      "id": "matched_32",
+      "identity": {
+        "name": "NINA MOREAU",
+        "dob": "1992-06-27"
+      },
+      "id_fields": {
+        "name": "NINA MOREAU",
+        "date_of_birth": "1992-06-27",
+        "document_number": "ID-8132",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "NINA MOREAU",
+        "date_of_birth": "1992-06-27",
+        "document_number": "P-9132",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "cluttered",
+      "is_match": true
+    },
+    {
+      "id": "matched_33",
+      "identity": {
+        "name": "OMAR FARSAN",
+        "dob": "1986-09-03"
+      },
+      "id_fields": {
+        "name": "OMAR FARSAN",
+        "date_of_birth": "1986-09-03",
+        "document_number": "ID-8133",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "OMAR FARSAN",
+        "date_of_birth": "1986-09-03",
+        "document_number": "P-9133",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "handheld",
+      "capture_condition_passport": "partial",
+      "is_match": true
+    },
+    {
+      "id": "matched_34",
+      "identity": {
+        "name": "SARAH MITCHELL",
+        "dob": "1994-01-31"
+      },
+      "id_fields": {
+        "name": "SARAH MITCHELL",
+        "date_of_birth": "1994-01-31",
+        "document_number": "ID-8134",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "SARAH MITCHELL",
+        "date_of_birth": "1994-01-31",
+        "document_number": "P-9134",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "cluttered",
+      "capture_condition_passport": "table",
+      "is_match": true
+    },
+    {
+      "id": "matched_35",
+      "identity": {
+        "name": "HAKAN DEMIR",
+        "dob": "1987-04-15"
+      },
+      "id_fields": {
+        "name": "HAKAN DEMIR",
+        "date_of_birth": "1987-04-15",
+        "document_number": "ID-8135",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "HAKAN DEMIR",
+        "date_of_birth": "1987-04-15",
+        "document_number": "P-9135",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "partial",
+      "capture_condition_passport": "handheld",
+      "is_match": true
+    },
+    {
+      "id": "matched_36",
+      "identity": {
+        "name": "EVA SVENSSON",
+        "dob": "1991-07-08"
+      },
+      "id_fields": {
+        "name": "EVA SVENSSON",
+        "date_of_birth": "1991-07-08",
+        "document_number": "ID-8136",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "EVA SVENSSON",
+        "date_of_birth": "1991-07-08",
+        "document_number": "P-9136",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "cluttered",
+      "is_match": true
+    },
+    {
+      "id": "matched_37",
+      "identity": {
+        "name": "KARIM BENALI",
+        "dob": "1989-10-22"
+      },
+      "id_fields": {
+        "name": "KARIM BENALI",
+        "date_of_birth": "1989-10-22",
+        "document_number": "ID-8137",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "KARIM BENALI",
+        "date_of_birth": "1989-10-22",
+        "document_number": "P-9137",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "handheld",
+      "capture_condition_passport": "partial",
+      "is_match": true
+    },
+    {
+      "id": "matched_38",
+      "identity": {
+        "name": "LUCIA FERREIRA",
+        "dob": "1993-03-17"
+      },
+      "id_fields": {
+        "name": "LUCIA FERREIRA",
+        "date_of_birth": "1993-03-17",
+        "document_number": "ID-8138",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "LUCIA FERREIRA",
+        "date_of_birth": "1993-03-17",
+        "document_number": "P-9138",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "cluttered",
+      "capture_condition_passport": "table",
+      "is_match": true
+    },
+    {
+      "id": "matched_39",
+      "identity": {
+        "name": "MAX WEISS",
+        "dob": "1985-12-11"
+      },
+      "id_fields": {
+        "name": "MAX WEISS",
+        "date_of_birth": "1985-12-11",
+        "document_number": "ID-8139",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "MAX WEISS",
+        "date_of_birth": "1985-12-11",
+        "document_number": "P-9139",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "partial",
+      "capture_condition_passport": "handheld",
+      "is_match": true
+    },
+    {
+      "id": "matched_40",
+      "identity": {
+        "name": "NOOR ALOTAIBI",
+        "dob": "1990-08-29"
+      },
+      "id_fields": {
+        "name": "NOOR ALOTAIBI",
+        "date_of_birth": "1990-08-29",
+        "document_number": "ID-8140",
+        "expiry_date": "2028-12-31",
+        "issuing_country": "AE"
+      },
+      "passport_fields": {
+        "name": "NOOR ALOTAIBI",
+        "date_of_birth": "1990-08-29",
+        "document_number": "P-9140",
+        "expiry_date": "2033-12-31",
+        "issuing_country": "AE",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.9,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "cluttered",
+      "is_match": true
+    }
+  ],
+  "mismatched_pairs": [
+    {
+      "id": "mismatch_01",
+      "mismatch_field": "name",
+      "id_fields": {
+        "name": "AHMED AL-RASHID",
+        "date_of_birth": "1985-03-15",
+        "document_number": "ID-95001",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "AHMED AL RASHED",
+        "date_of_birth": "1985-03-15",
+        "document_number": "P-96001",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.91,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": false
+    },
+    {
+      "id": "mismatch_02",
+      "mismatch_field": "date_of_birth",
+      "id_fields": {
+        "name": "MARTIN HANSEN",
+        "date_of_birth": "1988-11-03",
+        "document_number": "ID-95002",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "MARTIN HANSEN",
+        "date_of_birth": "1989-11-03",
+        "document_number": "P-96002",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.91,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": false
+    },
+    {
+      "id": "mismatch_03",
+      "mismatch_field": "name",
+      "id_fields": {
+        "name": "KUMAR VENKATESH",
+        "date_of_birth": "1992-01-18",
+        "document_number": "ID-95003",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "KAMAR VENKATESH",
+        "date_of_birth": "1992-01-18",
+        "document_number": "P-96003",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.91,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": false
+    },
+    {
+      "id": "mismatch_04",
+      "mismatch_field": "date_of_birth",
+      "id_fields": {
+        "name": "JIA WEI ZHANG",
+        "date_of_birth": "1991-09-12",
+        "document_number": "ID-95004",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "JIA WEI ZHANG",
+        "date_of_birth": "1991-09-22",
+        "document_number": "P-96004",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.91,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": false
+    },
+    {
+      "id": "mismatch_05",
+      "mismatch_field": "name",
+      "id_fields": {
+        "name": "FATIMA AL-HUSSEIN",
+        "date_of_birth": "1993-04-14",
+        "document_number": "ID-95005",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "FATIMA AL HUSSEN",
+        "date_of_birth": "1993-04-14",
+        "document_number": "P-96005",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.91,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": false
+    },
+    {
+      "id": "mismatch_06",
+      "mismatch_field": "date_of_birth",
+      "id_fields": {
+        "name": "THOMAS MUELLER",
+        "date_of_birth": "1984-06-19",
+        "document_number": "ID-95006",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "THOMAS MUELLER",
+        "date_of_birth": "1984-06-19",
+        "document_number": "P-96006",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.91,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": false
+    },
+    {
+      "id": "mismatch_07",
+      "mismatch_field": "name",
+      "id_fields": {
+        "name": "AMARA Diallo",
+        "date_of_birth": "1987-05-29",
+        "document_number": "ID-95007",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "AMARA DIALLO",
+        "date_of_birth": "1987-05-29",
+        "document_number": "P-96007",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.91,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": false
+    },
+    {
+      "id": "mismatch_08",
+      "mismatch_field": "date_of_birth",
+      "id_fields": {
+        "name": "CARLOS MENDEZ",
+        "date_of_birth": "1989-08-25",
+        "document_number": "ID-95008",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "CARLOS MENDEZ",
+        "date_of_birth": "1989-08-26",
+        "document_number": "P-96008",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.91,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": false
+    },
+    {
+      "id": "mismatch_09",
+      "mismatch_field": "name",
+      "id_fields": {
+        "name": "RACHEL KAHN",
+        "date_of_birth": "1991-10-31",
+        "document_number": "ID-95009",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "RACHEL KHAN",
+        "date_of_birth": "1991-10-31",
+        "document_number": "P-96009",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.91,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": false
+    },
+    {
+      "id": "mismatch_10",
+      "mismatch_field": "date_of_birth",
+      "id_fields": {
+        "name": "HIROKI TANAKA",
+        "date_of_birth": "1988-07-16",
+        "document_number": "ID-950010",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "HIROKI TANAKA",
+        "date_of_birth": "1987-07-16",
+        "document_number": "P-960010",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.91,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": false
+    },
+    {
+      "id": "mismatch_11",
+      "mismatch_field": "name",
+      "id_fields": {
+        "name": "LARS PETERSSON",
+        "date_of_birth": "1986-12-07",
+        "document_number": "ID-950011",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "LARS PETERSSON",
+        "date_of_birth": "1986-12-07",
+        "document_number": "P-960011",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.91,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": false
+    },
+    {
+      "id": "mismatch_12",
+      "mismatch_field": "date_of_birth",
+      "id_fields": {
+        "name": "NGUYEN THI LAN",
+        "date_of_birth": "1994-02-03",
+        "document_number": "ID-950012",
+        "expiry_date": "2029-06-15",
+        "issuing_country": "JO"
+      },
+      "passport_fields": {
+        "name": "NGUYEN THI LAN",
+        "date_of_birth": "1995-02-03",
+        "document_number": "P-960012",
+        "expiry_date": "2031-06-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      },
+      "id_confidence": 0.91,
+      "passport_confidence": 0.88,
+      "capture_condition_id": "table",
+      "capture_condition_passport": "handheld",
+      "is_match": false
+    }
+  ]
+}

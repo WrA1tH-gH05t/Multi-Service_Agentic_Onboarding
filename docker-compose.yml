@@ -1,0 +1,84 @@
+# Docker Compose — Multi-Service Agentic Onboarding (MinIO-ready)
+# Runs: PostgreSQL (pgvector) + Ollama + MinIO
+# Only these three services are required for the MVP.
+# No Redis, no SeaweedFS, no ClamAV — those add startup crash surface
+# and are not required for the MVP.
+
+version: '3.8'
+
+services:
+  # PostgreSQL with pgvector — stores user data, applications, metadata
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: onboarding-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-intake}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-intake_secret_2026}
+      POSTGRES_DB: ${DB_NAME:-doc_intake}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+    networks:
+      - onboarding-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U intake"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Ollama — local LLM for vision model (qwen2.5vl:3b)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: onboarding-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    networks:
+      - onboarding-network
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # MinIO — S3-compatible object storage for documents
+  # IMPORTANT: upstream minio/minio was removed from Docker Hub in Sept 2026.
+  # This uses pgsty/minio (community fork, Docker Hub), a drop-in replacement.
+  # API:      http://127.0.0.1:9000
+  # Console:  http://127.0.0.1:9001 (login: minioadmin / minioadmin_secret_2026)
+  minio:
+    image: pgsty/minio:RELEASE.2026-06-18T00-00-00Z
+    container_name: onboarding-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin_secret_2026}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    networks:
+      - onboarding-network
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+# Named volumes
+volumes:
+  postgres_data:
+  ollama_models:
+  minio_data:
+
+# Bridge network — all containers on the same Docker network
+networks:
+  onboarding-network:
+    driver: bridge

@@ -1,0 +1,13 @@
+Bank Account Opening (Coming Soon)
+
+Status: Not yet available
+
+Planned Requirements:
+- National ID card or Passport
+- Proof of address (utility bill, bank statement)
+- Proof of income (pay slip, employment letter)
+
+Expected Processing Time:
+5-7 business days
+
+This service is planned for future implementation and is not currently available for registration.

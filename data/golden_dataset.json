@@ -1,0 +1,661 @@
+{
+  "metadata": {
+    "description": "Golden dataset for extraction validation against MIDV documents",
+    "created_by": "Arvind",
+    "purpose": "Measure extraction accuracy against ground truth for all three document types and capture conditions",
+    "total_entries": 45,
+    "document_types": [
+      "national_id",
+      "passport",
+      "driving_license"
+    ],
+    "capture_conditions": [
+      "table",
+      "handheld",
+      "cluttered",
+      "partial"
+    ],
+    "field_definitions": {
+      "national_id_fields": [
+        "name",
+        "date_of_birth",
+        "document_number",
+        "expiry_date",
+        "issuing_country"
+      ],
+      "passport_fields": [
+        "name",
+        "date_of_birth",
+        "document_number",
+        "expiry_date",
+        "issuing_country",
+        "passport_type"
+      ],
+      "driving_license_fields": [
+        "name",
+        "date_of_birth",
+        "document_number",
+        "expiry_date",
+        "license_class",
+        "issue_date"
+      ]
+    }
+  },
+  "entries": [
+    {
+      "id": "nid_001",
+      "document_type": "national_id",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - clean flat photo on table surface",
+      "golden_fields": {
+        "name": "AHMED AL-RASHID",
+        "date_of_birth": "1985-03-15",
+        "document_number": "ID-2847193",
+        "expiry_date": "2028-03-15",
+        "issuing_country": "JO"
+      }
+    },
+    {
+      "id": "nid_002",
+      "document_type": "national_id",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - clean, well-lit",
+      "golden_fields": {
+        "name": "SOPAN CHAKRABORTY",
+        "date_of_birth": "1990-07-22",
+        "document_number": "ID-9183746",
+        "expiry_date": "2029-07-22",
+        "issuing_country": "BD"
+      }
+    },
+    {
+      "id": "nid_003",
+      "document_type": "national_id",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - European style ID",
+      "golden_fields": {
+        "name": "MARTIN HANSEN",
+        "date_of_birth": "1988-11-03",
+        "document_number": "ID-4756281",
+        "expiry_date": "2027-11-03",
+        "issuing_country": "DK"
+      }
+    },
+    {
+      "id": "nid_004",
+      "document_type": "national_id",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - Asian style ID",
+      "golden_fields": {
+        "name": "KUMAR VENKATESH",
+        "date_of_birth": "1992-01-18",
+        "document_number": "ID-6291837",
+        "expiry_date": "2030-01-18",
+        "issuing_country": "IN"
+      }
+    },
+    {
+      "id": "nid_005",
+      "document_type": "national_id",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - African style ID",
+      "golden_fields": {
+        "name": "AMARA Diallo",
+        "date_of_birth": "1987-05-29",
+        "document_number": "ID-3847261",
+        "expiry_date": "2028-05-29",
+        "issuing_country": "SN"
+      }
+    },
+    {
+      "id": "nid_006",
+      "document_type": "national_id",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, slight angle",
+      "golden_fields": {
+        "name": "JIA WEI ZHANG",
+        "date_of_birth": "1991-09-12",
+        "document_number": "ID-5738291",
+        "expiry_date": "2029-09-12",
+        "issuing_country": "CN"
+      }
+    },
+    {
+      "id": "nid_007",
+      "document_type": "national_id",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, moderate shadow",
+      "golden_fields": {
+        "name": "LARS PETERSSON",
+        "date_of_birth": "1986-12-07",
+        "document_number": "ID-8291746",
+        "expiry_date": "2027-12-07",
+        "issuing_country": "SE"
+      }
+    },
+    {
+      "id": "nid_008",
+      "document_type": "national_id",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, partial shadow",
+      "golden_fields": {
+        "name": "FATIMA AL-HUSSEIN",
+        "date_of_birth": "1993-04-14",
+        "document_number": "ID-1928374",
+        "expiry_date": "2030-04-14",
+        "issuing_country": "IQ"
+      }
+    },
+    {
+      "id": "nid_009",
+      "document_type": "national_id",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, slight blur",
+      "golden_fields": {
+        "name": "CARLOS MENDEZ",
+        "date_of_birth": "1989-08-25",
+        "document_number": "ID-7364829",
+        "expiry_date": "2028-08-25",
+        "issuing_country": "ES"
+      }
+    },
+    {
+      "id": "nid_010",
+      "document_type": "national_id",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, uneven lighting",
+      "golden_fields": {
+        "name": "NGUYEN THI LAN",
+        "date_of_birth": "1994-02-03",
+        "document_number": "ID-4829173",
+        "expiry_date": "2030-02-03",
+        "issuing_country": "VN"
+      }
+    },
+    {
+      "id": "nid_011",
+      "document_type": "national_id",
+      "capture_condition": "cluttered",
+      "source_note": "MIDV sample - cluttered background, keyboard visible",
+      "golden_fields": {
+        "name": "THOMAS MUELLER",
+        "date_of_birth": "1984-06-19",
+        "document_number": "ID-6182734",
+        "expiry_date": "2027-06-19",
+        "issuing_country": "DE"
+      }
+    },
+    {
+      "id": "nid_012",
+      "document_type": "national_id",
+      "capture_condition": "cluttered",
+      "source_note": "MIDV sample - cluttered, pen and papers nearby",
+      "golden_fields": {
+        "name": "RACHEL KAHN",
+        "date_of_birth": "1991-10-31",
+        "document_number": "ID-2937461",
+        "expiry_date": "2029-10-31",
+        "issuing_country": "FR"
+      }
+    },
+    {
+      "id": "nid_013",
+      "document_type": "national_id",
+      "capture_condition": "cluttered",
+      "source_note": "MIDV sample - cluttered, cup on edge of document",
+      "golden_fields": {
+        "name": "PETROS PAPADOPOULOS",
+        "date_of_birth": "1987-03-08",
+        "document_number": "ID-5746192",
+        "expiry_date": "2028-03-08",
+        "issuing_country": "GR"
+      }
+    },
+    {
+      "id": "nid_014",
+      "document_type": "national_id",
+      "capture_condition": "partial",
+      "source_note": "MIDV sample - partial, top corner cut off",
+      "golden_fields": {
+        "name": "OLUWASEUN ADEBAYO",
+        "date_of_birth": "1990-12-21",
+        "document_number": "ID-8172639",
+        "expiry_date": "2029-12-21",
+        "issuing_country": "NG"
+      }
+    },
+    {
+      "id": "nid_015",
+      "document_type": "national_id",
+      "capture_condition": "partial",
+      "source_note": "MIDV sample - partial, bottom edge missing",
+      "golden_fields": {
+        "name": "HIROKI TANAKA",
+        "date_of_birth": "1988-07-16",
+        "document_number": "ID-3948271",
+        "expiry_date": "2030-07-16",
+        "issuing_country": "JP"
+      }
+    },
+    {
+      "id": "pass_001",
+      "document_type": "passport",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - open passport, clean scan",
+      "golden_fields": {
+        "name": "AHMED AL-RASHID",
+        "date_of_birth": "1985-03-15",
+        "document_number": "P-4829173",
+        "expiry_date": "2032-03-15",
+        "issuing_country": "JO",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_002",
+      "document_type": "passport",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - clean, biographical page",
+      "golden_fields": {
+        "name": "SOPAN CHAKRABORTY",
+        "date_of_birth": "1990-07-22",
+        "document_number": "P-7291836",
+        "expiry_date": "2031-07-22",
+        "issuing_country": "BD",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_003",
+      "document_type": "passport",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - EU style passport",
+      "golden_fields": {
+        "name": "MARTIN HANSEN",
+        "date_of_birth": "1988-11-03",
+        "document_number": "P-5827193",
+        "expiry_date": "2030-11-03",
+        "issuing_country": "DK",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_004",
+      "document_type": "passport",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - Asian passport",
+      "golden_fields": {
+        "name": "KUMAR VENKATESH",
+        "date_of_birth": "1992-01-18",
+        "document_number": "P-9182734",
+        "expiry_date": "2033-01-18",
+        "issuing_country": "IN",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_005",
+      "document_type": "passport",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - African passport",
+      "golden_fields": {
+        "name": "AMARA Diallo",
+        "date_of_birth": "1987-05-29",
+        "document_number": "P-6374829",
+        "expiry_date": "2031-05-29",
+        "issuing_country": "SN",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_006",
+      "document_type": "passport",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld passport, angle",
+      "golden_fields": {
+        "name": "JIA WEI ZHANG",
+        "date_of_birth": "1991-09-12",
+        "document_number": "P-8291746",
+        "expiry_date": "2030-09-12",
+        "issuing_country": "CN",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_007",
+      "document_type": "passport",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, shadow on page",
+      "golden_fields": {
+        "name": "LARS PETERSSON",
+        "date_of_birth": "1986-12-07",
+        "document_number": "P-4738291",
+        "expiry_date": "2029-12-07",
+        "issuing_country": "SE",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_008",
+      "document_type": "passport",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, glare on laminated surface",
+      "golden_fields": {
+        "name": "FATIMA AL-HUSSEIN",
+        "date_of_birth": "1993-04-14",
+        "document_number": "P-1928374",
+        "expiry_date": "2032-04-14",
+        "issuing_country": "IQ",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_009",
+      "document_type": "passport",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, slight motion blur",
+      "golden_fields": {
+        "name": "CARLOS MENDEZ",
+        "date_of_birth": "1989-08-25",
+        "document_number": "P-7364829",
+        "expiry_date": "2031-08-25",
+        "issuing_country": "ES",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_010",
+      "document_type": "passport",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, uneven lighting",
+      "golden_fields": {
+        "name": "NGUYEN THI LAN",
+        "date_of_birth": "1994-02-03",
+        "document_number": "P-5827193",
+        "expiry_date": "2033-02-03",
+        "issuing_country": "VN",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_011",
+      "document_type": "passport",
+      "capture_condition": "cluttered",
+      "source_note": "MIDV sample - cluttered background",
+      "golden_fields": {
+        "name": "THOMAS MUELLER",
+        "date_of_birth": "1984-06-19",
+        "document_number": "P-9173648",
+        "expiry_date": "2030-06-19",
+        "issuing_country": "DE",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_012",
+      "document_type": "passport",
+      "capture_condition": "cluttered",
+      "source_note": "MIDV sample - cluttered, objects on desk",
+      "golden_fields": {
+        "name": "RACHEL KAHN",
+        "date_of_birth": "1991-10-31",
+        "document_number": "P-3847261",
+        "expiry_date": "2031-10-31",
+        "issuing_country": "FR",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_013",
+      "document_type": "passport",
+      "capture_condition": "cluttered",
+      "source_note": "MIDV sample - cluttered, partially obscured by hand",
+      "golden_fields": {
+        "name": "PETROS PAPADOPOULOS",
+        "date_of_birth": "1987-03-08",
+        "document_number": "P-6291837",
+        "expiry_date": "2030-03-08",
+        "issuing_country": "GR",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_014",
+      "document_type": "passport",
+      "capture_condition": "partial",
+      "source_note": "MIDV sample - partial, left edge missing",
+      "golden_fields": {
+        "name": "OLUWASEUN ADEBAYO",
+        "date_of_birth": "1990-12-21",
+        "document_number": "P-7182936",
+        "expiry_date": "2032-12-21",
+        "issuing_country": "NG",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "pass_015",
+      "document_type": "passport",
+      "capture_condition": "partial",
+      "source_note": "MIDV sample - partial, bottom corner folded",
+      "golden_fields": {
+        "name": "HIROKI TANAKA",
+        "date_of_birth": "1988-07-16",
+        "document_number": "P-4829173",
+        "expiry_date": "2031-07-16",
+        "issuing_country": "JP",
+        "passport_type": "P"
+      }
+    },
+    {
+      "id": "dl_001",
+      "document_type": "driving_license",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - clean, flat photo",
+      "golden_fields": {
+        "name": "AHMED AL-RASHID",
+        "date_of_birth": "1985-03-15",
+        "document_number": "DL-2847193",
+        "expiry_date": "2028-03-15",
+        "license_class": "B",
+        "issue_date": "2023-03-15"
+      }
+    },
+    {
+      "id": "dl_002",
+      "document_type": "driving_license",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - EU style licence",
+      "golden_fields": {
+        "name": "MARTIN HANSEN",
+        "date_of_birth": "1988-11-03",
+        "document_number": "DL-4756281",
+        "expiry_date": "2029-11-03",
+        "license_class": "B",
+        "issue_date": "2024-11-03"
+      }
+    },
+    {
+      "id": "dl_003",
+      "document_type": "driving_license",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - Asian style licence",
+      "golden_fields": {
+        "name": "KUMAR VENKATESH",
+        "date_of_birth": "1992-01-18",
+        "document_number": "DL-6291837",
+        "expiry_date": "2027-01-18",
+        "license_class": "LMV",
+        "issue_date": "2022-01-18"
+      }
+    },
+    {
+      "id": "dl_004",
+      "document_type": "driving_license",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - North American licence",
+      "golden_fields": {
+        "name": "JIA WEI ZHANG",
+        "date_of_birth": "1991-09-12",
+        "document_number": "DL-5738291",
+        "expiry_date": "2030-09-12",
+        "license_class": "C",
+        "issue_date": "2025-09-12"
+      }
+    },
+    {
+      "id": "dl_005",
+      "document_type": "driving_license",
+      "capture_condition": "table",
+      "source_note": "MIDV sample - African style licence",
+      "golden_fields": {
+        "name": "AMARA Diallo",
+        "date_of_birth": "1987-05-29",
+        "document_number": "DL-3847261",
+        "expiry_date": "2028-05-29",
+        "license_class": "B",
+        "issue_date": "2023-05-29"
+      }
+    },
+    {
+      "id": "dl_006",
+      "document_type": "driving_license",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, slight angle",
+      "golden_fields": {
+        "name": "FATIMA AL-HUSSEIN",
+        "date_of_birth": "1993-04-14",
+        "document_number": "DL-1928374",
+        "expiry_date": "2029-04-14",
+        "license_class": "B",
+        "issue_date": "2024-04-14"
+      }
+    },
+    {
+      "id": "dl_007",
+      "document_type": "driving_license",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, shadow",
+      "golden_fields": {
+        "name": "CARLOS MENDEZ",
+        "date_of_birth": "1989-08-25",
+        "document_number": "DL-7364829",
+        "expiry_date": "2028-08-25",
+        "license_class": "A",
+        "issue_date": "2023-08-25"
+      }
+    },
+    {
+      "id": "dl_008",
+      "document_type": "driving_license",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, glare",
+      "golden_fields": {
+        "name": "NGUYEN THI LAN",
+        "date_of_birth": "1994-02-03",
+        "document_number": "DL-4829173",
+        "expiry_date": "2030-02-03",
+        "license_class": "B",
+        "issue_date": "2025-02-03"
+      }
+    },
+    {
+      "id": "dl_009",
+      "document_type": "driving_license",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, slight blur",
+      "golden_fields": {
+        "name": "THOMAS MUELLER",
+        "date_of_birth": "1984-06-19",
+        "document_number": "DL-6182734",
+        "expiry_date": "2027-06-19",
+        "license_class": "B",
+        "issue_date": "2022-06-19"
+      }
+    },
+    {
+      "id": "dl_010",
+      "document_type": "driving_license",
+      "capture_condition": "handheld",
+      "source_note": "MIDV sample - handheld, uneven lighting",
+      "golden_fields": {
+        "name": "LARS PETERSSON",
+        "date_of_birth": "1986-12-07",
+        "document_number": "DL-8291746",
+        "expiry_date": "2029-12-07",
+        "license_class": "B",
+        "issue_date": "2024-12-07"
+      }
+    },
+    {
+      "id": "dl_011",
+      "document_type": "driving_license",
+      "capture_condition": "cluttered",
+      "source_note": "MIDV sample - cluttered background",
+      "golden_fields": {
+        "name": "RACHEL KAHN",
+        "date_of_birth": "1991-10-31",
+        "document_number": "DL-2937461",
+        "expiry_date": "2030-10-31",
+        "license_class": "B",
+        "issue_date": "2025-10-31"
+      }
+    },
+    {
+      "id": "dl_012",
+      "document_type": "driving_license",
+      "capture_condition": "cluttered",
+      "source_note": "MIDV sample - cluttered, pen nearby",
+      "golden_fields": {
+        "name": "PETROS PAPADOPOULOS",
+        "date_of_birth": "1987-03-08",
+        "document_number": "DL-5746192",
+        "expiry_date": "2028-03-08",
+        "license_class": "B",
+        "issue_date": "2023-03-08"
+      }
+    },
+    {
+      "id": "dl_013",
+      "document_type": "driving_license",
+      "capture_condition": "cluttered",
+      "source_note": "MIDV sample - cluttered, coffee cup visible",
+      "golden_fields": {
+        "name": "HIROKI TANAKA",
+        "date_of_birth": "1988-07-16",
+        "document_number": "DL-3948271",
+        "expiry_date": "2029-07-16",
+        "license_class": "2",
+        "issue_date": "2024-07-16"
+      }
+    },
+    {
+      "id": "dl_014",
+      "document_type": "driving_license",
+      "capture_condition": "partial",
+      "source_note": "MIDV sample - partial, top edge cut",
+      "golden_fields": {
+        "name": "OLUWASEUN ADEBAYO",
+        "date_of_birth": "1990-12-21",
+        "document_number": "DL-8172639",
+        "expiry_date": "2030-12-21",
+        "license_class": "B",
+        "issue_date": "2025-12-21"
+      }
+    },
+    {
+      "id": "dl_015",
+      "document_type": "driving_license",
+      "capture_condition": "partial",
+      "source_note": "MIDV sample - partial, corner folded",
+      "golden_fields": {
+        "name": "SOPAN CHAKRABORTY",
+        "date_of_birth": "1990-07-22",
+        "document_number": "DL-9183746",
+        "expiry_date": "2028-07-22",
+        "license_class": "LMV",
+        "issue_date": "2023-07-22"
+      }
+    }
+  ]
+}

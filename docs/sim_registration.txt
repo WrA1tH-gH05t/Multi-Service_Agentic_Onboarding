@@ -1,0 +1,12 @@
+SIM Card Registration (Coming Soon)
+
+Status: Not yet available
+
+Planned Requirements:
+- National ID card (primary)
+- Proof of address (may be waived for prepaid SIM)
+
+Expected Processing Time:
+Same day (for prepaid SIM)
+
+This service is planned for future implementation and is not currently available for registration.

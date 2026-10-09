@@ -1,0 +1,13 @@
+Tenancy Agreement (Coming Soon)
+
+Status: Not yet available
+
+Planned Requirements:
+- National ID card
+- Proof of employment (employment letter or pay slips)
+- Proof of income
+
+Expected Processing Time:
+1-2 business days
+
+This service is planned for future implementation and is not currently available for registration.

@@ -1,0 +1,47 @@
+Mobility / Rental Service
+
+Service Overview:
+The Mobility Rental service is designed for vehicle rental and mobility service registration. This service requires a valid driving license and has same-day processing when the document is valid and clearly readable.
+
+Requirements:
+- One valid Driving License (NO alternatives accepted)
+- License must not be expired
+- License must be valid in the country of service
+- Document format: PDF, JPG, PNG, or TIFF
+
+Process:
+1. Customer initiates a mobility rental application
+2. System confirms driving license is required
+3. Customer uploads the driving license
+4. System extracts fields: name, date of birth, document number, expiry date, license class, issue date
+5. Validation agent checks:
+   - Document is valid (not expired)
+   - License class is appropriate for the vehicle type
+   - All mandatory fields are present and valid
+6. Application status determined:
+   - Complete: all checks pass
+   - Needs human review: confidence issues or borderline expiry
+   - Rejected: expired license or invalid document
+
+Processing Time:
+Same day (if document is valid and clearly readable)
+
+Field Requirements:
+- Name: mandatory
+- Date of birth: mandatory
+- Document number: mandatory
+- Expiry date: mandatory (must be future date)
+- License class: mandatory (must be valid class)
+- Issue date: mandatory
+
+Validation Rules:
+- License must not be expired
+- Name must match format requirements (2+ characters)
+- License class must be one of recognized classes (A, B, C, D, or local equivalents)
+- Document number must follow the country's standard format
+
+Important Notes:
+- Unlike the Basic Registration service, this service does NOT accept a National ID card
+- The driving license is the ONLY accepted document for this service
+- If the license is expired, the application will be rejected
+- Same-day processing is available ONLY if the document quality is sufficient

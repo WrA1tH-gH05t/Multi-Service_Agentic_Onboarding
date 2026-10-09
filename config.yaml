@@ -1,0 +1,50 @@
+# Configuration for Multi-Service Agentic Onboarding System
+
+# Database (PostgreSQL with pgvector)
+database:
+  host: 127.0.0.1
+  port: 5432
+  name: doc_intake
+  user: intake
+  password: intake_secret_2026
+  pool_size: 10
+  max_overflow: 20
+
+# Qwen2.5-VL 3B — vision-language model for document image understanding
+# Runs on RTX 4060 Laptop GPU (8 GB VRAM) at Q4_K_M (~3.5 GB VRAM)
+# Accepts images directly, extracts structured JSON fields from documents
+ollama:
+  host: 127.0.0.1
+  port: 11434
+  model: qwen2.5vl:3b
+  # Vision model endpoint: /api/chat (text+images in, text out)
+  max_retries: 3
+  timeout_seconds: 300
+
+# OCR fallback (if vision model fails or for non-image PDFs)
+ocr:
+  engine: tesseract
+  confidence_threshold: 0.7
+  languages: ["eng"]
+
+# File upload limits
+upload:
+  max_file_size_mb: 200
+  allowed_types: ["application/pdf", "image/png", "image/jpeg", "image/tiff", "image/bmp"]
+  # PDFs are converted to images (first page at 300 DPI) before vision processing
+
+# Security
+security:
+  max_login_attempts: 5
+  lockout_duration_minutes: 15
+  password_min_length: 4
+
+# MinIO object storage (S3-compatible)
+# Docker service runs on 127.0.0.1:9000 (API) and 127.0.0.1:9001 (console)
+storage:
+  endpoint: 127.0.0.1:9000
+  access_key: minioadmin
+  secret_key: minioadmin_secret_2026
+  bucket_name: onboarding-docs
+  secure: false  # set to true if using HTTPS
+  part_size_mb: 5  # minimum part size for multipart uploads

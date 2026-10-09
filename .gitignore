@@ -1,0 +1,49 @@
+# Environment
+.env
+.env.local
+.env.production
+
+# Virtual environment
+venv/
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Project data
+data/*.db
+data/*.db-wal
+data/*.db-shm
+uploads/
+models/
+graphify-out/
+
+# Secrets (defensive)
+auth_users.json
+
+# Docker
+*.log
+*.pid
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.pytest_cache/
+*.egg-info/
+coverage/
+.coverage
+
+# Scratch
+/app/__pycache__/
+/services/__pycache__/

@@ -1,0 +1,47 @@
+Premium / Cross Border Service
+
+Service Overview:
+The Premium Cross Border service provides enhanced identity verification requiring both a National ID card AND a Passport. This service is designed for customers needing cross-border identity verification, international travel documentation, or high-assurance identity confirmation.
+
+Requirements:
+- One National ID card (MUST, no alternatives)
+- One Passport (MUST, no alternatives)
+- Both documents must belong to the same person (name and date of birth must match)
+- Both documents must be valid (not expired)
+- Document format: PDF, JPG, PNG, or TIFF
+
+Process:
+1. Customer initiates a premium cross border application
+2. System requests both required documents
+3. Customer uploads the first document (national ID)
+4. System extracts and validates the first document
+5. Customer uploads the second document (passport)
+6. System extracts and validates the second document
+7. Validation agent CROSS-CHECKS shared fields:
+   - Name on ID must match name on passport
+   - Date of birth on ID must match date of birth on passport
+   - Document numbers are checked for format compliance
+8. If all checks pass, application is marked complete
+9. If any cross-field check fails, application is flagged with specific mismatch details
+10. If extraction confidence is low on any document, human review is required
+
+Processing Time:
+3-5 business days from complete submission
+
+Validation Rules:
+- Name MUST match exactly (case-insensitive)
+- Date of birth MUST match exactly
+- Both documents must be unexpired
+- Each document must have extraction confidence >= 0.5
+
+Human Review Triggers:
+- Any field mismatch between ID and passport
+- Extraction confidence below 0.5 on either document
+- Expired documents
+- Missing mandatory fields
+
+Important Notes:
+- This service requires BOTH documents. A single document is NOT sufficient.
+- The system will detect and report mismatches between the two documents.
+- Mismatched documents will be flagged with the EXACT fields that disagree.
+- This is a high-assurance verification service with stricter requirements than basic registration.

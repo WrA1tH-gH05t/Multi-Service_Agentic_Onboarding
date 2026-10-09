@@ -1,0 +1,13 @@
+Vehicle Registration (Coming Soon)
+
+Status: Not yet available
+
+Planned Requirements:
+- Driving license
+- Insurance certificate
+- Proof of vehicle ownership or purchase
+
+Expected Processing Time:
+Same day (if all documents are valid)
+
+This service is planned for future implementation and is not currently available for registration.
