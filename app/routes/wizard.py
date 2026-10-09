@@ -176,7 +176,12 @@ async def upload_wizard_id(
     # Upload to storage
     file_content = await file.read()
     file_name = f"wizard/{session_id}/national_id_{file.filename}"
-    file_url = storage.save_file(file_name, file_content, content_type=file.content_type)
+    upload_result = storage.upload_file(
+        file_data=file_content,
+        object_name=file_name,
+        content_type=file.content_type,
+    )
+    file_url = upload_result["object_name"]
 
     # Record upload
     session = wizard_mgr.set_id_upload(session_id, file_url, file.filename)
