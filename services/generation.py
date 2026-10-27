@@ -32,28 +32,58 @@ class GenerationService:
     - Text mode: sends text-only prompt → returns natural language response
     """
 
-    # Comprehensive ID field schema — covers passports, national IDs, driver's licenses, visas, residence permits
-    ID_FIELD_SCHEMA = {
-        "document_type": "Type: national_id, passport, drivers_license, visa, residence_permit, other",
-        "issuing_country": "Full country name (not code)",
-        "surname": "Last name / family name",
-        "given_name": "First name / given name",
-        "full_name": "Complete name as printed on document",
+    # National ID specific field schema
+    NATIONAL_ID_SCHEMA = {
+        "full_name": "Full name as printed on the document",
+        "national_id_number": "Unique national ID number",
+        "date_of_birth": "Date of birth (DD/MM/YYYY format)",
         "nationality": "Country of citizenship",
-        "date_of_birth": "Date of birth (preserve original format from document)",
-        "place_of_birth": "City, region, or country of birth",
-        "sex": "M/F or other gender marker",
-        "date_of_issue": "Date document was issued",
-        "date_of_expiry": "Date document expires",
-        "authority": "Issuing authority or government department",
-        "personal_id_number": "Unique personal identification number",
-        "document_number": "Main document number",
-        "mrz": "Machine Readable Zone (2 lines at bottom of passport/ID)",
-        "address": "Residential address (if shown on ID)",
-        "signature": "yes/no — whether a signature is visible",
-        "photo": "yes/no — whether a photo is visible",
-        "page_number": "Page number or side (front/back) of the document",
+        "issue_date": "Date the document was issued",
+        "expiry_date": "Date the document expires",
+        "gender": "M / F",
+        "card_number": "Card number if different from national_id_number",
+        "occupation": "Occupation or profession if shown",
+        "issue_place": "City or place where the document was issued",
     }
+
+    # Passport specific field schema
+    PASSPORT_SCHEMA = {
+        "surname": "Last name / family name",
+        "given_name": "First name / given name(s)",
+        "passport_number": "Passport document number",
+        "date_of_birth": "Date of birth (DD/MM/YYYY format)",
+        "nationality": "Country of citizenship",
+        "sex": "M / F",
+        "date_of_issue": "Date the passport was issued",
+        "date_of_expiry": "Date the passport expires",
+    }
+
+    # Driving License specific field schema (Front & Back)
+    DRIVING_LICENSE_SCHEMA = {
+        "name": "Full name as printed on driving license",
+        "license_no": "License number (e.g. 5154695, 5058836)",
+        "nationality": "Nationality / Country (e.g. India)",
+        "date_of_birth": "Date of birth (DD/MM/YYYY)",
+        "issue_date": "Issue date (DD/MM/YYYY)",
+        "expiry_date": "Expiry date (DD/MM/YYYY)",
+        "licensing_authority": "Licensing authority code/name (e.g. EDC20007, edi151633)",
+        "place_of_issue": "Place / Emirate / State of issue (e.g. Dubai)",
+        "traffic_code_no": "Traffic code number on the back page (e.g. 17165557, 16913591)",
+        "gear_type": "Vehicle transmission type specified on the back page ('Automatic Gear' or 'Manual Gear')",
+        "glasses_requirement": "Spectacles/glasses restriction status from back page logo ('glasses logo' if eyeglasses icon is present, 'no glasses logo' if empty/absent)",
+    }
+
+    def _get_schema_for_doc_type(self, doc_type: str) -> Dict[str, str]:
+        """Return field schema based on document type."""
+        dt = doc_type.lower() if doc_type else ""
+        if "passport" in dt:
+            return self.PASSPORT_SCHEMA
+        elif "driving" in dt or "license" in dt or "licence" in dt or "dl" in dt:
+            return self.DRIVING_LICENSE_SCHEMA
+        elif "national_id" in dt or "id_card" in dt or "eid" in dt:
+            return self.NATIONAL_ID_SCHEMA
+        else:
+            return self.NATIONAL_ID_SCHEMA  # fallback
 
     def __init__(self, config: dict):
         self.host = config.get("host", "localhost")
@@ -125,7 +155,7 @@ class GenerationService:
 
         # Try as PDF — extract specified page via PyMuPDF
         try:
-            import fitz  # PyMuPDF
+            import pymupdf as fitz
             doc = fitz.open(stream=file_bytes, filetype="pdf")
             total_pages = len(doc)
             if page < 0 or page >= total_pages:
@@ -150,7 +180,7 @@ class GenerationService:
         Empty list if file is not a PDF or PyMuPDF not available.
         """
         try:
-            import fitz  # PyMuPDF
+            import pymupdf as fitz
             doc = fitz.open(stream=file_bytes, filetype="pdf")
             pages = []
             for i in range(len(doc)):
@@ -171,11 +201,61 @@ class GenerationService:
 
     @staticmethod
     def _base64_to_data_url(b64: str) -> dict:
-        """Format base64 image for Ollama chat API."""
-        return {
-            "type": "image_url",
-            "image_url": f"data:image/png;base64,{b64}"
+        """Format base64 image for qwen2.5vl:3b native images parameter."""
+        return b64
+
+    async def _call_ollama_with_images(self, b64_images: list, messages: list) -> Optional[dict]:
+        """Call qwen2.5vl:3b using native 'images' parameter in messages.
+        
+        Args:
+            b64_images: List of base64-encoded image strings
+            messages: List of message dicts (content will be updated with images)
+            
+        Returns:
+            Parsed JSON dict or None
+        """
+        # Build payload with images parameter
+        payload = {
+            "model": self.model,
+            "messages": messages,
+            "stream": False,
+            "options": {
+                "temperature": 0.1,
+                "num_predict": 4096,
+                "num_ctx": 8192,
+            }
         }
+        
+        # For qwen2.5vl:3b, attach images to the user message
+        for msg in reversed(payload["messages"]):
+            if msg.get("role") == "user" and "content" in msg:
+                msg["images"] = b64_images
+                break
+        
+        retries = 0
+        while retries < self.max_retries:
+            try:
+                response = await self._client.post(self.base_url, json=payload)
+                response.raise_for_status()
+                result = response.json()
+                
+                if "message" in result and "content" in result["message"]:
+                    raw = result["message"]["content"]
+                    cleaned = self._strip_thinking(raw).strip()
+                    parsed = self._extract_json(cleaned)
+                    if parsed:
+                        return parsed
+                
+                logger.warning(f"Model didn't return valid JSON on attempt {retries+1}")
+                retries += 1
+            except httpx.TimeoutException:
+                logger.warning("Request timed out, retrying...")
+                retries += 1
+            except Exception as e:
+                logger.warning(f"Error: {e}, retrying...")
+                retries += 1
+        
+        return None
 
     # ------------------------------------------------------------------ #
     #  Core generation                                                     #
@@ -189,6 +269,7 @@ class GenerationService:
         query: str = "",
         image_bytes: Optional[bytes] = None,
         extraction_schema: Optional[Dict[str, str]] = None,
+        document_type: str = "",
     ) -> str:
         """Generate a response — either from an image (field extraction) or text.
 
@@ -205,9 +286,11 @@ class GenerationService:
         actual_prompt = prompt or query
 
         if image_bytes:
-            return await self._extract_fields_from_image(
-                image_bytes, extraction_schema or self.ID_FIELD_SCHEMA
-            )
+            if extraction_schema and isinstance(extraction_schema, dict):
+                schema = extraction_schema
+            else:
+                schema = self.NATIONAL_ID_SCHEMA
+            return await self._extract_fields_from_image(image_bytes, schema, document_type=document_type or "")
 
         # Text-only chat mode (same as before, but via vision model)
         messages = []
@@ -234,7 +317,7 @@ class GenerationService:
                 "options": {
                     "temperature": 0.3,
                     "num_predict": 512,
-                    "num_ctx": 4096,
+                    "num_ctx": 8192,
                 }
             }
             response = await self._client.post(self.base_url, json=payload)
@@ -253,37 +336,55 @@ class GenerationService:
             return f"I'm sorry, I encountered an error: {str(e)[:200]}"
 
     async def _extract_fields_from_image(
-        self, image_bytes: bytes, schema: Dict[str, str]
+        self, image_bytes: bytes, schema: Dict[str, str], document_type: str = ""
     ) -> str:
         """Send image to vision model for structured field extraction.
 
+        For multi-page scanned documents, extracts all pages and merges results.
+        
         Returns a JSON string of extracted fields.
         """
         b64_image, is_pdf, total_pages = self._file_to_base64_png(image_bytes)
 
+        # For multi-page scanned PDFs, extract all pages and merge
+        if is_pdf and total_pages > 1:
+            all_pages = self._pdf_to_all_pages_png(image_bytes)
+            if all_pages:
+                return await self._extract_multi_page_fields(all_pages, schema, document_type)
+
         # Build field extraction prompt
         field_list = "\n".join(
-            f"  - {field}: {desc}" for field, desc in schema.items()
+            f'  "{field}": "{desc}"' for field, desc in schema.items()
         )
+        
+        doc_hint = ""
+        if document_type:
+            doc_hint = f"\n\nThis is a {document_type} document. Extract ALL fields listed below."
+        
         system_msg = (
-            "You are a document data extraction assistant. "
-            "Extract data from the uploaded document image and return ONLY a valid JSON object. "
-            f"Use these fields:\n{field_list}\n"
-            "Rules:\n"
-            "- Return ONLY the JSON object, no other text\n"
-            "- If a field cannot be read, use null\n"
-            "- For dates, preserve the original format from the document\n"
-            "- Do NOT add any markdown code fences or explanation\n"
+            "You are a document data extraction engine. Extract key-value information from the document image and return ONLY valid JSON.\n\n"
+            "JSON SCHEMA TO USE:\n"
+            f"{{\n{field_list}\n}}\n\n"
+            f"{doc_hint}"
+            "\nCRITICAL RULES:\n"
+            "1. Return ONLY a JSON object - no markdown, no code fences, no explanation, no preamble\n"
+            "2. Extract ALL fields in the schema - every single one, even if some are empty\n"
+            "3. If a field cannot be read, use empty string \"\" (not null)\n"
+            "4. For dates, preserve the exact format from the document (DD/MM/YYYY, DD-MM-YYYY, etc.)\n"
+            "5. Copy values verbatim - do not translate or reformat\n"
+            "6. Look for labels like: Name, ID No, DOB, Nationality, Gender, Expiry, Issue Date\n"
+            "7. For passports: extract given_name and surname separately\n"
+            "8. For national IDs: extract full_name, and if visible also card_number, occupation, issue_place\n"
+            "9. The model will receive this as an image - look carefully at all text regions\n"
+            "10. Output must be parseable JSON - use double quotes for all string values\n"
         )
 
         messages = [
             {"role": "system", "content": system_msg},
             {
                 "role": "user",
-                "content": [
-                    {"type": "text", "text": "Extract all fields from this document. Return JSON."},
-                    self._base64_to_data_url(b64_image),
-                ],
+                "content": "Extract all key-value information from this document image. Return JSON matching the schema above.",
+                "images": [b64_image],
             },
         ]
 
@@ -295,9 +396,9 @@ class GenerationService:
                     "messages": messages,
                     "stream": False,
                     "options": {
-                        "temperature": 0.1,  # Low temp for accurate extraction
-                        "num_predict": 1024,
-                        "num_ctx": 4096,
+                        "temperature": 0.0,  # Zero temp for deterministic extraction
+                        "num_predict": 4096,
+                        "num_ctx": 8192,
                     }
                 }
                 response = await self._client.post(self.base_url, json=payload)
@@ -310,6 +411,12 @@ class GenerationService:
                     # Try to extract JSON from response (handle markdown fences)
                     parsed = self._extract_json(cleaned)
                     if parsed:
+                        # Validate all schema fields are present
+                        missing = [k for k in schema if k not in parsed]
+                        if missing:
+                            logger.warning(f"Missing fields in response: {missing}. Retrying...")
+                            retries += 1
+                            continue
                         return json.dumps(parsed)
 
                 logger.warning(f"Vision model didn't return valid JSON on attempt {retries+1}")
@@ -326,8 +433,123 @@ class GenerationService:
         # All retries failed — return partial JSON with error
         return json.dumps({"_error": "Failed to extract fields from document after multiple attempts"})
 
+    async def _extract_multi_page_fields(
+        self, pages: List[tuple], schema: Dict[str, str], document_type: str = ""
+    ) -> str:
+        """Extract fields from a multi-page scanned document by analyzing all pages together.
+        
+        For each page, extract all visible fields. Then merge results, taking non-empty values
+        from any page. Returns merged JSON with all schema fields.
+        
+        Args:
+            pages: List of (base64_image, page_number_1indexed) tuples
+            schema: Field schema dict
+            document_type: Type hint for prompt customization
+            
+        Returns:
+            JSON string with merged extracted fields
+        """
+        # Build field extraction prompt for each page
+        field_list = "\n".join(
+            f'  "{field}": "{desc}"' for field, desc in schema.items()
+        )
+        
+        doc_hint = f"This is a {document_type} document" if document_type else "This is an ID document"
+        
+        results = {}
+        
+        for b64_page, page_num in pages:
+            logger.info(f"Extracting fields from page {page_num}")
+            
+            system_msg = (
+                "You are a document data extraction engine. Analyze THIS PAGE ONLY and extract ALL fields visible on this page. Return ONLY valid JSON.\n\n"
+                f"DOCUMENT TYPE: {doc_hint}\n\n"
+                "JSON SCHEMA TO USE:\n"
+                f"{{\n{field_list}\n}}\n\n"
+                "CRITICAL RULES:\n"
+                "1. Return ONLY a JSON object - no markdown, no code fences, no explanation\n"
+                "2. Extract ALL fields visible on THIS PAGE\n"
+                "3. For fields NOT visible on this page, use empty string \"\"\n"
+                "4. Include page_number in output: {\"page_number\": N, ...}\n"
+                "5. Look for ALL labels carefully - small text, fine print, secondary fields\n"
+                "6. For national IDs: check for card_number, occupation, issue_place (often on back side)\n"
+                "7. For passports: check MRZ (Machine Readable Zone) at bottom for additional data\n"
+                "8. For driving licenses: On front, extract name, license_no, nationality, issue_date, expiry_date, licensing_authority, date_of_birth. On back, extract traffic_code_no, gear_type ('Automatic Gear' or 'Manual Gear' under Permitted Vehicles), and glasses_requirement ('glasses logo' if an eyeglasses/spectacles icon is present in the restrictions box, or 'no glasses logo' if the box has no eyeglasses icon).\n"
+                "9. Copy values verbatim - preserve exact format\n"
+                "10. Output must be parseable JSON - use double quotes\n"
+            )
+
+            messages = [
+                {"role": "system", "content": system_msg},
+                {
+                    "role": "user",
+                    "content": "Extract all fields from this page. Return JSON with schema above.",
+                    "images": [b64_page],
+                },
+            ]
+
+            retries = 0
+            while retries < self.max_retries:
+                try:
+                    payload = {
+                        "model": self.model,
+                        "messages": messages,
+                        "stream": False,
+                        "options": {
+                            "temperature": 0.0,
+                            "num_predict": 4096,
+                            "num_ctx": 8192,
+                        }
+                    }
+                    response = await self._client.post(self.base_url, json=payload)
+                    response.raise_for_status()
+                    result = response.json()
+
+                    if "message" in result and "content" in result["message"]:
+                        raw = result["message"]["content"]
+                        cleaned = self._strip_thinking(raw).strip()
+                        parsed = self._extract_json(cleaned)
+                        if parsed:
+                            results[page_num] = parsed
+                            logger.info(f"Page {page_num} extraction successful: {len([k for k in parsed if k not in ['page_number', '_page_number']])} fields extracted")
+                            break
+                except Exception as e:
+                    logger.warning(f"Page {page_num} extraction error: {e}")
+                    retries += 1
+
+            if retries >= self.max_retries:
+                logger.warning(f"Failed to extract from page {page_num} after {self.max_retries} retries")
+
+        # Merge results from all pages
+        if not results:
+            return json.dumps({"_error": "Failed to extract fields from any page"})
+
+        # Merge strategy: take non-empty values from any page
+        merged = {}
+        for page_num, page_data in results.items():
+            for key, value in page_data.items():
+                if key in ("page_number", "_page_number", "side", "_side"):
+                    continue
+                if key not in merged:
+                    merged[key] = value
+                elif merged[key] == "" and value != "":
+                    # If current value is empty but this page has it, use it
+                    merged[key] = value
+
+        # Ensure all schema fields are present
+        final = {}
+        for field in schema:
+            final[field] = merged.get(field, "")
+        
+        # Add metadata
+        final["_total_pages"] = len(pages)
+        final["_note"] = "Merged from {} page(s)".format(len(results))
+
+        return json.dumps(final)
+
     async def extract_id_fields_from_image(
-        self, image_bytes: bytes, is_pdf: bool = False, page_hint: str = ""
+        self, image_bytes: bytes, is_pdf: bool = False, page_hint: str = "",
+        document_type: str = ""
     ) -> str:
         """Extract fields from a government-issued ID document image or PDF.
 
@@ -341,6 +563,7 @@ class GenerationService:
             image_bytes: Raw file bytes (image or PDF)
             is_pdf: Whether the file is a PDF (auto-detected if False)
             page_hint: Optional hint about which page/side this is ("front", "back", "page 1", etc.)
+            document_type: "passport" or "national_id" to select the right schema
 
         Returns:
             JSON string with extracted ID fields
@@ -349,80 +572,48 @@ class GenerationService:
         b64_image, detected_pdf, total_pages = self._file_to_base64_png(image_bytes)
         is_pdf = detected_pdf or is_pdf
 
+        # Determine schema based on document type hint or filename
+        dt = document_type.lower() if document_type else ""
+        schema = self._get_schema_for_doc_type(dt)
+
         # For PDFs, extract all pages and send them together for cross-page context
         if is_pdf and total_pages > 1:
             all_pages = self._pdf_to_all_pages_png(image_bytes)
             if all_pages:
-                return await self._extract_id_from_pdf_pages(all_pages)
+                return await self._extract_multi_page_fields(all_pages, schema, dt)
             # Fall back to single-page extraction
 
-        # Build the ID-specific system prompt
+        # Build the ID-specific system prompt with schema fields
+        field_list = "\n".join(
+            f"  - {field}: {desc}" for field, desc in schema.items()
+        )
+        
         system_msg = (
-            "You are an expert document analyst specializing in government-issued identity documents.\n"
-            "Your task is to extract ALL relevant fields from the provided document image.\n\n"
-            "=== CONTEXT ===\n"
-            "The document may be:\n"
-            "- A scanned page from a PDF (multi-page documents will be sent page by page)\n"
-            "- A government-issued ID (national ID card, passport, driver's license, visa, residence permit)\n"
-            "- Scanned at various quality levels (clear, blurred, skewed, rotated, noisy)\n"
-            "- In any language (most common: English, local language, or both)\n\n"
-            "=== CRITICAL INSTRUCTIONS ===\n"
-            "1. FIRST identify the document type and issuing country\n"
-            "2. Scan the ENTIRE document — front AND back, top to bottom\n"
-            "3. Pay special attention to:\n"
-            "   - Labels in local language (e.g., 'mbiemri/surname', 'data e lindjes') — extract the VALUE next to the label\n"
-            "   - Multi-line fields (e.g., name split across 'surname' and 'given name' lines)\n"
-            "   - MRZ (Machine Readable Zone) at the bottom — usually 2 lines of alphanumeric text\n"
-            "   - Photo areas and any biometric data\n"
-            "4. Extract EXACTLY what you see — do not infer or guess missing information\n"
-            "5. If a field is not present or not legible, return an empty string\n"
-            "6. For dates, preserve the original format from the document (e.g., DD-MM-YYYY)\n\n"
-            "=== FIELDS TO EXTRACT ===\n"
-            "Scan for and extract these fields (use the EXACT label shown on the document as fallback):\n"
-            "- document_type: e.g., 'national_id', 'passport', 'drivers_license', 'visa', 'residence_permit'\n"
-            "- issuing_country: Country that issued the document (full name)\n"
-            "- surname / family_name: Last name\n"
-            "- given_name / forename: First name\n"
-            "- full_name: Complete name as it appears on the document\n"
-            "- nationality: Country of citizenship\n"
-            "- date_of_birth / dob: Date of birth (preserve original format)\n"
-            "- place_of_birth: City, region, or country of birth\n"
-            "- sex / gender: M, F, or other\n"
-            "- date_of_issue / issued: When the document was issued\n"
-            "- date_of_expiry / expires: When the document expires\n"
-            "- authority: Issuing authority or government department\n"
-            "- personal_id_number / id_number / nr: Unique personal ID number\n"
-            "- document_number / card_no: The document's main number\n"
-            "- mrz: Machine Readable Zone text (the 2 lines at the bottom, if present)\n"
-            "- address: Residential address (if shown on the ID)\n"
-            "- signature: Notes whether a signature is present (yes/no)\n"
-            "- photo: Notes whether a photo is present (yes/no)\n"
-            "- page_number: Which page or side this is (front/back/1/2/etc.)\n\n"
-            "=== COMMON ID LABELS ACROSS LANGUAGES ===\n"
-            "Look for these patterns (non-exhaustive):\n"
-            "English: surname, given name, nationality, date of birth, sex, expiry\n"
-            "Albanian: mbiemri, emri, shtetësia, data e lindjes, gjinia, data e skadimit\n"
-            "Turkish: soyadı, adı, uyruk, doğum tarihi, cinsiyet, geçerlilik\n"
-            "Arabic: اسم العائلة, الاسم, الجنسية, تاريخ الميلاد, الجنس, انتهاء الصلاحية\n"
-            "French: nom, prénom, nationalité, date de naissance, sexe, date d'expiration\n"
-            "German: Nachname, Vorname, Staatsangehörigkeit, Geburtsdatum, Geschlecht, Ablaufdatum\n\n"
-            "=== PDF SCANNING NOTES ===\n"
-            "If the image appears to be a page from a multi-page PDF:\n"
-            "- Note if it seems to be page 1, 2, 3, etc. of the document\n"
-            "- If the document spans multiple pages, extract what's visible on THIS page\n"
-            "- Look for page numbers or headers/footers\n"
-            "- Note if the document appears incomplete (e.g., cut off at edges)\n"
-            + (f"\nPage hint: {page_hint}" if page_hint else "")
+            "You are a document data extraction engine. Extract key-value information from the document image and return ONLY valid JSON.\n\n"
+            "JSON SCHEMA TO USE:\n"
+            f"{{\n{field_list}\n}}\n\n"
+            f"This is a {document_type or 'auto-detect'} document. Extract ALL fields listed below.\n\n"
+            "CRITICAL RULES:\n"
+            "1. Return ONLY a JSON object - no markdown, no code fences, no explanation, no preamble\n"
+            "2. Extract ALL fields in the schema - every single one, even if some are empty\n"
+            "3. If a field cannot be read, use empty string \"\" (not null)\n"
+            "4. For dates, preserve the exact format from the document (DD/MM/YYYY, DD-MM-YYYY, etc.)\n"
+            "5. Copy values verbatim - do not translate or reformat\n"
+            "6. For passports: extract given_name and surname separately\n"
+            "7. For national IDs: extract full_name, and if visible also card_number, occupation, issue_place\n"
+            "8. For driving licenses: extract name, license_no, nationality, issue_date, expiry_date, licensing_authority, date_of_birth, traffic_code_no, gear_type ('Automatic Gear' or 'Manual Gear'), and glasses_requirement ('glasses logo' or 'no glasses logo')\n"
+            "9. Look for labels like: Name, License No, Traffic Code No, Permitted Vehicles, Gear, Restrictions, DOB, Nationality, Gender, Expiry, Issue Date\n"
+            "10. The model will receive this as an image - look carefully at all text regions\n"
+            "11. Output must be parseable JSON - use double quotes for all string values\n"
+            + (f"\n\nPage hint: {page_hint}" if page_hint else "")
         )
 
         messages = [
             {"role": "system", "content": system_msg},
             {
                 "role": "user",
-                "content": [
-                    {"type": "text", "text": "Extract all fields from this government-issued ID document. Return JSON."},
-                    self._base64_to_data_url(b64_image),
-                ],
+                "content": "Extract all fields from this government-issued ID document. Return JSON.",
+                "images": [b64_image],
             },
         ]
 
@@ -435,8 +626,8 @@ class GenerationService:
                     "stream": False,
                     "options": {
                         "temperature": 0.1,  # Low temp for accurate extraction
-                        "num_predict": 1024,
-                        "num_ctx": 4096,
+                        "num_predict": 4096,
+                        "num_ctx": 8192,
                     }
                 }
                 response = await self._client.post(self.base_url, json=payload)
@@ -463,43 +654,30 @@ class GenerationService:
 
         return json.dumps({"_error": "Failed to extract fields from ID document after multiple attempts"})
 
-    async def _extract_id_from_pdf_pages(self, pages: List[tuple]) -> str:
+    async def _extract_id_from_pdf_pages(self, pages: List[tuple], schema: Dict[str, str] = None) -> str:
         """Extract ID fields from a multi-page PDF by analyzing all pages together.
 
         Args:
             pages: List of (base64_image, page_number) tuples
+            schema: Field schema dict (defaults to NATIONAL_ID_SCHEMA)
 
         Returns:
             JSON string with merged extracted fields from all pages
         """
+        if schema is None:
+            schema = self.NATIONAL_ID_SCHEMA
+        
         # First pass: extract fields from each page independently
         page_results = []
+        field_list = "\n".join(
+            f"  - {field}: {desc}" for field, desc in schema.items()
+        )
         for b64_page, page_num in pages:
             system_msg = (
-                "You are an expert document analyst specializing in government-issued identity documents.\n"
-                "This is page {page_num} of a multi-page document.\n\n"
+                "You are an expert document data extraction assistant.\n"
+                f"This is page {page_num} of a multi-page document.\n\n"
                 "Extract ALL fields visible on THIS page. Note which side (front/back) this appears to be.\n\n"
-                "FIELDS TO EXTRACT:\n"
-                "- document_type: national_id, passport, drivers_license, visa, residence_permit\n"
-                "- issuing_country: Full country name\n"
-                "- surname: Last name\n"
-                "- given_name: First name\n"
-                "- full_name: Complete name\n"
-                "- nationality: Country of citizenship\n"
-                "- date_of_birth: Date of birth\n"
-                "- place_of_birth: City/region/country\n"
-                "- sex: M/F/other\n"
-                "- date_of_issue: Issue date\n"
-                "- date_of_expiry: Expiry date\n"
-                "- authority: Issuing authority\n"
-                "- personal_id_number: Unique personal ID\n"
-                "- document_number: Main document number\n"
-                "- mrz: Machine Readable Zone text (if present)\n"
-                "- address: Address (if shown)\n"
-                "- signature: yes/no\n"
-                "- photo: yes/no\n"
-                "- page_number: Current page number\n"
-                "- side: front or back (guess from content)\n\n"
+                f"FIELDS TO EXTRACT:\n{field_list}\n\n"
                 "Return ONLY valid JSON — no markdown, no explanation.\n"
                 "Use this structure:\n"
                 "{{\n"
@@ -509,18 +687,16 @@ class GenerationService:
                 "}}\n\n"
                 "RULES:\n"
                 "- Extract EXACTLY what you see — do not infer missing data\n"
-                "- Use empty string for fields not visible on this page\n"
+                "- Use empty string or null for fields not visible on this page\n"
                 "- For dates, preserve the original format"
-            ).format(page_num=page_num)
+            )
 
             messages = [
                 {"role": "system", "content": system_msg},
                 {
                     "role": "user",
-                    "content": [
-                        {"type": "text", "text": f"Extract fields from page {page_num} of this ID document."},
-                        self._base64_to_data_url(b64_page),
-                    ],
+                    "content": f"Extract fields from page {page_num} of this ID document.",
+                    "images": [b64_page],
                 },
             ]
 
@@ -531,8 +707,8 @@ class GenerationService:
                     "stream": False,
                     "options": {
                         "temperature": 0.1,
-                        "num_predict": 1024,
-                        "num_ctx": 4096,
+                        "num_predict": 4096,
+                        "num_ctx": 8192,
                     }
                 }
                 response = await self._client.post(self.base_url, json=payload)
@@ -594,17 +770,19 @@ class GenerationService:
             # Otherwise put everything in a flat structure
             front_fields[field] = value
 
-        result = {
-            "document_type": merged_fields.get("document_type", "unknown"),
-            "issuing_country": merged_fields.get("issuing_country", ""),
-            "total_pages": len(pages),
-            "front_page": front_side,
-            "back_page": back_side,
-            "fields": front_fields,
-            "_note": "All fields merged from available pages. Some fields may only appear on the back side."
-        }
+        # Clean up: only keep fields that are in the schema
+        clean_fields = {}
+        for field, value in front_fields.items():
+            if field in schema and value:
+                clean_fields[field] = value
+        
+        # Add metadata
+        clean_fields["_total_pages"] = len(pages)
+        clean_fields["_front_page"] = front_side
+        clean_fields["_back_page"] = back_side
+        clean_fields["_note"] = "All fields merged from available pages."
 
-        return json.dumps(result)
+        return json.dumps(clean_fields)
 
     @staticmethod
     def _extract_json(text: str) -> Optional[dict]:
@@ -682,10 +860,8 @@ class GenerationService:
             {"role": "system", "content": system_msg},
             {
                 "role": "user",
-                "content": [
-                    {"type": "text", "text": f"Validate this document. It should be one of: {allowed}. Return JSON."},
-                    self._base64_to_data_url(b64_image),
-                ],
+                "content": f"Validate this document. It should be one of: {allowed}. Return JSON.",
+                "images": [b64_image],
             },
         ]
 
@@ -699,7 +875,7 @@ class GenerationService:
                     "options": {
                         "temperature": 0.1,
                         "num_predict": 512,
-                        "num_ctx": 4096,
+                        "num_ctx": 8192,
                     }
                 }
                 response = await self._client.post(self.base_url, json=payload)

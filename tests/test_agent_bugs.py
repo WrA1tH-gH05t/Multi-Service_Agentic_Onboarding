@@ -1,8 +1,36 @@
 """
-Regression tests for confirmed bugs A1–A8.
+test_agent_bugs.py - Regression Test Suite for Document Collection & Validation Agents (Bugs A1–A8).
 
-Each test verifies a single bug is fixed and will catch re-introduction.
-Uses synthetic data only — no real personal data.
+Module Purpose & Role in the Project:
+------------------------------------
+This regression test suite validates bug fixes and safeguards invariants across
+`CollectionAgent` and `ValidationAgent`. It uses synthetic test fixtures (avoiding real PII)
+to confirm that previously identified architectural and logic bugs cannot re-emerge.
+
+Regression Bug Coverage:
+  - A1: `get_status_message()` immutability: Verifies that polling status or asking user questions
+        does not mutate or pop requirements from `session.document_requirements`.
+  - A2: Required slot enforcement: Asserts that uploading 1 of 2 mandatory documents yields
+        status `'continue'` and never prematurely marks the application as `'complete'`.
+  - A3: Upload failure thresholding: Asserts that the first upload failure returns `'retry'`;
+        subsequent failures for the same reason trigger `'escalate_to_validation'`.
+  - A4: Human review escalation: Confirms that medium-severity issues result in `'needs_review'`
+        rather than catastrophic `'fail'`, keeping the human-in-the-loop workflow reachable.
+  - A5: Expiry date parsing: Confirms unparseable date strings fail closed (return `None` for review),
+        future dates pass, past dates fail, and month-year strings are valid through end-of-month.
+  - A6: Set-based tolerant name matching: Asserts order-invariant, punctuation-insensitive,
+        and diacritic/accent-folded matching (`José García` matches `jose garcia`).
+  - A7: Missing shared cross-check fields: Unverifiable pairs (e.g. passport has DOB but national ID
+        lacks DOB) report `'needs_review'` rather than silently passing.
+  - A8: Multi-tenant session integrity: Enforces UUID generation for session IDs, collision-free
+        fast instantiation, timezone-aware UTC timestamps, and strict `user_id` ownership checks.
+
+Interconnections with Other Components:
+---------------------------------------
+- `agents.collection_agent`: Tests `CollectionAgent` and `ApplicationSession` state transitions.
+- `agents.validation_agent`: Tests `ValidationAgent`, `ValidationReport`, and `ValidationIssue`.
+- Backend Workflow: Mirrors the core business constraints enforced in `app.api.routes.documents`
+  and the LangGraph agent supervisor nodes.
 """
 import sys
 import os
@@ -20,7 +48,12 @@ from agents.validation_agent import ValidationAgent, ValidationReport
 # =====================================================================
 
 class TestA1_NoMutationOnGetStatusMessage:
-    """Asking a question before uploading must not change requirements."""
+    """
+    Test suite verifying that querying session status does not mutate requirements.
+    
+    Interconnections:
+    - Tests `ApplicationSession.get_status_message()` in `agents.collection_agent`.
+    """
 
     def test_popitem_bug_fixed(self):
         """A1: get_status_message() used to call popitem() which deleted a requirement."""

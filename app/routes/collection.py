@@ -1,4 +1,32 @@
-"""Collection agent routes: submit, question, change-service, validate."""
+"""
+Collection agent routes — document submission, live questions, service changes, and validation.
+
+Role in Project:
+    This module bridges the HTTP API and the `CollectionAgent` — the stateful AI component
+    that tracks which documents have been submitted for an onboarding application and decides
+    what is still needed. It exposes the CollectionAgent's session management, document
+    submission, mid-conversation question answering, service switching, and final validation
+    trigger as RESTful endpoints.
+
+Cross-File Interconnections:
+    - `agents.collection_agent.CollectionAgent` — the primary orchestrator called by every
+      endpoint in this module:
+        * `CollectionAgent.list_sessions` — /collection/sessions GET
+        * `CollectionAgent.get_session` — /collection/session/{id} GET
+        * `CollectionAgent.submit_document` — /collection/session/{id}/submit POST
+        * `CollectionAgent.handle_question` — /collection/session/{id}/question POST
+        * `CollectionAgent.handle_service_change` — /collection/session/{id}/change-service POST
+    - `agents.validation_agent.ValidationAgent.validate_application` — the /collection/validate
+      endpoint triggers a full cross-document validation run and persists the result.
+    - `services.database.DatabaseService.log_event` — audit trail events are emitted for
+      every submission and validation outcome.
+    - `app.main.app_state` — service instances (collection_agent, validation_agent, database)
+      are all fetched from the shared app state.
+
+Ownership / Security:
+    - `list_collection_sessions` requires user_id as a query param.
+    - `get_collection_session` verifies `coll_session.user_id == user_id` before returning data.
+"""
 
 import logging
 from datetime import datetime, timezone
@@ -10,6 +38,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 def get_state():
+    """Return the shared app_state dict. Lazy import prevents circular dependencies."""
     from app.main import app_state
     return app_state
 
@@ -34,8 +63,20 @@ def _get_session(session_id: str) -> dict:
 
 @router.get("/collection/sessions")
 async def list_collection_sessions(user_id: str = Query(...)):
-    """List all collection sessions for a user.
-    
+    """List all CollectionAgent sessions belonging to a specific user.
+
+    Delegates to `CollectionAgent.list_sessions(user_id)` which filters the in-memory
+    session store. Returns session id, service_id, status, and document completion counts.
+
+    Interconnections:
+        - `agents.collection_agent.CollectionAgent.list_sessions`
+
+    Args:
+        user_id: The user whose sessions to list.
+
+    Returns:
+        `{"success": True, "data": [<session_summary>, ...]}`
+
     Phase 3: Returns session list with status, service_id, and creation date.
     """
     state = get_state()
@@ -50,8 +91,25 @@ async def list_collection_sessions(user_id: str = Query(...)):
 
 @router.get("/collection/session/{session_id}")
 async def get_collection_session(session_id: str, user_id: str = Query(...)):
-    """Get details of a specific collection session.
-    
+    """Get details and document tracking status of a specific CollectionAgent session.
+
+    Verifies session ownership (user_id must match) before returning data.
+    The returned `to_dict()` includes the per-document requirement status: whether each
+    mandatory document has been submitted, extraction results, and failure counts.
+
+    Interconnections:
+        - `agents.collection_agent.CollectionAgent.get_session`
+        - `agents.collection_agent.ApplicationSession.to_dict`
+
+    Args:
+        session_id: The CollectionAgent session UUID.
+        user_id: Must match `coll_session.user_id` — enforces data isolation.
+
+    Returns:
+        `{"success": True, "data": <session_detail_dict>}`
+        HTTP 403 if user_id does not match the session owner.
+        HTTP 404 if the session does not exist.
+
     Phase 3: Returns session details with status and document requirements.
     """
     state = get_state()
@@ -72,8 +130,30 @@ async def get_collection_session(session_id: str, user_id: str = Query(...)):
 
 @router.post("/collection/session/{session_id}/submit")
 async def collection_submit(session_id: str, data: dict):
-    """Submit a document to the CollectionAgent.
-    
+    """Submit an extracted document result to the CollectionAgent.
+
+    Called by `app.routes.documents.upload_document` after a file has been uploaded to
+    MinIO and extracted by the ExtractionLadder. Updates the CollectionAgent's per-document
+    state and determines the next prompt (e.g. "great, now upload your driving licence").
+
+    Workflow:
+        1. Looks up the chat session to find its `collection_session_id`.
+        2. Delegates to `CollectionAgent.submit_document` with the doc_type, file_id,
+           extraction success flag, extracted fields, and confidence score.
+        3. Logs an audit event to `DatabaseService.log_event` with doc_type and result.
+
+    Interconnections:
+        - `agents.collection_agent.CollectionAgent.submit_document` — core logic.
+        - `services.database.DatabaseService.log_event` — audit trail.
+
+    Args:
+        session_id: The wizard chat session id (used to look up `collection_session_id`).
+        data: Dict containing: doc_type, file_id, extraction_ok, extraction_fields,
+              extraction_confidence, and optionally application_id.
+
+    Returns:
+        `{"success": True, "data": <collection_agent_response>}`
+
     Phase 3: Persists submission to database, emits audit trail events.
     """
     state = get_state()
@@ -129,7 +209,22 @@ async def collection_submit(session_id: str, data: dict):
 
 @router.post("/collection/session/{session_id}/question")
 async def collection_question(session_id: str, data: dict):
-    """Handle a question during collection without losing state."""
+    """Handle a user question during an active collection session without losing wizard state.
+
+    Routes off-topic or clarification questions (e.g. 'what documents do I need?') through
+    the CollectionAgent's question handler, which can answer based on service requirements
+    without resetting the current document-collection state machine.
+
+    Interconnections:
+        - `agents.collection_agent.CollectionAgent.handle_question`
+
+    Args:
+        session_id: The wizard chat session id.
+        data: Dict containing `question` (str).
+
+    Returns:
+        `{"success": True, "data": <collection_agent_answer>}`
+    """
     collection_agent = get_state().get("collection_agent")
     if not collection_agent:
         raise HTTPException(status_code=503, detail="Collection agent not available")
@@ -149,7 +244,24 @@ async def collection_question(session_id: str, data: dict):
 
 @router.post("/collection/session/{session_id}/change-service")
 async def collection_change_service(session_id: str, data: dict):
-    """Handle switching services mid-conversation."""
+    """Handle switching to a different Moro Hub service mid-conversation.
+
+    Delegates to `CollectionAgent.handle_service_change` which creates a new collection
+    session for the new service. Also resets the wizard chat session state back to the
+    welcome step so the UI reflects the fresh start.
+
+    Interconnections:
+        - `agents.collection_agent.CollectionAgent.handle_service_change`
+        - Resets the module-level `_chat_sessions[session_id]` dict.
+
+    Args:
+        session_id: The wizard chat session id.
+        data: Dict containing `new_service_id` (str).
+
+    Returns:
+        `{"success": True, "data": <collection_agent_response>}`
+        HTTP 400 if `new_service_id` is missing.
+    """
     collection_agent = get_state().get("collection_agent")
     if not collection_agent:
         raise HTTPException(status_code=503, detail="Collection agent not available")
@@ -177,9 +289,35 @@ async def collection_change_service(session_id: str, data: dict):
 
 @router.post("/collection/validate")
 async def collection_validate(data: dict):
-    """Run ValidationAgent on a complete application (Phase 2).
-    
-    Phase 3: Persists validation result to database, emits audit events.
+    """Trigger a full ValidationAgent run on a complete collection session.
+
+    After all required documents have been submitted, this endpoint assembles the
+    application data from the CollectionAgent session and runs the ValidationAgent.
+    The validation result is then persisted to the `applications` table and an audit
+    event is emitted.
+
+    Workflow:
+        1. Loads the CollectionAgent session by `collection_session_id`.
+        2. Builds an `app_data` dict with all submitted documents and extracted fields.
+        3. Calls `ValidationAgent.validate_application(app_data)` — runs cross-document
+           checks (name consistency, DOB match, expiry checks, mandatory field coverage).
+        4. Persists the `ValidationReport.to_dict()` to the `Application.validation_result`
+           DB column and updates `Application.status`.
+        5. Emits a `validation_passed` or `validation_failed` audit event.
+
+    Interconnections:
+        - `agents.collection_agent.CollectionAgent.get_session`
+        - `agents.validation_agent.ValidationAgent.validate_application`
+        - `services.database.DatabaseService.session_scope` — DB write.
+        - `services.database.DatabaseService.log_event` — audit trail.
+
+    Args:
+        data: Dict containing `collection_session_id` (str).
+
+    Returns:
+        `{"success": True, "data": <validation_report_dict>, "message": "Validation passed/failed"}`
+
+    Phase 2+3: Runs ValidationAgent; persists result, emits audit events.
     """
     state = get_state()
     db = state.get("database")

@@ -1,4 +1,24 @@
-"""Audit trail routes."""
+"""
+Audit trail routes — queryable log of every significant system event.
+
+Role in Project:
+    Provides HTTP endpoints to read the structured audit log that is written throughout
+    the onboarding pipeline. Every document upload, extraction attempt, validation pass/fail,
+    and chat message is appended to the `audit_events` PostgreSQL table by
+    `services.database.DatabaseService.log_event`. These endpoints expose that data for
+    admin dashboards, debugging, and compliance traceability.
+
+Cross-File Interconnections:
+    - `services.database.DatabaseService.get_audit_trail` — the single data-retrieval
+      method that all three endpoints here delegate to. It queries the `audit_events` table
+      with optional user_id, application_id, and event_type filters.
+    - Written to (not read) by:
+        * `app.routes.documents` — logs upload and extraction events.
+        * `app.routes.collection` — logs document submission and validation events.
+        * `app.routes.chat_message` — logs chat turns and injection blocks.
+        * `agents.validation_agent` — logs validation decisions.
+    - `app.main.app_state` — retrieves the `DatabaseService` instance at request time.
+"""
 
 import logging
 from typing import Optional
@@ -17,9 +37,19 @@ async def get_audit_logs(
     event_type: Optional[str] = Query(None),
     limit: int = Query(default=100, ge=1, le=500),
 ):
-    """Get audit logs for troubleshooting and traceability.
-    
-    Alias for /audit/trail - returns recent audit events.
+    """Get audit logs with optional filtering — alias for /audit/trail.
+
+    Delegates to `DatabaseService.get_audit_trail`. Returns an empty list when
+    the database is not yet available (degraded mode).
+
+    Args:
+        user_id: Filter to events belonging to this user.
+        application_id: Filter to events belonging to this application.
+        event_type: Filter to a specific event kind (e.g. 'document_upload', 'validation_passed').
+        limit: Maximum number of records to return (1–500).
+
+    Returns:
+        `{"data": {"logs": [...], "total": N}}`
     """
     from app.main import app_state
     db = app_state.get("database")
@@ -45,9 +75,23 @@ async def get_audit_trail(
     event_type: Optional[str] = Query(None),
     limit: int = Query(default=100, ge=1, le=500),
 ):
-    """Get audit trail for troubleshooting and traceability.
-    
-    Phase 3: Every stage of every application is logged and queryable.
+    """Get the full audit trail for an application or user (primary endpoint).
+
+    Phase 3: Every stage of every application — from service selection through document
+    upload, extraction, validation, and final decision — is logged and queryable here.
+    Supports admin oversight and SLA compliance auditing.
+
+    Interconnections:
+        - `services.database.DatabaseService.get_audit_trail` — queries `audit_events` table.
+
+    Args:
+        user_id: Scope to a specific user's events.
+        application_id: Scope to a single application's lifecycle.
+        event_type: Narrow to a specific event category.
+        limit: Cap on returned records.
+
+    Returns:
+        `{"data": {"audit_trail": [...], "total": N}}`
     """
     from app.main import app_state
     db = app_state.get("database")
@@ -71,9 +115,19 @@ async def get_audit_events(
     user_id: Optional[str] = Query(None),
     limit: int = Query(default=50, ge=1, le=200),
 ):
-    """Get recent audit events for monitoring.
-    
+    """Get recent audit events aggregated by event type for monitoring dashboards.
+
+    Fetches up to `limit` recent events and computes a per-event-type count summary.
+    Returns both the most recent 20 events (for a live feed) and the full count breakdown
+    (for trend charts tracking extraction accuracy, routing accuracy, human-review rates).
+
     Phase 3: Track routing accuracy, extraction accuracy, human review rates.
+
+    Interconnections:
+        - `services.database.DatabaseService.get_audit_trail` — raw event fetch.
+
+    Returns:
+        `{"data": {"events": [...20 recent...], "counts": {event_type: N}, "total": N}}`
     """
     from app.main import app_state
     db = app_state.get("database")

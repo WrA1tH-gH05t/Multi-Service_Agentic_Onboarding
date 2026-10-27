@@ -1,84 +1,121 @@
-# Docker Compose — Multi-Service Agentic Onboarding (MinIO-ready)
-# Runs: PostgreSQL (pgvector) + Ollama + MinIO
-# Only these three services are required for the MVP.
-# No Redis, no SeaweedFS, no ClamAV — those add startup crash surface
-# and are not required for the MVP.
+# docker-compose.yml
+# This file defines all the Docker containers our system needs.
 
 version: '3.8'
 
 services:
-  # PostgreSQL with pgvector — stores user data, applications, metadata
+  # PostgreSQL - The database where we store document metadata and search data
   postgres:
-    image: pgvector/pgvector:pg16
-    container_name: onboarding-postgres
+    image: pgvector/pgvector:pg16  # PostgreSQL with vector support for AI search
+    container_name: doc-intake-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-intake}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-intake_secret_2026}
       POSTGRES_DB: ${DB_NAME:-doc_intake}
     ports:
-      - "5432:5432"
+      - "5432:5432"  # Accessible from your computer on port 5432
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+      - postgres_data:/var/lib/postgresql/data  # Save database data permanently
+      - ./scripts/init_db.sql:/docker-entrypoint-initdb.d/init_db.sql  # Auto-run this script
     networks:
-      - onboarding-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U intake"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - doc-intake-network
 
-  # Ollama — local LLM for vision model (qwen2.5vl:3b)
-  ollama:
-    image: ollama/ollama:latest
-    container_name: onboarding-ollama
+  # Redis - Used for task queues and caching
+  redis:
+    image: redis:7-alpine  # Lightweight Redis image
+    container_name: doc-intake-redis
     restart: unless-stopped
     ports:
-      - "11434:11434"
+      - "6379:6379"  # Accessible on port 6379
     volumes:
-      - ollama_models:/root/.ollama
+      - redis_data:/data  # Persist Redis data
     networks:
-      - onboarding-network
-    healthcheck:
-      test: ["CMD", "ollama", "list"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
+      - doc-intake-network
 
-  # MinIO — S3-compatible object storage for documents
-  # IMPORTANT: upstream minio/minio was removed from Docker Hub in Sept 2026.
-  # This uses pgsty/minio (community fork, Docker Hub), a drop-in replacement.
-  # API:      http://127.0.0.1:9000
-  # Console:  http://127.0.0.1:9001 (login: minioadmin / minioadmin_secret_2026)
+  # MinIO - S3-compatible object storage for document files
   minio:
     image: pgsty/minio:RELEASE.2026-06-18T00-00-00Z
-    container_name: onboarding-minio
+    container_name: doc-intake-minio
     restart: unless-stopped
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    environment:
-      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:-minioadmin}
-      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:-minioadmin_secret_2026}
-    volumes:
-      - minio_data:/data
     command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin_secret_2026}
+    ports:
+      - "9000:9000"  # MinIO API port
+      - "9001:9001"  # MinIO console/UI port
+    volumes:
+      - minio_data:/data  # Store files permanently
     networks:
-      - onboarding-network
+      - doc-intake-network
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-# Named volumes
+  # ClamAV - Antivirus scanner for uploaded files
+  clamav:
+    image: clamav/clamav:latest
+    container_name: doc-intake-clamav
+    restart: unless-stopped
+    ports:
+      - "3310:3310"  # ClamAV daemon port
+    networks:
+      - doc-intake-network
+
+  # Ollama - AI model runner for embeddings
+  ollama:
+    image: ollama/ollama:latest
+    container_name: doc-intake-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"  # Ollama API port
+    volumes:
+      - ollama_models:/root/.ollama  # Save downloaded models
+    networks:
+      - doc-intake-network
+
+  # Label Studio - Tool for annotating documents (optional but useful)
+  label-studio:
+    image: heartexlabs/label-studio:latest
+    container_name: doc-intake-label-studio
+    restart: unless-stopped
+    ports:
+      - "8081:8080"  # Label Studio web interface
+    environment:
+      LABEL_STUDIO_LOCAL_FILES_SERVING_ENABLED: "true"
+    volumes:
+      - label_studio_data:/label-studio  # Save annotations
+    networks:
+      - doc-intake-network
+
+  # pgAdmin - PostgreSQL web management interface
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: doc-intake-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@local.dev}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - doc-intake-network
+
+# Docker volumes - persistent storage for each service
 volumes:
   postgres_data:
-  ollama_models:
+  redis_data:
   minio_data:
+  ollama_models:
+  label_studio_data:
+  pgadmin_data:
 
-# Bridge network — all containers on the same Docker network
+# Network - allows containers to talk to each other
 networks:
-  onboarding-network:
+  doc-intake-network:
     driver: bridge

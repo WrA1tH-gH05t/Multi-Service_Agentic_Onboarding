@@ -1,7 +1,25 @@
 """
 Golden dataset page for Streamlit — displays stats, lets you browse/search/validate
-entries from the golden dataset.  Uses cached API calls so the page never hangs.
-(No changes from v1 — golden dataset is in-memory, no DB dependency)
+entries from the golden dataset. Uses cached API calls so the page never hangs.
+
+Module Purpose & Role in the Project:
+-------------------------------------
+This module provides a standalone interactive Streamlit dashboard allowing operators,
+compliance officers, and developers to explore, search, compare, and validate ground-truth
+identity documents maintained by the `GoldenDatasetService`. It interacts directly with the
+FastAPI backend endpoints exposed under `/api/v1/golden-dataset/*` (implemented in `app/routes/golden.py`).
+
+Interconnections with Other Files:
+-----------------------------------
+- Consumes REST API endpoints from `app/routes/golden.py`:
+  * `GET /api/v1/golden-dataset/summary`: Statistical breakdown of benchmark data.
+  * `GET /api/v1/golden-dataset/entries`: Paginated and filtered ground truth documents.
+  * `GET /api/v1/golden-dataset/search`: Keyword search over dataset fields and metadata.
+  * `GET /api/v1/golden-dataset/field-names`: Unique field names across all golden records.
+  * `GET /api/v1/golden-dataset/field-examples`: Representative values for a given field.
+  * `POST /api/v1/golden-dataset/validate`: Compares arbitrary extraction outputs against ground truth.
+  * `POST /api/v1/golden-dataset/compare`: Side-by-side diff between two golden dataset entries.
+- Directly mirrors capabilities from `services.golden_dataset.GoldenDatasetService`.
 """
 
 import streamlit as st
@@ -13,7 +31,24 @@ GOLDEN_PATH = "/golden-dataset"
 
 
 def _get(path, timeout=15):
-    """GET from the API, return (ok, json_body)."""
+    """
+    Execute an HTTP GET request to the backend API.
+
+    Detailed Behavior:
+    - Makes a GET request to `{API_BASE}{path}` with a configurable timeout.
+    - If status code is 200, returns (True, response_json).
+    - If non-200 or an exception occurs, returns (False, error_payload).
+
+    Parameters:
+        path (str): Relative URL path appended to `API_BASE` (e.g. '/golden-dataset/summary').
+        timeout (int): Request timeout in seconds (defaults to 15s).
+
+    Returns:
+        tuple[bool, dict]: (success_flag, json_body_or_error_dict).
+
+    Interconnections:
+        - Calls endpoints in `app/routes/golden.py`.
+    """
     try:
         r = requests.get(f"{API_BASE}{path}", timeout=timeout)
         if r.status_code == 200:
@@ -24,7 +59,24 @@ def _get(path, timeout=15):
 
 
 def _post(path, json_body, timeout=15):
-    """POST to the API, return (ok, json_body)."""
+    """
+    Execute an HTTP POST request to the backend API with a JSON payload.
+
+    Detailed Behavior:
+    - Sends an HTTP POST request to `{API_BASE}{path}` containing `json_body`.
+    - Returns (True, response_json) on HTTP 200, or (False, error_dict) on failure.
+
+    Parameters:
+        path (str): Relative URL path appended to `API_BASE`.
+        json_body (dict): Dictionary serialized as JSON request body.
+        timeout (int): Request timeout in seconds (defaults to 15s).
+
+    Returns:
+        tuple[bool, dict]: (success_flag, json_body_or_error_dict).
+
+    Interconnections:
+        - Dispatches validation and comparison requests to `app/routes/golden.py`.
+    """
     try:
         r = requests.post(f"{API_BASE}{path}", json=json_body, timeout=timeout)
         if r.status_code == 200:
@@ -35,6 +87,18 @@ def _post(path, json_body, timeout=15):
 
 
 def render_summary():
+    """
+    Render high-level dataset metrics and breakdowns in the Streamlit UI.
+
+    Detailed Behavior:
+    - Fetches statistical summary via `GET /golden-dataset/summary`.
+    - Renders total entry count and distinct country count using `st.metric`.
+    - Outlines distributions of document types (e.g., national_id, passport) and
+      capture conditions (e.g., table, handheld, cluttered, partial).
+
+    Interconnections:
+        - Calls `app/routes/golden.py:get_golden_dataset_summary`.
+    """
     st.subheader("📊 Dataset Summary")
     ok, body = _get(f"{GOLDEN_PATH}/summary")
     if not ok or "error" in body:
@@ -52,6 +116,19 @@ def render_summary():
 
 
 def render_browse():
+    """
+    Render interactive filter controls and list ground-truth entries.
+
+    Detailed Behavior:
+    - Provides UI dropdowns and input boxes for filtering by document type,
+      capture condition, country code, and max display limit.
+    - Queries `GET /golden-dataset/entries` with formatted query parameters.
+    - Expands each matching document entry displaying golden field values, source notes,
+      and validation rules.
+
+    Interconnections:
+        - Calls `app/routes/golden.py:get_golden_dataset_entries`.
+    """
     st.subheader("🔍 Browse Entries")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -102,6 +179,17 @@ def render_browse():
 
 
 def render_search():
+    """
+    Render keyword search UI querying golden dataset entries.
+
+    Detailed Behavior:
+    - Allows free-form textual queries (e.g. 'passport table name') with slider for result limit.
+    - Calls `GET /golden-dataset/search?query=...&limit=...`.
+    - Renders matching records ordered by relevance score with detailed field views.
+
+    Interconnections:
+        - Calls `app/routes/golden.py:search_golden_dataset`.
+    """
     st.subheader("🔎 Search")
     query = st.text_input("Search terms", placeholder="e.g. passport table name")
     limit = st.slider("Results", 1, 50, 10)
@@ -130,6 +218,16 @@ def render_search():
 
 
 def render_field_names():
+    """
+    Render an exhaustive list of unique field names extracted across all golden documents.
+
+    Detailed Behavior:
+    - Calls `GET /golden-dataset/field-names`.
+    - Displays total unique field count and bullets formatted field tags.
+
+    Interconnections:
+        - Calls `app/routes/golden.py:get_all_field_names`.
+    """
     st.subheader("🏷️ All Fields")
     ok, body = _get(f"{GOLDEN_PATH}/field-names")
     if not ok or "error" in body:
@@ -143,6 +241,17 @@ def render_field_names():
 
 
 def render_field_examples():
+    """
+    Render sample values for a user-selected field across documents.
+
+    Detailed Behavior:
+    - Populates a selector using unique field names from `GET /golden-dataset/field-names`.
+    - Queries `GET /golden-dataset/field-examples?field_name=...` for the selected field.
+    - Displays actual values and document associations from ground-truth data.
+
+    Interconnections:
+        - Calls `app/routes/golden.py:get_field_examples`.
+    """
     st.subheader("💡 Field Examples")
     ok, body = _get(f"{GOLDEN_PATH}/field-names")
     if not ok or "error" in body:
@@ -165,6 +274,19 @@ def render_field_examples():
 
 
 def render_validation():
+    """
+    Render validation sandbox comparing user/model extractions against ground truth.
+
+    Detailed Behavior:
+    - Loads ground-truth entries via `GET /golden-dataset/entries?limit=50`.
+    - When an entry is selected, renders disabled ground-truth text inputs alongside editable
+      inputs representing extracted model predictions.
+    - On 'Validate' button click, submits a payload to `POST /golden-dataset/validate`.
+    - Renders completion rate metric, overall validity badge, and per-field comparison checks.
+
+    Interconnections:
+        - Calls `app/routes/golden.py:validate_extraction`.
+    """
     st.subheader("✅ Validate Extraction")
     st.caption("Enter extracted fields and compare against the golden dataset.")
 
@@ -211,6 +333,17 @@ def render_validation():
 
 
 def render_compare():
+    """
+    Render a side-by-side comparison between two arbitrary golden dataset entries.
+
+    Detailed Behavior:
+    - Provides dropdowns for choosing two distinct document IDs.
+    - Posts comparison query to `POST /golden-dataset/compare?entry1_id=...&entry2_id=...`.
+    - Renders structured JSON diff highlighting matched, conflicting, or unique fields.
+
+    Interconnections:
+        - Calls `app/routes/golden.py:compare_golden_entries`.
+    """
     st.subheader("⚖️ Compare Entries")
 
     ok, body = _get(f"{GOLDEN_PATH}/entries?limit=50")
@@ -239,6 +372,21 @@ def render_compare():
 
 
 def render_golden_dataset_page():
+    """
+    Main entrypoint function for rendering the Golden Dataset dashboard in Streamlit.
+
+    Detailed Behavior:
+    - Configures page header and organizes exploration capabilities into six tabs:
+      1. 'Summary': High-level statistics.
+      2. 'Browse': Filterable document catalog.
+      3. 'Search': Relevance-based search.
+      4. 'Fields': Field dictionary and samples.
+      5. 'Validate': Extraction evaluation sandbox.
+      6. 'Compare': Two-entry diff viewer.
+
+    Interconnections:
+        - Invoked by the primary Streamlit app runner to render the dataset interface.
+    """
     st.markdown('<h2 style="color:#e4e6eb">🏆 Golden Dataset</h2>', unsafe_allow_html=True)
     st.caption("Browse, search, validate, and compare golden document extractions.")
 

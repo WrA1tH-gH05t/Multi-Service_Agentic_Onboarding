@@ -1,8 +1,30 @@
 """
-Seed services, service_documents, and service_definitions into PostgreSQL.
+seed_services.py - Database Populator for Service Catalog, Documents, and Definitions.
 
-Pulls ServiceDefinition objects from ServiceCatalogService and persists them
-into the DB models: services, service_documents, service_definitions.
+Module Purpose & Role in the Project:
+------------------------------------
+This administrative database seeding script synchronizes the in-memory or file-based
+service specifications declared in `ServiceCatalogService` into PostgreSQL relational tables.
+It ensures that:
+  1. The `services` table contains registered onboarding offerings (names, descriptions,
+     active statuses, required documents list).
+  2. The `service_documents` table defines document slot configurations (e.g. `doc_0`, `doc_1`)
+     with allowed alternative document types and mandatory flags.
+  3. The `service_definitions` table is populated with reference records linking source PDF/text
+     policy documents to services, preparing slots for RAG chunking and vector indexing.
+
+Interconnections with Other Components:
+---------------------------------------
+- `config.yaml`: Provides database connectivity credentials and settings.
+- `services.database.DatabaseService`: Establishes DB sessions and persists ORM records.
+- `services.database` ORM Models:
+    * `Service`: Target entity for service metadata.
+    * `ServiceDocument`: Target entity for per-service document requirements.
+    * `ServiceDefinition`: Target entity for RAG knowledge documents.
+- `services.service_catalog.ServiceCatalogService`: Acts as the source of truth for all
+  pre-configured services and requirements.
+- Backend API (`app.api.routes.services`): Relies on seeded database rows to serve
+  `GET /services` requests to the Streamlit UI (`app.py`).
 
 Usage:
     python -m scripts.seed_services
@@ -24,10 +46,21 @@ logger = logging.getLogger(__name__)
 
 
 def seed_services(db: DatabaseService, catalog: ServiceCatalogService) -> dict:
-    """Seed all services from the catalogue into PostgreSQL.
+    """
+    Seed all services from the catalogue into PostgreSQL tables.
+
+    Interconnections:
+    - Reads definitions from `catalog.get_all_services()`.
+    - Upserts records into PostgreSQL `services`, `service_documents`, and `service_definitions`.
+    - Commits the transaction and closes the session.
+    - Called By: Root execution entry point in `scripts/seed_services.py`.
+
+    Args:
+        db (DatabaseService): Active database service instance.
+        catalog (ServiceCatalogService): Catalog containing parsed service definitions.
 
     Returns:
-        dict with keys: created, updated, skipped
+        dict: Summary metrics with counts for `created`, `updated`, and `skipped` records.
     """
     all_services = catalog.get_all_services()
     session = db.get_session()

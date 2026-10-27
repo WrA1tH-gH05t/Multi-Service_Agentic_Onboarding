@@ -17,27 +17,27 @@ This system helps you:
 
 ```
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   Streamlit UI   │───▶│   FastAPI Server  │───▶│  PostgreSQL     │
-│  (Web Interface) │    │   (API Backend)   │    │  (Database +    │
-└─────────────────┘    └──────────────────┘    │   pgvector)       │
-                              │                 └─────────────────┘
+│   Streamlit UI  │───▶│   FastAPI Server │ ───▶│  PostgreSQL   │
+│  (Web Interface)│    │   (API Backend)  │    │  (Database +    │
+└─────────────────┘    └──────────────────┘    │   pgvector)     │
+                              │                └─────────────────┘
                               ▼                         │
                        ┌──────────────────┐             │
-                       │   SeaweedFS       │             │
-                       │  (File Storage)   │             │
+                       │   SeaweedFS      │             │
+                       │  (File Storage)  │             │
                        └──────────────────┘             │
                               │                         │
                               ▼                         ▼
                        ┌──────────────────┐    ┌─────────────────┐
-                       │   Ollama          │    │   Redis         │
-                       │  (AI Embeddings)  │    │  (Cache/Queue)  │
+                       │   Ollama         │    │   Redis         │
+                       │  (AI Embeddings) │    │  (Cache/Queue)  │
                        └──────────────────┘    └─────────────────┘
 
 New Components (Phase 2-6):
 ┌─────────────────┐  ┌──────────────────┐  ┌─────────────────┐
-│ Collection Agent │  │ Validation Agent │  │ Auth Service    │
-│ (Service routing,│  │ (Cross-doc checks│  │ (Login, signup, │
-│  state tracking) │  │  , field match)  │  │  session mgmt)  │
+│ Collection Agent│  │ Validation Agent │  │ Auth Service    │
+│ (Service routing│  │ (Cross-doc checks│  │ (Login, signup, │
+│  state tracking)│  │  , field match)  │  │  session mgmt)  │
 └─────────────────┘  └──────────────────┘  └─────────────────┘
 ```
 
@@ -47,9 +47,9 @@ Before you start, make sure you have:
 
 1. **Docker Desktop** - For running databases and services
 2. **Python 3.10+** - For running the application
-3. **Ollama** - For running the Qwen2.5-VL 3B vision model
+3. **Ollama** - For running the Qwen2.5-VL 7B vision model
    - Install from: https://ollama.ai/
-   - Pull model: `ollama pull qwen2.5vl:3b`
+   - Pull model: `ollama pull qwen2.5vl:7b`
 4. **FFmpeg** - For PDF-to-image conversion (optional but recommended)
    ```bash
    sudo apt install ffmpeg
@@ -312,6 +312,33 @@ After getting this working, you can:
 ## 📄 License
 
 This project is open-source and available for educational purposes.
+
+---
+
+## 🔒 Permitted Documents & Data Handling Guidelines
+
+When uploading documents or testing the onboarding intake pipeline, adhere to the following data compliance and file specifications:
+
+### 1. Supported Document Types & Formats
+- **Document Categories**:
+  - Driving License (`driving_license`): Front and back of official driver's license.
+  - Emirates ID (`emirates_id`): Front and back national identity cards.
+  - Passports (`passport`): Main biometric photo page / MRZ data page.
+  - Proof of Address / Tenancy: Ejari contracts, utility bills (DEWA/SEWA).
+  - Corporate Documents: Trade licenses, VAT registration certificates.
+- **Allowed File Extensions**:
+  - Strictly `.pdf` (standard PDFs and scanned/raster PDF documents).
+- **File Size Limit**: Maximum 200 MB per file.
+
+### 2. Privacy, PII & Testing Restrictions
+- **Do Not Upload Real Personal Identifiable Information (PII)**:
+  - Never upload real citizen IDs, personal passports, personal bank statements, or confidential customer records to public or shared environments.
+- **Allowed Test Media**:
+  - Use synthetic, mocked, or public benchmark identity datasets (e.g., MIDV-500 sample cards).
+  - Use redacted/dummy documents where full names, passport numbers, and national identification numbers are obscured or clearly marked as test data.
+- **Data Retention & Storage**:
+  - Document binaries are streamed to S3/MinIO/SeaweedFS storage, and metadata/extracted entities are stored in PostgreSQL.
+  - Clean up temporary test files and avoid checking sample documents containing personal information into Git.
 
 ---
 

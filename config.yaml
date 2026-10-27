@@ -2,7 +2,7 @@
 
 # Database (PostgreSQL with pgvector)
 database:
-  host: 127.0.0.1
+  host: localhost
   port: 5432
   name: doc_intake
   user: intake
@@ -16,7 +16,7 @@ database:
 ollama:
   host: 127.0.0.1
   port: 11434
-  model: qwen2.5vl:3b
+  model: qwen2.5vl:7b
   # Vision model endpoint: /api/chat (text+images in, text out)
   max_retries: 3
   timeout_seconds: 300
@@ -26,6 +26,17 @@ ocr:
   engine: tesseract
   confidence_threshold: 0.7
   languages: ["eng"]
+
+# Docling document pre-processing (Rung 0 of ExtractionLadder)
+# Parses PDFs/images deterministically before sending to the vision model.
+# When docling extracts enough mandatory fields at high confidence it
+# short-circuits the expensive Qwen2.5-VL vision rung entirely.
+docling:
+  enabled: true
+  # Confidence score awarded to each field extracted deterministically by Docling
+  field_confidence: 0.72
+  # If overall Docling field confidence >= this, skip the vision-model rung
+  skip_vision_threshold: 0.80
 
 # File upload limits
 upload:
@@ -48,3 +59,332 @@ storage:
   bucket_name: onboarding-docs
   secure: false  # set to true if using HTTPS
   part_size_mb: 5  # minimum part size for multipart uploads
+
+# Validation rules — per-document-type configuration
+# Loaded by DatabaseService._build_default_rules() at startup into validation_rules table
+# These drive the ValidationAgent's field extraction, review, and rejection decisions
+validation_rules:
+  national_id:
+    mandatory_fields:
+      - name
+      - national_id_number
+      - date_of_birth
+      - gender
+      - expiry_date
+    optional_fields:
+      - address
+      - issuing_country
+    field_rules:
+      national_id_number:
+        pattern: "^\\d{9}[A-Z0-9]?$"  # typical NI number format
+        min_length: 9
+        max_length: 11
+      expiry_date:
+        future_only: true
+        format: "%Y-%m-%d"
+    extraction_threshold: 0.5
+    human_review_threshold: 0.7
+    reject_threshold: 3
+    scan_check:
+      min_pages: 1
+      require_raster: true  # reject vector-only PDFs
+      require_color: false  # B&W acceptable
+
+  passport:
+    mandatory_fields:
+      - name
+      - passport_number
+      - date_of_birth
+      - nationality
+      - expiry_date
+      - issue_date
+      - place_of_birth
+    optional_fields:
+      - place_of_issue
+      - authority
+    field_rules:
+      passport_number:
+        pattern: "^[A-Z0-9]{9}$"
+        min_length: 9
+        max_length: 9
+      expiry_date:
+        future_only: true
+        format: "%Y-%m-%d"
+      issue_date:
+        before_expiry: true
+        format: "%Y-%m-%d"
+    extraction_threshold: 0.5
+    human_review_threshold: 0.7
+    reject_threshold: 3
+    scan_check:
+      min_pages: 1
+      require_raster: true
+      require_color: true
+      mrz_required: true  # must have MRZ line
+
+  driving_license:
+    mandatory_fields:
+      - name
+      - license_no
+      - date_of_birth
+      - expiry_date
+      - issue_date
+      - nationality
+      - licensing_authority
+      - traffic_code_no
+      - gear_type
+      - glasses_requirement
+    optional_fields:
+      - place_of_issue
+      - license_class
+      - address
+      - restrictions
+      - endorsements
+    field_rules:
+      expiry_date:
+        future_only: true
+        format: "%Y-%m-%d"
+    extraction_threshold: 0.5
+    human_review_threshold: 0.7
+    reject_threshold: 3
+    scan_check:
+      min_pages: 1
+      require_raster: true
+      require_color: false
+
+  utility_bill:
+    mandatory_fields:
+      - account_holder
+      - account_number
+      - address
+      - issue_date
+      - amount
+    optional_fields:
+      - provider_name
+    field_rules:
+      issue_date:
+        within_days: 90  # must be from last 90 days
+        format: "%Y-%m-%d"
+    extraction_threshold: 0.5
+    human_review_threshold: 0.7
+    reject_threshold: 2
+    scan_check:
+      min_pages: 1
+      require_raster: true
+      require_color: false
+
+  medical_report:
+    mandatory_fields:
+      - patient_name
+      - doctor_name
+      - diagnosis
+      - date_of_examination
+      - conclusion
+    optional_fields:
+      - hospital_name
+      - referral_number
+    extraction_threshold: 0.6
+    human_review_threshold: 0.8
+    reject_threshold: 2
+    scan_check:
+      min_pages: 1
+      require_raster: true
+      require_color: false
+
+  pay_slip:
+    mandatory_fields:
+      - employee_name
+      - employer_name
+      - pay_period
+      - gross_income
+      - net_income
+      - pay_date
+    optional_fields:
+      - employee_id
+      - bank_details
+    extraction_threshold: 0.5
+    human_review_threshold: 0.7
+    reject_threshold: 2
+    scan_check:
+      min_pages: 1
+      require_raster: true
+      require_color: false
+
+  bank_statement:
+    mandatory_fields:
+      - account_holder
+      - account_number
+      - bank_name
+      - statement_period_start
+      - statement_period_end
+      - opening_balance
+      - closing_balance
+    optional_fields:
+      - branch_name
+      - sort_code
+    extraction_threshold: 0.5
+    human_review_threshold: 0.7
+    reject_threshold: 3
+    scan_check:
+      min_pages: 2  # statements typically multi-page
+      require_raster: true
+      require_color: false
+
+  property_deed:
+    mandatory_fields:
+      - owner_name
+      - property_address
+      - title_number
+      - registration_date
+    optional_fields:
+      - land_registry_ref
+      - tenure_type
+    extraction_threshold: 0.5
+    human_review_threshold: 0.8
+    reject_threshold: 2
+    scan_check:
+      min_pages: 1
+      require_raster: true
+      require_color: false
+
+  employment_letter:
+    mandatory_fields:
+      - employee_name
+      - employer_name
+      - position
+      - start_date
+      - salary
+    optional_fields:
+      - department
+      - employment_type
+    extraction_threshold: 0.5
+    human_review_threshold: 0.7
+    reject_threshold: 2
+    scan_check:
+      min_pages: 1
+      require_raster: true
+      require_color: false
+
+  qualifications:
+    mandatory_fields:
+      - graduate_name
+      - institution
+      - degree_title
+      - graduation_date
+      - grade
+    optional_fields:
+      - major
+      - thesis_title
+    extraction_threshold: 0.5
+    human_review_threshold: 0.7
+    reject_threshold: 2
+    scan_check:
+      min_pages: 1
+      require_raster: true
+      require_color: true
+
+  reference_letter:
+    mandatory_fields:
+      - referrer_name
+      - referrer_title
+      - relationship_to_applicant
+      - applicant_name
+      - recommendation_level
+    optional_fields:
+      - contact_email
+      - contact_phone
+    extraction_threshold: 0.4
+    human_review_threshold: 0.6
+    reject_threshold: 2
+    scan_check:
+      min_pages: 1
+      require_raster: true
+      require_color: false
+
+  insurance_certificate:
+    mandatory_fields:
+      - policy_holder
+      - policy_number
+      - vehicle_description
+      - coverage_start
+      - coverage_end
+      - insurer_name
+    optional_fields:
+      - vehicle_chassis
+      - no_claims_bonus
+    extraction_threshold: 0.5
+    human_review_threshold: 0.7
+    reject_threshold: 2
+    scan_check:
+      min_pages: 1
+      require_raster: true
+      require_color: false
+
+# Idempotency key configuration
+idempotency:
+  enabled: true
+  default_expiry_seconds: 3600  # 1 hour
+  max_keys_per_user: 1000
+
+# Duplicate upload prevention
+duplicate_prevention:
+  enabled: true
+  check_hash_algorithm: "sha256"
+  cross_application_dedup: false  # only dedup within same user, not across apps
+  user_level_dedup: true  # warn if user re-uploads same file to different app
+
+# Scan-or-photo verification
+scan_verification:
+  enabled: true
+  reject_vector_only: true  # reject PDFs that have no raster images
+  reject_screenshots: true  # detect and reject screenshots/digital conversions
+  require_full_page: true  # document must fill most of the frame
+  min_document_coverage: 0.6  # doc must cover at least 60% of image
+  min_resolution: 150  # DPI threshold
+  max_file_age_days: 365  # for utility bills, bank statements, etc.
+
+# Extraction Ladder (WP5 + WP7 — Phase 4)
+# Controls how the ladder behaves when the primary vision model fails.
+extraction_ladder:
+  max_rungs: 4           # total rungs to attempt (0 = all available)
+  rung_timeout_seconds: 300  # per-rung timeout (seconds)
+  stop_on_first_success: false  # keep running all rungs for comparison
+  merge_strategy: "best_confidence"  # best_confidence | majority_vote | first_success
+  min_consensus_rungs: 2  # require this many rungs to agree before auto-accepting
+  mrz:
+    crop_region: "bottom_20pct"  # where to crop for MRZ extraction
+    re_extract_model: "qwen2.5vl:3b"  # model for MRZ re-extraction
+    fallback_to_mrz_library: true  # use python-mrz if installed
+  fallback_ocr:
+    engines: ["pymupdf", "tesseract"]  # try in this order
+    tesseract_lang: "eng"
+    min_text_length: 10  # reject if less than this many chars extracted
+    confidence_boost: 0.1  # bump confidence when OCR confirms vision model
+
+# Race-safe status transitions
+status_transitions:
+  allow_parallel_completion: false  # only one agent can complete a document
+  completion_window_seconds: 30  # grace period after locking
+  retry_on_conflict: true  # retry if another agent completed first
+  max_retry_attempts: 3
+  rollback_on_failure: true  # revert status if processing fails mid-way
+
+# Cross-validation (WP7)
+cross_validation:
+  enabled: true
+  methods:
+    - field_comparison  # compare same field across rungs
+    - inter_model      # compare vision vs OCR results
+    - internal_logic   # e.g. expiry must be after DOB
+  field_dependencies:
+    date_of_expiry: ["date_of_birth"]  # expiry > DOB
+    issue_date: ["expiry_date"]        # issue < expiry
+    age_constraint: ["date_of_birth"]  # derived age must be plausible
+
+# Human review queue
+human_review:
+  enabled: true
+  auto_approve_above_threshold: 0.85  # fields above this don't need review
+  auto_reject_below_threshold: 0.3    # fields below this are auto-rejected
+  max_review_time_minutes: 30         # stale reviews are invalidated
+  reviewer_notification: false        # email/notify reviewer (future)

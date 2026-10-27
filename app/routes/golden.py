@@ -1,4 +1,25 @@
-"""Golden dataset routes."""
+"""
+Golden dataset routes — benchmark reference data for document extraction evaluation.
+
+Role in Project:
+    Exposes the MIDV-500 golden dataset (ground-truth field values for identity documents)
+    as a queryable REST API. The golden dataset is used for two purposes:
+    1. **Offline benchmarking**: Comparing extraction outputs to known-good values to
+       measure ExtractionLadder accuracy on passport, national ID, and driving licence samples.
+    2. **Online validation grounding**: The `/validate` endpoint allows the ValidationAgent
+       to check extracted fields against reference entries during application processing.
+
+Cross-File Interconnections:
+    - `services.golden_dataset.GoldenDatasetService` — the backing service loaded at startup
+      in `app.main`. All endpoints delegate data retrieval and comparison to this service.
+    - `agents.validation_agent.ValidationAgent` — calls `GoldenDatasetService.validate_extraction`
+      when a `golden_dataset` entry is supplied in the application data.
+    - `app.routes.validation.validate_application` — optionally passes a golden dataset entry
+      to the ValidationAgent via `entry_id`.
+    - `app.schemas.GoldenDatasetValidationRequest` / `GoldenDatasetSearchRequest` — Pydantic
+      models for request body validation.
+    - `app.main.app_state` — the `golden_dataset` service instance is fetched from here.
+"""
 
 import logging
 from typing import Optional
@@ -11,12 +32,23 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 def get_state():
+    """Return the shared app_state. Lazy import avoids circular dependencies."""
     from app.main import app_state
     return app_state
 
 @router.get("/golden-dataset/summary")
 async def get_golden_dataset_summary():
-    """Get summary statistics of the golden dataset."""
+    """Return aggregate statistics about the loaded golden dataset.
+
+    Delegates to `GoldenDatasetService.get_summary()` which counts entries by document
+    type, capture condition, and country of origin.
+
+    Interconnections:
+        - `services.golden_dataset.GoldenDatasetService.get_summary`
+
+    Returns:
+        `{"data": <summary_dict>}` or `{"error": "not initialized"}` in degraded mode.
+    """
     state = get_state()
     if not state["golden_dataset"]:
         return {"error": "Golden dataset service not initialized"}
@@ -35,7 +67,25 @@ async def get_golden_dataset_entries(
     country: Optional[str] = None,
     limit: int = Query(default=50, ge=1, le=200),
 ):
-    """Get golden dataset entries with optional filtering."""
+    """List golden dataset entries with optional filtering.
+
+    Supports three exclusive filter dimensions: document type, capture condition
+    (e.g. 'original', 'screen'), or country code. Returns the first `limit` matches.
+
+    Interconnections:
+        - `services.golden_dataset.GoldenDatasetService.get_entries_by_type`
+        - `services.golden_dataset.GoldenDatasetService.get_entries_by_condition`
+        - `services.golden_dataset.GoldenDatasetService.get_entries_by_country`
+
+    Args:
+        doc_type: Filter to a specific document class (e.g. 'passport', 'national_id').
+        condition: Filter to a capture condition.
+        country: ISO country code filter.
+        limit: Maximum number of results.
+
+    Returns:
+        `{"data": {"entries": [...], "total": N}}`
+    """
     state = get_state()
     if not state["golden_dataset"]:
         return {"error": "Golden dataset service not initialized"}
@@ -70,7 +120,20 @@ async def get_golden_dataset_entries(
 
 @router.get("/golden-dataset/entries/{entry_id}")
 async def get_golden_dataset_entry(entry_id: str):
-    """Get a specific golden dataset entry by ID."""
+    """Fetch a single golden dataset entry by its unique ID.
+
+    Used by the ValidationAgent and benchmark scripts to look up a specific reference
+    record when validating extracted fields against known-good values.
+
+    Interconnections:
+        - `services.golden_dataset.GoldenDatasetService.get_entry_by_id`
+
+    Args:
+        entry_id: Unique identifier of the golden entry.
+
+    Returns:
+        `{"data": <entry_dict>}` or HTTP 404 if not found.
+    """
     state = get_state()
     if not state["golden_dataset"]:
         return {"error": "Golden dataset service not initialized"}
@@ -96,7 +159,21 @@ async def get_golden_dataset_entry(entry_id: str):
 
 @router.post("/golden-dataset/validate")
 async def validate_extraction(req: GoldenDatasetValidationRequest):
-    """Validate an extraction result against the golden dataset."""
+    """Validate extracted document fields against a golden dataset reference entry.
+
+    Compares extracted field values to the ground-truth values stored in the golden entry
+    and returns a per-field match report with an overall accuracy score.
+
+    Interconnections:
+        - `services.golden_dataset.GoldenDatasetService.validate_extraction`
+        - `app.schemas.GoldenDatasetValidationRequest` — request model (entry_id, fields dict).
+
+    Args:
+        req: Request body containing `entry_id` and a `fields` dict of extracted values.
+
+    Returns:
+        `{"data": <validation_result_dict>}` with per-field pass/fail and overall accuracy.
+    """
     state = get_state()
     if not state["golden_dataset"]:
         return {"error": "Golden dataset service not initialized"}
@@ -113,7 +190,21 @@ async def validate_extraction(req: GoldenDatasetValidationRequest):
 
 @router.get("/golden-dataset/search")
 async def search_golden_dataset(query: str, limit: int = Query(default=10, ge=1, le=50)):
-    """Search the golden dataset by keywords."""
+    """Full-text keyword search across golden dataset entry fields and metadata.
+
+    Used by the admin/benchmark UI to locate reference entries for specific document types,
+    countries, or field values without knowing the exact entry_id.
+
+    Interconnections:
+        - `services.golden_dataset.GoldenDatasetService.search`
+
+    Args:
+        query: Free-text search string.
+        limit: Maximum number of results to return.
+
+    Returns:
+        `{"data": {"results": [...], "query": str}}`
+    """
     state = get_state()
     if not state["golden_dataset"]:
         return {"error": "Golden dataset service not initialized"}
@@ -127,7 +218,17 @@ async def search_golden_dataset(query: str, limit: int = Query(default=10, ge=1,
 
 @router.get("/golden-dataset/field-names")
 async def get_all_field_names():
-    """Get all unique field names across the golden dataset."""
+    """Return all unique field names that appear across all golden dataset entries.
+
+    Used by the benchmark tool and admin UI to display available fields for filtering
+    and to verify that the ExtractionLadder extracts the expected field names.
+
+    Interconnections:
+        - `services.golden_dataset.GoldenDatasetService.get_all_field_names`
+
+    Returns:
+        `{"data": {"field_names": [str, ...]}}`
+    """
     state = get_state()
     if not state["golden_dataset"]:
         return {"error": "Golden dataset service not initialized"}
@@ -141,7 +242,20 @@ async def get_all_field_names():
 
 @router.get("/golden-dataset/field-examples")
 async def get_field_examples(field_name: str):
-    """Get example values for a specific field."""
+    """Return example values for a specific field from across the golden dataset.
+
+    Useful for understanding value formats, date formats, and how fields are spelled
+    across different document types (e.g. how 'date_of_birth' looks on different IDs).
+
+    Interconnections:
+        - `services.golden_dataset.GoldenDatasetService.get_field_examples`
+
+    Args:
+        field_name: The field to look up examples for (e.g. 'surname', 'date_of_birth').
+
+    Returns:
+        `{"data": {"field": str, "examples": [str, ...]}}`
+    """
     state = get_state()
     if not state["golden_dataset"]:
         return {"error": "Golden dataset service not initialized"}
@@ -155,7 +269,21 @@ async def get_field_examples(field_name: str):
 
 @router.post("/golden-dataset/compare")
 async def compare_golden_entries(entry1_id: str, entry2_id: str):
-    """Compare two golden dataset entries."""
+    """Compare two golden dataset entries field-by-field.
+
+    Useful for identifying differences between similar document captures (e.g. original
+    vs. screen-captured versions) and understanding how field values vary.
+
+    Interconnections:
+        - `services.golden_dataset.GoldenDatasetService.compare_entries`
+
+    Args:
+        entry1_id: ID of the first golden entry.
+        entry2_id: ID of the second golden entry.
+
+    Returns:
+        `{"data": <comparison_dict>}` or HTTP 404 if one or both entries are not found.
+    """
     state = get_state()
     if not state["golden_dataset"]:
         return {"error": "Golden dataset service not initialized"}

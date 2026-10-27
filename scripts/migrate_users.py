@@ -1,9 +1,29 @@
 """
-User migration script: auth_users.json → PostgreSQL users table.
+migrate_users.py - Migration Pipeline from Legacy JSON User Store to PostgreSQL.
 
-Reads all users from the legacy JSON store (PersistentUserStore) and writes
-them into the PostgreSQL users table via SQLAlchemy models. Skips any user
-whose username or email already exists in the database to avoid duplicates.
+Module Purpose & Role in the Project:
+------------------------------------
+This data migration script reads existing user credentials and profile records
+from the legacy JSON storage file (`auth_users.json` via `PersistentUserStore`)
+and imports them into the relational PostgreSQL `users` table via SQLAlchemy ORM.
+
+Key Functionality:
+  1. Conflict avoidance: Queries PostgreSQL before inserting each user; skips any account
+     whose username or email already exists.
+  2. Preserves password security hashes: Directly carries over existing bcrypt hashes
+     without requiring users to reset passwords.
+  3. Transaction isolation: Runs per-user insert/commit cycles with automatic rollback
+     upon exception, logging failure details into an errors collection.
+
+Interconnections with Other Components:
+---------------------------------------
+- `auth_users.json`: Flat-file user database accessed via `services.user_store.PersistentUserStore`.
+- `services.database.DatabaseService`: Manages SQL session lifecycle and connection pool.
+- `services.database.User`: The SQLAlchemy model representing rows in PostgreSQL `users`.
+- `services.auth.AuthService`: Central authentication engine that now verifies credentials
+  against the migrated database records.
+- Backend Routes (`app.api.routes.auth`): Enables users migrated by this script to log in
+  seamlessly through the API and Streamlit UI.
 
 Usage:
     python -m scripts.migrate_users
@@ -28,10 +48,21 @@ logger = logging.getLogger(__name__)
 
 
 def migrate_users(db: DatabaseService, auth: AuthService) -> dict:
-    """Migrate all users from auth_users.json to PostgreSQL.
+    """
+    Migrate all users from the legacy auth_users.json store to PostgreSQL.
+
+    Interconnections:
+    - Reads legacy user dictionary from `PersistentUserStore.get_all_users()`.
+    - Queries PostgreSQL `users` table to detect conflicts on `username` or `email`.
+    - Inserts new `User` ORM entities and commits individual database transactions.
+    - Called By: Root execution entry point in `scripts/migrate_users.py`.
+
+    Args:
+        db (DatabaseService): Connected database service instance.
+        auth (AuthService): Initialized authentication service instance.
 
     Returns:
-        dict with keys: migrated, skipped, errors
+        dict: Summary metrics containing counts for `migrated`, `skipped`, and a list of `errors`.
     """
     # Load legacy users
     store = PersistentUserStore()

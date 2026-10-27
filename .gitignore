@@ -1,49 +1,74 @@
-# Environment
+# Environment & local settings
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
 
 # Virtual environment
 venv/
 .venv/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
+env/
+ENV/
 
-# IDE
+# Python bytecode & caches
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+/app/__pycache__/
+/services/__pycache__/
+*/**/__pycache__/
+
+# IDEs & editors
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Project data
+# Databases & local state
 data/*.db
 data/*.db-wal
 data/*.db-shm
+*.sqlite
+*.sqlite3
+
+# Uploads, test outputs, & test images
 uploads/
-models/
 graphify-out/
+models/
+output.pdf
+eid_test.jpg
+passport_test.jpg
+test_extraction.py
+delete_layla.py
+delete_layla_minio.py
+find_layla.py
+check_db.py
+scratch/
 
-# Secrets (defensive)
+# Secrets & credentials (defensive)
 auth_users.json
+services/auth_users.json
+POSTGRES_MINIO_ACCESS.md
+*.pem
+*.key
+*.cert
 
-# Docker
+# Process IDs & runtime logs
 *.log
 *.pid
+.server_pid
+nul
 
-# OS
+# OS artifacts
 .DS_Store
 Thumbs.db
+ehthumbs.db
+desktop.ini
 
-# Testing
+# Testing & Coverage
 .pytest_cache/
+.coverage
+htmlcov/
 *.egg-info/
 coverage/
-.coverage
-
-# Scratch
-/app/__pycache__/
-/services/__pycache__/

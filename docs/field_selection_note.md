@@ -60,22 +60,25 @@ For each document type, I have decided which fields are mandatory and which are 
 
 | Field | Rationale |
 |-------|-----------|
-| **Name** | Core identity field. The person holding the licence must be the person applying for the mobility/rental service. |
-| **Date of Birth** | Used for age verification. Minimum age requirements are common for vehicle rental (e.g., 21+ for standard, 25+ for premium vehicles). |
-| **Document Number** | Unique identifier for the licence. Used for deduplication and traceability. |
-| **Expiry Date** | Critical validation field. An expired driving licence should not be accepted. Also relevant for insurance purposes. |
-| **License Class** (e.g., Class A, B, C) | Essential for the mobility service. Determines which vehicles the holder is legally allowed to operate. A Class B licence, for example, may not be sufficient for heavy vehicle rental. |
-| **Issue Date** | Provides context for licence age. Used to determine if the licence is recent (some jurisdictions have rules about licences issued too far in the past). |
+| **Name** | Core identity field. Must be entered as per the driving license. |
+| **License No** | Unique license number. Used for deduplication, lookup, and rental contract generation. |
+| **Nationality** | Essential for rental eligibility, international driving permits, and insurance rate calculation. |
+| **Date of Birth** | Used for age verification (e.g. minimum 21+ or 25+ for rental). |
+| **Issue Date** | Date of issuance to confirm minimum driving experience. |
+| **Expiry Date** | Critical validation field. Expired licenses are immediately rejected. |
+| **Licensing Authority** | Authority issuing the permit (e.g. EDC20007, edi151633). Required for legal verification. |
+| **Traffic Code No** | Back page traffic code number. Essential for traffic fine routing and transport authority records. |
+| **Automatic Gear / Manual Gear** | Permitted vehicle transmission type indicated on back page. Critical for matching driver eligibility to rental vehicle fleet. |
+| **Glasses Logo / No Glasses Logo** | Back page restriction indicator. The presence of the eyeglasses logo indicates the driver requires vision correction while driving; absence denotes no restriction. |
 
 ### Optional Fields
 
 | Field | Rationale |
 |-------|-----------|
-| **Restrictions** (e.g., must wear glasses) | Useful for compliance but not required for the core onboarding flow. |
-| **Address** | Useful for address verification but not available on all licences. |
-| **Issuing Authority** | Useful for fraud detection but not essential for identity confirmation. |
-| **Endorsements** | Relevant for insurance assessment but not for basic onboarding. |
-| **Organ Donor Status** | Not relevant for this service. |
+| **Place of Issue** | City or Emirate of issue (e.g. Dubai). Informational. |
+| **License Class / Permitted Vehicles Category** | Vehicle category code if specified alongside transmission. |
+| **Address** | Driver's residential address if printed. |
+| **Endorsements** | Additional operational notes. |
 
 ---
 

@@ -19,7 +19,7 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #0a0a0a;
             color: #e4e4e4;
-            overflow: hidden;
+            overflow: auto;
         }
 
         #root {
@@ -249,14 +249,44 @@
         }
 
         .chat-messages {
-            flex: 1;
-            min-height: 0;
-            overflow-y: auto;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    scroll-behavior: smooth;
+    }
+
+    .scroll-to-top {
+    position: fixed;
+    bottom: 80px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    background: #84BD00;
+    border: none;
+    border-radius: 50%;
+    color: #121314;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 50;
+    }
+
+    .scroll-to-top.visible {
+    opacity: 1;
+    }
+
+    .scroll-to-top:hover {
+    background: #5f8700;
+    }
 
         .message {
             display: flex;
@@ -585,29 +615,50 @@
 
         .feature-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
-            max-width: 500px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            max-width: 860px;
             margin: 0 auto;
         }
 
         .feature-card {
-            padding: 16px;
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
-            border-radius: 12px;
+            padding: 20px 16px;
+            background: rgba(26, 26, 26, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            backdrop-filter: blur(12px);
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(132, 189, 0, 0.6), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
         }
 
         .feature-card:hover {
-            border-color: #84BD00;
-            transform: translateY(-2px);
+            border-color: rgba(132, 189, 0, 0.5);
+            background: rgba(32, 35, 30, 0.85);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px -6px rgba(132, 189, 0, 0.15);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
         }
 
         .feature-icon {
-            font-size: 24px;
+            font-size: 26px;
             margin-bottom: 8px;
         }
 
@@ -899,6 +950,144 @@
         .submission-detail strong {
             color: #e4e4e4;
         }
+
+        /* ===== Responsive Design & Polish ===== */
+        .sidebar-backdrop {
+            display: none;
+        }
+
+        @media (max-width: 900px) {
+            .feature-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            #root {
+                height: 100dvh;
+            }
+
+            .topbar {
+                padding: 10px 14px;
+            }
+
+            .logo {
+                font-size: 18px;
+            }
+
+            .topbar-time {
+                display: none;
+            }
+
+            .topbar-right span {
+                display: none;
+            }
+
+            .main-layout {
+                position: relative;
+                overflow: hidden;
+            }
+
+            /* Responsive off-canvas sidebar */
+            .sidebar {
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                width: 280px;
+                z-index: 500;
+                box-shadow: 4px 0 24px rgba(0, 0, 0, 0.7);
+                transform: translateX(0);
+                transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .sidebar.collapsed {
+                transform: translateX(-100%);
+                width: 280px;
+                opacity: 1;
+                pointer-events: none;
+            }
+
+            .sidebar-backdrop {
+                display: block;
+                position: absolute;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.65);
+                backdrop-filter: blur(4px);
+                z-index: 490;
+                animation: fadeIn 0.2s ease-in-out;
+            }
+
+            .chat-messages {
+                padding: 14px 12px;
+                gap: 12px;
+            }
+
+            .message {
+                max-width: 92%;
+            }
+
+            .chat-input-area {
+                padding: 12px;
+            }
+
+            .input-wrapper {
+                padding: 8px 12px;
+            }
+
+            .welcome-message {
+                padding: 30px 12px;
+            }
+
+            .welcome-title {
+                font-size: 22px;
+            }
+
+            .welcome-text {
+                font-size: 14px;
+                margin-bottom: 20px;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+
+            .page-header {
+                padding: 14px 16px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .page-header .btn {
+                align-self: flex-start;
+            }
+
+            .modal {
+                padding: 22px 18px;
+                margin: 16px;
+                max-width: calc(100% - 32px);
+            }
+
+            .step-indicator {
+                padding: 12px;
+            }
+
+            .step-progress {
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+
+            .step-node {
+                font-size: 11px;
+                padding: 4px 8px;
+            }
+
+            .upload-zone {
+                padding: 18px 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -916,13 +1105,16 @@
 
         // Step indicator component
         function StepIndicator({ steps, currentStep }) {
-            const stepLabels = {
-                name: '1.Name',
-                id_upload: '2.National ID',
-                passport_upload: '3.Passport',
-                review: '4.Review',
-                submit: '5.Submit',
-                success: '✓Done'
+            const getLabel = (step, idx) => {
+                const num = idx + 1;
+                if (step === 'name')             return `${num}.Name`;
+                if (step === 'id_upload')        return `${num}.National ID`;
+                if (step === 'passport_upload')  return `${num}.Passport`;
+                if (step === 'license_upload')   return `${num}.Driving License`;
+                if (step === 'review')           return `${num}.Review`;
+                if (step === 'submit')           return `${num}.Submit`;
+                if (step === 'success')          return '✓Done';
+                return `${num}.${step.replace(/_/g, ' ')}`;
             };
 
             return (
@@ -930,14 +1122,13 @@
                     <div className="step-progress">
                         {steps.map((step, idx) => {
                             const isActive = step === currentStep;
-                            const stepOrder = ['name', 'id_upload', 'passport_upload', 'review', 'submit', 'success'];
-                            const isCompleted = stepOrder.indexOf(step) < stepOrder.indexOf(currentStep);
+                            const isCompleted = steps.indexOf(step) < steps.indexOf(currentStep);
                             const statusClass = isActive ? 'active' : isCompleted ? 'completed' : 'pending';
                             return (
                                 <React.Fragment key={step}>
                                     <div className={`step-node ${statusClass}`}>
                                         {isCompleted && <span>✓</span>}
-                                        {stepLabels[step] || step}
+                                        {getLabel(step, idx)}
                                     </div>
                                     {idx < steps.length - 1 && <span className="step-arrow">→</span>}
                                 </React.Fragment>
@@ -1001,33 +1192,94 @@
             );
         }
 
-        function WizardUpload({ docs, uploaded, busy, onFile, isId, pretty }) {
+        function WizardUpload({ docs, uploaded, busy, onFile, isId, pretty, onCancel }) {
+            // Map each required doc type to a wizard step key
+            const docToStepKey = (d) => {
+                if (/driving.?licen/i.test(d)) return 'license_upload';
+                if (/passport/i.test(d))       return 'passport_upload';
+                return 'id_upload';
+            };
+            const uploadStepKeys = docs.map(docToStepKey);
+            const allSteps = ['name', ...uploadStepKeys, 'review'];
+
+            // Sequential gating: find the FIRST doc not yet uploaded
+            const nextPendingDoc = docs.find(d => !uploaded.some(u => u.docType === d));
+            const pendingStepKey = nextPendingDoc
+                ? docToStepKey(nextPendingDoc)
+                : uploadStepKeys[uploadStepKeys.length - 1];
+
+            // Only show completed docs + the current pending one (sequential reveal)
+            const visibleDocs = docs.filter(d =>
+                uploaded.some(u => u.docType === d) || d === nextPendingDoc
+            );
+
             return (
                 <WizardCardShell>
                     <StepIndicator
-                        steps={['name', 'id_upload', 'passport_upload', 'review']}
-                        currentStep="id_upload"
+                        steps={allSteps}
+                        currentStep={pendingStepKey}
                     />
 
-                    {docs.map(d => {
+                    {/* Progress banner shown when >=1 doc is done and more remain */}
+                    {docs.length > 1 && uploaded.length > 0 && nextPendingDoc && (
+                        <div style={{
+                            marginTop: '14px',
+                            padding: '10px 14px',
+                            background: 'rgba(132, 189, 0, 0.08)',
+                            border: '1px solid rgba(132, 189, 0, 0.3)',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            color: '#84BD00',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px'
+                        }}>
+                            <span>✅</span>
+                            <span>
+                                <strong>{pretty(uploaded[uploaded.length - 1].docType)}</strong> approved and stored.
+                                {' '}Step {uploaded.length + 1} of {docs.length}: now please upload your{' '}
+                                <strong>{pretty(nextPendingDoc)}</strong>.
+                            </span>
+                        </div>
+                    )}
+
+                    {visibleDocs.map(d => {
                         const done = uploaded.some(u => u.docType === d);
                         const working = busy === d;
                         return (
                             <div key={d} style={{ marginTop: '16px' }}>
-                                <div style={{ fontSize: '14px', fontWeight: 500, color: done ? '#22c55e' : '#ccc', marginBottom: '8px' }}>
-                                    {done ? '✅' : '📄'} {pretty(d)} {done ? '(Uploaded)' : working ? '(Checking...)' : ''}
+                                <div style={{ fontSize: '14px', fontWeight: 500, color: done ? '#22c55e' : working ? '#84BD00' : '#ccc', marginBottom: '8px' }}>
+                                    {done ? '✅' : working ? '🔍' : '📄'} {pretty(d)}{' '}
+                                    {done ? '— Verified & Approved' : working ? '— Scanning & Verifying...' : ''}
                                 </div>
 
-                                {done ? null : (
+                                {done ? (
+                                    <div style={{
+                                        padding: '10px 14px',
+                                        background: 'rgba(34, 197, 94, 0.06)',
+                                        border: '1px solid rgba(34, 197, 94, 0.2)',
+                                        borderRadius: '8px',
+                                        fontSize: '12px',
+                                        color: '#86efac',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px'
+                                    }}>
+                                        <i className="fas fa-check-circle" style={{ color: '#22c55e', fontSize: '14px' }}></i>
+                                        <span>Document verified, extracted, and stored securely.</span>
+                                    </div>
+                                ) : (
                                     <div
-                                        className="upload-zone"
-                                        onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }}
+                                        className={`upload-zone ${working ? 'working' : ''}`}
+                                        onDragOver={(e) => { e.preventDefault(); if (!working) e.currentTarget.classList.add('drag-over'); }}
                                         onDragLeave={(e) => { e.currentTarget.classList.remove('drag-over'); }}
                                         onDrop={(e) => {
                                             e.preventDefault();
                                             e.currentTarget.classList.remove('drag-over');
-                                            const file = e.dataTransfer.files[0];
-                                            if (file) onFile(file, d);
+                                            if (!working) {
+                                                const file = e.dataTransfer.files[0];
+                                                if (file) onFile(file, d);
+                                            }
                                         }}
                                         onClick={() => {
                                             if (!working) {
@@ -1042,21 +1294,44 @@
                                             }
                                         }}
                                     >
-                                        <div className="upload-zone-icon">📁</div>
-                                        <div className="upload-zone-text">
-                                            Drag and drop your {pretty(d)} here, or{' '}
-                                            <span className="upload-zone-browse">browse files</span>
-                                        </div>
-                                        <div className="upload-zone-hint">
-                                            {isId(d) ? 'PDF or scanned PDF, max 10 MB' : 'PDF or image, max 10 MB'}
-                                        </div>
+                                        {working ? (
+                                            <div style={{ padding: '16px 8px', textAlign: 'center' }}>
+                                                <div style={{ fontSize: '13px', fontWeight: '600', color: '#84BD00', marginBottom: '6px' }}>
+                                                    🔍 Scanning &amp; Extracting Document Fields...
+                                                </div>
+                                                <div style={{ fontSize: '12px', color: '#aaa', lineHeight: '1.5' }}>
+                                                    • Checking Malware Scan (ClamAV stream check)<br/>
+                                                    • Checking PDF Validity &amp; Image Clarity<br/>
+                                                    • Checking Name, Issue Date, Expiry, Authority...<br/>
+                                                    • Calculating Confidence Score...
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <React.Fragment>
+                                                <div className="upload-zone-icon">📁</div>
+                                                <div className="upload-zone-text">
+                                                    Drag and drop your {pretty(d)} here, or{' '}
+                                                    <span className="upload-zone-browse">browse files</span>
+                                                </div>
+                                                <div className="upload-zone-hint">
+                                                    {isId(d) ? 'PDF or scanned PDF, max 10 MB' : 'PDF or image, max 10 MB'}
+                                                </div>
+                                            </React.Fragment>
+                                        )}
                                     </div>
                                 )}
                             </div>
                         );
                     })}
-                    <div style={{ fontSize: '12px', color: '#888', marginTop: '12px' }}>
-                        You can also drag files directly into the chat window, or use the paperclip button.
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px' }}>
+                        <div style={{ fontSize: '12px', color: '#888' }}>
+                            You can drag files directly into the upload zone, or click to browse.
+                        </div>
+                        {onCancel && (
+                            <button className="btn btn-ghost" style={{ color: '#ef4444', fontSize: '12px', padding: '4px 8px' }} onClick={onCancel}>
+                                Cancel application
+                            </button>
+                        )}
                     </div>
                 </WizardCardShell>
             );
@@ -1067,7 +1342,12 @@
             if (!checks || checks.length === 0) return null;
             return (
                 <div>
-                    {checks.map((c, idx) => (
+                    {checks.map((c, idx) => {
+                        const confPct = c.confidencePct !== undefined ? c.confidencePct : (c.confidence !== undefined ? Math.round(c.confidence * 100) : null);
+                        const isHumanReview = c.needsHumanReview || (confPct !== null && confPct >= 51 && confPct <= 79);
+                        const isAutoApproved = !isHumanReview && (confPct === null || confPct >= 80);
+
+                        return (
                         <div key={idx} style={{ marginTop: '8px' }}>
                             <div className={`check-result ${c.isBlurry ? 'warning' : 'success'}`}>
                                 {c.malwareScan !== 'clean' ? (
@@ -1078,7 +1358,7 @@
                                 ) : (
                                     <div className="check-item">
                                         <span className="check-icon pass">✓</span>
-                                        <span>Malware scan: Passed</span>
+                                        <span>Malware scan: {c.malwareDetails || 'Passed (ClamAV verified)'}</span>
                                     </div>
                                 )}
                                 {c.pdfValid !== undefined && (
@@ -1093,6 +1373,14 @@
                                         <span>Quality score: {(c.qualityScore * 100).toFixed(0)}%</span>
                                     </div>
                                 )}
+                                {confPct !== null && (
+                                    <div className="check-item">
+                                        <span className={confPct >= 80 ? 'check-icon pass' : confPct >= 51 ? 'check-icon warn' : 'check-icon fail'}>
+                                            {confPct >= 80 ? '✓' : confPct >= 51 ? '📋' : '⚠'}
+                                        </span>
+                                        <span>Extraction confidence: <strong>{confPct}%</strong></span>
+                                    </div>
+                                )}
                                 {c.isBlurry && c.blurryFields && c.blurryFields.length > 0 && (
                                     <div className="check-item">
                                         <span className="check-icon warn">⚠</span>
@@ -1100,6 +1388,20 @@
                                     </div>
                                 )}
                             </div>
+
+                            {/* Human Review vs Auto-Approved Status Callout */}
+                            {isHumanReview ? (
+                                <div style={{ marginTop: '6px', padding: '6px 12px', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '6px', fontSize: '12px', color: '#eab308', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span>⚠️</span>
+                                    <span><strong>Human Review:</strong> Confidence score is {confPct}% (between 51% and 79%). Document routed for human review.</span>
+                                </div>
+                            ) : isAutoApproved && confPct !== null ? (
+                                <div style={{ marginTop: '6px', padding: '6px 12px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '6px', fontSize: '12px', color: '#22c55e', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span>✓</span>
+                                    <span><strong>Auto-Approved:</strong> Confidence score is {confPct}% (80%+). All required information verified!</span>
+                                </div>
+                            ) : null}
+
                             {c.isBlurry && c.blurryFields && (
                                 <div className="blurry-notice">
                                     <strong>⚠ Document appears blurry</strong>
@@ -1108,7 +1410,8 @@
                                 </div>
                             )}
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             );
         }
@@ -1121,7 +1424,7 @@
                     <div className="submission-ref">{refId || 'Generating...'}</div>
                     <div className="submission-detail"><strong>Name:</strong> {name}</div>
                     <div className="submission-detail"><strong>Service:</strong> {service}</div>
-                    <div className="submission-detail"><strong>Status:</strong> {status}</div>
+                    <div className="submission-detail"><strong>Status:</strong> {String(status || '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
                     <div className="submission-detail"><strong>Estimated processing time:</strong> {processingTime}</div>
                     <div style={{ fontSize: '12px', color: '#888', marginTop: '12px' }}>
                         We will notify you here as soon as there is an update.
@@ -1130,24 +1433,27 @@
             );
         }
 
-        function WizardReview({ name, docs, mask, pretty, disabled, onConfirm, onReplace, onRestart, onEdit }) {
+        function WizardReview({ name, docs, mask, pretty, disabled, onConfirm, onReplace, onRestart, onEdit, onCancel }) {
             const [shown, setShown] = useState({});
             const [editingField, setEditingField] = useState(null);
+            const [editingRawKey, setEditingRawKey] = useState(null);
             const [editValue, setEditValue] = useState('');
             const [editSaving, setEditSaving] = useState(false);
             const toggle = k => setShown(p => ({ ...p, [k]: !p[k] }));
 
-            const startEdit = (fieldKey, currentValue) => {
+            const startEdit = (fieldKey, rawKey, currentValue) => {
                 setEditingField(fieldKey);
+                setEditingRawKey(rawKey);
                 setEditValue(currentValue);
             };
 
             const saveEdit = async () => {
                 setEditSaving(true);
                 try {
-                    const result = await onEdit(editingField, editValue);
+                    const result = await onEdit(editingRawKey, editValue);
                     if (result) {
                         setEditingField(null);
+                        setEditingRawKey(null);
                     }
                 } catch (e) {
                     console.error('Edit failed:', e);
@@ -1156,10 +1462,19 @@
                 }
             };
 
+            // Derive step keys from the uploaded docs' types
+            const docToStepKey = (dt) => {
+                if (/driving.?licen/i.test(dt)) return 'license_upload';
+                if (/passport/i.test(dt))       return 'passport_upload';
+                return 'id_upload';
+            };
+            const uploadStepKeys = docs.map(d => docToStepKey(d.docType));
+            const reviewSteps = ['name', ...uploadStepKeys, 'review', 'submit'];
+
             return (
                 <WizardCardShell>
                     <StepIndicator
-                        steps={['name', 'id_upload', 'passport_upload', 'review', 'submit']}
+                        steps={reviewSteps}
                         currentStep="review"
                     />
 
@@ -1177,22 +1492,41 @@
                             {/* Show check results */}
                             <CheckResults checks={[{
                                 malwareScan: d.malwareScan,
+                                malwareDetails: d.malwareDetails,
                                 pdfValid: d.pdfValid,
                                 qualityScore: d.qualityScore,
+                                confidence: d.confidence,
+                                confidencePct: d.confidencePct,
+                                needsHumanReview: d.needsHumanReview,
                                 isBlurry: d.isBlurry,
                                 blurryFields: d.blurryFields
                             }]} />
 
                             {/* Show extracted fields with inline edit */}
-                            {Object.entries(d.extractedFields || {}).map(([k, v]) => {
+                            {Object.entries(d.extractedFields || {}).filter(([k]) => !k.startsWith('_')).map(([k, v]) => {
                                 const key = d.docType + k;
                                 const m = mask(k, v);
                                 const sensitive = m !== String(v);
                                 const isEditing = editingField === key;
+                                const fieldLabel = (() => {
+                                    const fn = k.toLowerCase();
+                                    if (fn === 'license_no' || fn === 'license_number') return 'License No (Primary Key)';
+                                    if (fn === 'gear_type' || fn === 'transmission') return 'Transmission (Automatic/Manual)';
+                                    if (fn === 'glasses_requirement' || fn === 'glasses') return 'Vision (Glasses/No Glasses)';
+                                    if (fn === 'traffic_code_no' || fn === 'traffic_code') return 'Traffic Code No';
+                                    if (fn === 'place_of_issue') return 'Place of Issue';
+                                    if (fn === 'licensing_authority') return 'Licensing Authority';
+                                    if (fn === 'date_of_birth' || fn === 'dob') return 'Date of Birth';
+                                    if (fn === 'issue_date') return 'Issue Date';
+                                    if (fn === 'expiry_date') return 'Date of Expiry';
+                                    if (fn === 'nationality') return 'Nationality';
+                                    if (fn === 'name' || fn === 'full_name') return 'Name';
+                                    return k.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                                })();
 
                                 return (
                                     <div key={k} style={{ display: 'flex', gap: '8px', fontSize: '12px', padding: '6px 0', alignItems: 'center' }}>
-                                        <span style={{ color: '#888', minWidth: '130px' }}>{k.replace(/_/g, ' ')}</span>
+                                        <span style={{ color: '#888', minWidth: '150px' }}>{fieldLabel}</span>
                                         {isEditing ? (
                                             <React.Fragment>
                                                 <input
@@ -1205,17 +1539,17 @@
                                                 <button className="field-edit-save" onClick={saveEdit} disabled={editSaving || !editValue.trim()}>
                                                     {editSaving ? '...' : 'Save'}
                                                 </button>
-                                                <button className="btn btn-ghost" onClick={() => setEditingField(null)} style={{ padding: '0 6px', fontSize: '11px' }}>Cancel</button>
+                                                <button className="btn btn-ghost" onClick={() => { setEditingField(null); setEditingRawKey(null); }} style={{ padding: '0 6px', fontSize: '11px' }}>Cancel</button>
                                             </React.Fragment>
                                         ) : (
                                             <React.Fragment>
-                                                <span style={{ wordBreak: 'break-word', flex: 1, cursor: 'pointer' }} onClick={() => startEdit(key, v)}>
+                                                <span style={{ wordBreak: 'break-word', flex: 1, cursor: 'pointer' }} onClick={() => startEdit(key, k, v)}>
                                                     {shown[key] ? String(v) : m}
                                                 </span>
                                                 <button className="btn btn-ghost" onClick={() => toggle(key)} style={{ padding: '0 6px', fontSize: '11px' }}>
                                                     {shown[key] ? 'Hide' : 'Show'}
                                                 </button>
-                                                <button className="btn btn-ghost" onClick={() => startEdit(key, v)} style={{ padding: '0 6px', fontSize: '11px' }} title="Edit this field">✏️</button>
+                                                <button className="btn btn-ghost" onClick={() => startEdit(key, k, v)} style={{ padding: '0 6px', fontSize: '11px' }} title="Edit this field">✏️</button>
                                             </React.Fragment>
                                         )}
                                     </div>
@@ -1236,9 +1570,14 @@
                         💡 Tip: Click ✏️ next to any field to edit it, or type "My DOB is wrong, it is actually DD/MM/YYYY" in the chat.
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
                         <button className="btn btn-primary" disabled={disabled} onClick={onConfirm}>Confirm and submit</button>
                         <button className="btn btn-secondary" disabled={disabled} onClick={onRestart}>Start over</button>
+                        {onCancel && (
+                            <button className="btn btn-ghost" style={{ color: '#ef4444' }} disabled={disabled} onClick={onCancel}>
+                                Cancel application
+                            </button>
+                        )}
                     </div>
                 </WizardCardShell>
             );
@@ -1253,11 +1592,13 @@
             const [showAuth, setShowAuth] = useState(false);
             const [user, setUser] = useState(null);
             const [authMode, setAuthMode] = useState('login');
-            const [authData, setAuthData] = useState({ username: '', password: '', name: '' });
+            const [authData, setAuthData] = useState({ username: '', password: '', name: '', email: '' });
             const [authError, setAuthError] = useState('');
             const [services, setServices] = useState([]);
             const [documents, setDocuments] = useState([]);
+            const [applications, setApplications] = useState([]);
             const [showDocumentsPage, setShowDocumentsPage] = useState(false);
+            const [showApplicationsPage, setShowApplicationsPage] = useState(false);
             const [showServicesPage, setShowServicesPage] = useState(false);
             const [showApplicationFlow, setShowApplicationFlow] = useState(false);
             // In-chat application wizard state
@@ -1280,6 +1621,22 @@
             const loadingRef = useRef(false);
 
             useEffect(() => {
+                // Initial check for mobile screen size
+                if (window.innerWidth <= 768) {
+                    setSidebarOpen(false);
+                }
+                const handleResize = () => {
+                    if (window.innerWidth <= 768) {
+                        setSidebarOpen(false);
+                    } else {
+                        setSidebarOpen(true);
+                    }
+                };
+                window.addEventListener('resize', handleResize);
+                return () => window.removeEventListener('resize', handleResize);
+            }, []);
+
+            useEffect(() => {
                 // Clock every second
                 const updateTime = () => {
                     const now = new Date();
@@ -1300,9 +1657,10 @@
             }, [loading]);
 
             useEffect(() => {
+                checkAuth();
                 loadServices();
                 loadDocuments();
-                checkAuth();
+                loadApplications();
                 checkHealth();
                 // Poll health every 30s
                 const interval = setInterval(checkHealth, 30000);
@@ -1317,7 +1675,26 @@
                 const token = localStorage.getItem('token');
                 const username = localStorage.getItem('username');
                 if (token && username) {
-                    setUser({ token, username });
+                    // Verify the token is still valid on the server
+                    try {
+                        const res = await fetch(`${API_BASE}/auth/me?token=${encodeURIComponent(token)}`);
+                        if (res.ok) {
+                            const data = await res.json();
+                            const verifiedUsername = data.user?.username || username;
+                            setUser({ token, username: verifiedUsername });
+                            loadDocuments();
+                            loadApplications();
+                        } else {
+                            // Token invalid on server — clear it
+                            localStorage.removeItem('token');
+                            localStorage.removeItem('username');
+                        }
+                    } catch (e) {
+                        // Network error — assume token still valid to avoid logging out on startup
+                        setUser({ token, username });
+                        loadDocuments();
+                        loadApplications();
+                    }
                 }
             };
 
@@ -1335,7 +1712,8 @@
 
             const loadServices = async () => {
                 try {
-                    const res = await fetch(`${API_BASE}/services`);
+                    const token = getToken();
+                    const res = await fetch(`${API_BASE}/services?token=${encodeURIComponent(token)}`);
                     const data = await res.json();
                     setServices(data.data?.services || []);
                 } catch (e) {
@@ -1345,7 +1723,9 @@
 
             const loadDocuments = async () => {
                 try {
-                    const res = await fetch(`${API_BASE}/documents`);
+                    const token = getToken();
+                    if (!token) return;
+                    const res = await fetch(`${API_BASE}/documents?token=${encodeURIComponent(token)}`);
                     const data = await res.json();
                     setDocuments(data.data?.documents || []);
                 } catch (e) {
@@ -1353,13 +1733,55 @@
                 }
             };
 
+            const loadApplications = async () => {
+                try {
+                    const token = getToken();
+                    if (!token) return;
+                    const res = await fetch(`${API_BASE}/applications?token=${encodeURIComponent(token)}`);
+                    const data = await res.json();
+                    setApplications(data.data?.applications || []);
+                } catch (e) {
+                    console.error('Failed to load applications:', e);
+                }
+            };
+
+            const handleCancelApplication = async (appId) => {
+                if (!window.confirm('Are you sure you want to cancel this application? The uploaded document(s) along with it will be permanently removed.')) {
+                    return;
+                }
+                try {
+                    setLoading(true);
+                    const token = getToken();
+                    const url = `${API_BASE}/applications/${encodeURIComponent(appId)}/cancel${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+                    const res = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (res.ok && (data.success || data.deleted)) {
+                        alert('Application has been cancelled and the uploaded documents have been removed.');
+                        loadApplications();
+                        loadDocuments();
+                    } else {
+                        const errMsg = data.detail || data.message || 'Could not cancel application';
+                        alert(`Error: ${errMsg}`);
+                    }
+                } catch (e) {
+                    console.error('Failed to cancel application:', e);
+                    alert(`Failed to cancel application: ${e.message}`);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
             const handleAuth = async () => {
                 setAuthError('');
                 try {
                     const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
+                    const emailVal = (authData.email || '').trim() || (authData.username.includes('@') ? authData.username.trim() : `${authData.username.trim()}@example.com`);
                     const body = authMode === 'login'
-                        ? { username: authData.username, password: authData.password }
-                        : { username: authData.username, password: authData.password, name: authData.name || authData.username };
+                        ? { username: authData.username.trim(), password: authData.password }
+                        : { username: authData.username.trim(), password: authData.password, email: emailVal, name: authData.name || authData.username.trim() };
 
                     const res = await fetch(`${API_BASE}${endpoint}`, {
                         method: 'POST',
@@ -1367,27 +1789,50 @@
                         body: JSON.stringify(body)
                     });
 
-                    const data = await res.json();
+                    const data = await res.json().catch(() => ({}));
 
-                    if (authMode === 'login' && data.success) {
-                        localStorage.setItem('token', data.data.token);
-                        localStorage.setItem('username', data.data.email || authData.username);
-                        setUser({ token: data.data.token, username: data.data.email || authData.username });
+                    if (data.success && (authMode === 'login' || authMode === 'register')) {
+                        const token = data.data?.token;
+                        const username = data.data?.email || data.data?.username || authData.username;
+                        if (token) {
+                            localStorage.setItem('token', token);
+                            localStorage.setItem('username', username);
+                            setUser({ token, username });
+                        }
                         setShowAuth(false);
+                        setAuthMode('login');
+                        // Always redirect back to main page
+                        setShowDocumentsPage(false);
+                        setShowApplicationsPage(false);
+                        setShowServicesPage(false);
+
                         const pending = pendingApplyRef.current;
                         if (pending) {
                             pendingApplyRef.current = null;
-                            addMessage('assistant', 'Welcome back! Let us pick up your application.');
+                            addMessage('assistant', `Welcome ${username}! Let us pick up your application.`);
                             setTimeout(() => resumePendingApply(pending), 0);
+                        } else {
+                            addMessage('assistant', authMode === 'register' 
+                                ? `Welcome ${username}! Your account has been created successfully and you are now signed in.` 
+                                : `Welcome back, ${username}!`);
                         }
-                    } else if (authMode === 'register' && data.success) {
-                        setAuthMode('login');
-                        alert('Account created! Please login.');
+                        loadDocuments();
+                        loadApplications();
                     } else {
-                        setAuthError(data.detail || data.error || 'Authentication failed');
+                        let errText = 'Authentication failed';
+                        if (typeof data.detail === 'string') {
+                            errText = data.detail;
+                        } else if (Array.isArray(data.detail)) {
+                            errText = data.detail.map(d => (d.loc ? d.loc.slice(-1) + ': ' : '') + d.msg).join('; ');
+                        } else if (data.message) {
+                            errText = data.message;
+                        } else if (data.error) {
+                            errText = data.error;
+                        }
+                        setAuthError(errText);
                     }
                 } catch (e) {
-                    setAuthError('Connection error');
+                    setAuthError(e.message || 'Connection error');
                 }
             };
 
@@ -1395,7 +1840,20 @@
                 localStorage.removeItem('token');
                 localStorage.removeItem('username');
                 setUser(null);
+                setDocuments([]);
+                setApplications([]);
             };
+            const handleChatScroll = (e) => {
+                const { scrollTop, scrollHeight, clientHeight } = e.target;
+                setShowScrollTop(scrollHeight - scrollTop - clientHeight > 100);
+            };
+
+            const scrollToTop = () => {
+                if (chatMessagesRef.current) {
+                    chatMessagesRef.current.scrollTop = 0;
+                }
+            };
+            
 
             const handleFileUpload = async () => {
                 if (!file) return;
@@ -1416,7 +1874,9 @@
                 formData.append('file', file);
 
                 try {
-                    const res = await fetch(`${API_BASE}/documents/extract`, {
+                    const token = getToken();
+                    // Use /upload (not /extract) so the document is persisted to the DB under this user
+                    const res = await fetch(`${API_BASE}/documents/upload?token=${encodeURIComponent(token)}`, {
                         method: 'POST',
                         body: formData
                     });
@@ -1425,14 +1885,14 @@
 
                     if (data.success) {
                         const extractedFields = data.data?.extracted_fields || {};
-                        const fieldCount = Object.keys(extractedFields).length;
+                        const fieldCount = Object.keys(extractedFields).filter(k => !k.startsWith('_')).length;
 
-                        addMessage('system', `✅ Document processed: ${file.name}`);
+                        addMessage('system', `✅ Document uploaded: ${file.name}`);
 
                         if (fieldCount > 0) {
                             let fieldDetails = `\n📋 **Extracted Fields** (${fieldCount} fields):\n`;
                             for (const [key, value] of Object.entries(extractedFields)) {
-                                if (!key.startsWith('_')) {
+                                if (!key.startsWith('_') && value) {
                                     fieldDetails += `• **${key}**: ${value}\n`;
                                 }
                             }
@@ -1443,7 +1903,7 @@
                         if (fileInputRef.current) fileInputRef.current.value = '';
                         loadDocuments();
                     } else {
-                        addMessage('system', `❌ Extraction failed: ${data.error || data.detail || 'Unknown error'}`);
+                        addMessage('system', `❌ Upload failed: ${data.error || data.detail || 'Unknown error'}`);
                     }
                 } catch (e) {
                     addMessage('system', `❌ Upload error: ${e.message}`);
@@ -1520,9 +1980,13 @@
 
                     addMessage('assistant', responseText, matchedService);
 
-                    // Offer to start an application when the user wants to apply or is asking about services
-                    const wantsApply = data.intent === 'apply' || /\b(apply|application|register|registration|sign ?up|enrol+)\b/i.test(userMessage);
-                    const asksServices = !!matchedService || /\b(services?|offer(ed)?|available|requirements?|eligib\w+)\b/i.test(userMessage);
+                    // Offer to start an application when the user wants to apply or is asking about services,
+                    // provided the matched service is not 'coming soon'
+                    const matchedSvcObj = matchedService ? services.find(s => s.id === matchedService) : null;
+                    const isComingSoon = matchedSvcObj && matchedSvcObj.status && matchedSvcObj.status !== 'available';
+
+                    const wantsApply = !isComingSoon && (data.intent === 'apply' || /\b(apply|application|register|registration|sign ?up|enrol+)\b/i.test(userMessage));
+                    const asksServices = !isComingSoon && (!!matchedService || /\b(services?|offer(ed)?|available|requirements?|eligib\w+)\b/i.test(userMessage));
                     if ((wantsApply || asksServices) && !(wizardStep && wizardStep !== 'success')) {
                         offerApplication(matchedService, wantsApply);
                     }
@@ -1589,7 +2053,7 @@
             // Every step (service, name, documents, review, submit) happens inside the chat. Nothing covers the page.
             const getToken = () => user?.token || localStorage.getItem('token') || '';
             const wizardRequiredDocs = () => wizardService?.documents_required || [];
-            const isIdDocument = (d) => /national.?id|passport|(^|[\s_])id([\s_]|$)/i.test(d);
+            const isIdDocument = (d) => /national.?id|passport|driving.?licen|(^|[\s_])id([\s_]|$)/i.test(d);
             const prettyDoc = (d) => d.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 
             // PII masking for anything shown in chat; the raw value appears only when the user taps "Show"
@@ -1665,7 +2129,12 @@
                 setWizardName('');
                 setWizardService(svc);
                 setWizardStep('name');
-                addMessage('assistant', `Let us start your ${svc.name} application. You will need: ${(svc.documents_required || []).map(prettyDoc).join(', ')}. Everything happens right here in chat. What is your full name as it appears on your ID?`, svc.id);
+                const totalDocs = (svc.documents_required || []).length;
+                const firstDocLabel = totalDocs > 0 ? prettyDoc(svc.documents_required[0]) : 'your document';
+                const docSummary = totalDocs > 1
+                    ? `This service requires ${totalDocs} documents — we will go one step at a time, starting with your ${firstDocLabel}.`
+                    : `You will need to provide your ${firstDocLabel}.`;
+                addMessage('assistant', `Let us start your ${svc.name} application. ${docSummary} Everything happens right here in chat. What is your full name as it appears on your ID?`, svc.id);
             };
 
             const startWizardService = (serviceId) => {
@@ -1687,9 +2156,9 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' }
                     });
-                    const data = await res.json();
-                    if (!data.success) {
-                        const d = data.detail || data.error;
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.success) {
+                        const d = data.detail || data.error || res.statusText;
                         addMessage('assistant', `I could not start your application${typeof d === 'string' ? ': ' + d : ''}. Please send your name again.`);
                         return;
                     }
@@ -1700,15 +2169,20 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ name })
                     });
-                    const nameData = await nameRes.json();
-                    if (!nameData.success) {
-                        addMessage('assistant', `I could not record your name. Please send it again.`);
+                    const nameData = await nameRes.json().catch(() => ({}));
+                    if (!nameRes.ok || !nameData.success) {
+                        const err = nameData.detail || nameData.error || nameData.message || nameRes.statusText;
+                        addMessage('assistant', `I could not record your name${err ? ': ' + err : ''}. Please send it again.`);
                         return;
                     }
                     setWizardName(name);
                     setWizardAppId(wizardSessionId);
                     setWizardStep('upload');
-                    addMessage('assistant', `Thanks, ${name}. Now please upload your documents using the card below.`, null, { type: 'wizard_upload' });
+                    const firstRequired = (wizardService && wizardService.documents_required && wizardService.documents_required.length > 0)
+                    ? prettyDoc(wizardService.documents_required[0]) : 'document';
+                addMessage('assistant',
+                    `Thanks, ${name}. Step 1 of ${(wizardService.documents_required || []).length || 1}: please upload your ${firstRequired} using the card below.`,
+                    null, { type: 'wizard_upload' });
                 } catch (e) {
                     addMessage('assistant', `I could not start your application (${e.message}). Please send your name again.`);
                 } finally {
@@ -1740,7 +2214,7 @@
                     const formData = new FormData();
                     formData.append('file', file);
                     const token = getToken();
-                    const res = await fetch(`${API_BASE}/wizard/${wizardSessionId}/upload?token=${encodeURIComponent(token)}`, {
+                    const res = await fetch(`${API_BASE}/wizard/${wizardSessionId}/upload?token=${encodeURIComponent(token)}&doc_type=${encodeURIComponent(docType)}`, {
                         method: 'POST',
                         body: formData
                     });
@@ -1766,15 +2240,72 @@
                     // For National ID, also check name match using existing logic
                     // (name was already verified when set via /wizard/{id}/name)
 
+                    const checkData = data.data || {};
+                    const confidencePct = checkData.confidence_pct !== undefined
+                        ? checkData.confidence_pct
+                        : (checkData.confidence_score !== undefined ? Math.round(checkData.confidence_score * 100) : null);
+                    const needsHumanReview = checkData.needs_human_review || (confidencePct !== null && confidencePct >= 51 && confidencePct <= 79);
                     const docs = [...wizardDocs.filter(d => d.docType !== docType),
-                        { docType, filename: file.name, extractedFields: {} }];
+                        {
+                            docType,
+                            filename: file.name,
+                            extractedFields: checkData.extracted_fields || checkData.extractedFields || {},
+                            malwareScan: checkData.malware_scan || 'clean',
+                            malwareDetails: checkData.malware_details || '',
+                            pdfValid: checkData.pdf_valid,
+                            qualityScore: checkData.quality_score,
+                            isBlurry: checkData.is_blurry || false,
+                            blurryFields: checkData.blurry_fields || [],
+                            confidencePct,
+                            needsHumanReview,
+                        }];
                     setWizardDocs(docs);
+                    loadDocuments();   // the file is now stored server-side; refresh the Documents list
+
+                    // If confidence < 50%, warn the user prominently
+                    if (confidencePct !== null && confidencePct < 50) {
+                        addMessage('assistant', `⚠️ Confidence score is ${confidencePct}% — too low to read the document clearly. Please upload a better, higher-resolution scan.`, null, { type: 'wizard_upload' });
+                        return false;
+                    }
+
+                    // If 51–79%, human review message
+                    if (needsHumanReview) {
+                        addMessage('assistant', `📋 Confidence score is ${confidencePct}% — routed for human review. You may proceed to review the extracted data.`, null, { type: 'wizard_upload' });
+                    }
 
                     const nextDoc = wizardRequiredDocs().find(d => !docs.some(u => u.docType === d));
                     if (nextDoc) {
-                        addMessage('assistant', `Your ${prettyDoc(docType)} looks good. Next I need your ${prettyDoc(nextDoc)}.`, null, { type: 'wizard_upload' });
+                        const totalRequired = wizardRequiredDocs().length;
+                        const uploadedCount = docs.length;
+                        addMessage('assistant',
+                            `✅ Your ${prettyDoc(docType)} has been verified and approved! `
+                            + `Step ${uploadedCount + 1} of ${totalRequired}: now please upload your ${prettyDoc(nextDoc)} using the card below.`,
+                            null, { type: 'wizard_upload' });
                     } else {
                         setWizardStep('review');
+                        // Fetch fresh review data from backend
+                        try {
+                            const reviewRes = await fetch(`${API_BASE}/wizard/${wizardAppId}/review?token=${encodeURIComponent(token)}`);
+                            const reviewData = await reviewRes.json().catch(() => ({}));
+                            if (reviewData.success && reviewData.data && reviewData.data.document_checks) {
+                                const docs = reviewData.data.document_checks.map(d => ({
+                                    docType: d.doc_type,
+                                    filename: d.file_name,
+                                    extractedFields: d.extracted_fields || {},
+                                    malwareScan: d.malware_scan || 'clean',
+                                    malwareDetails: d.malware_details || '',
+                                    pdfValid: d.pdf_valid,
+                                    qualityScore: d.quality_score,
+                                    isBlurry: d.is_blurry || false,
+                                    blurryFields: d.blurry_fields || [],
+                                    confidencePct: d.confidence_pct,
+                                    needsHumanReview: d.needs_human_review,
+                                }));
+                                setWizardDocs(docs);
+                            }
+                        } catch (e) {
+                            console.error('Failed to fetch review data:', e);
+                        }
                         addMessage('assistant', 'All documents passed the checks. Please review what I filled in. Sensitive fields are masked and you can tap Show to double check them. Confirm when everything is correct, or replace a document.', null, { type: 'wizard_review' });
                     }
                     return true;
@@ -1792,14 +2323,35 @@
                 setLoading(true);
                 try {
                     const token = getToken();
+
+                    // Step 3: record the confirmation on the server. /submit refuses (409)
+                    // until the session is confirmed, and /edit resets that flag.
+                    const confirmFields = {};
+                    (wizardDocs || []).forEach(dc => Object.keys(dc.extractedFields || {}).forEach(k => { confirmFields[k] = true; }));
+                    const confirmRes = await fetch(`${API_BASE}/wizard/${wizardAppId}/confirm?token=${encodeURIComponent(token)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },   // route requires a JSON body
+                        body: JSON.stringify({ fields: confirmFields }),
+                    });
+                    const confirmData = await confirmRes.json().catch(() => ({}));
+                    if (!confirmRes.ok || !confirmData.success) {
+                        const cd = confirmData.detail || confirmData.error || confirmData.message;
+                        const cmsg = typeof cd === 'string' ? cd : (cd?.message || JSON.stringify(cd) || 'unknown error');
+                        setWizardStep('review');
+                        addMessage('assistant', `Couldn't confirm your details: ${cmsg}. You can try Confirm again.`, null, { type: 'wizard_review' });
+                        return;
+                    }
+
+                    // Step 4: submit
                     const res = await fetch(`${API_BASE}/wizard/${wizardAppId}/submit?token=${encodeURIComponent(token)}`, {
                         method: 'POST',
                     });
                     const data = await res.json().catch(() => ({}));
                     if (!res.ok || !data.success) {
                         const d = data.detail || data.error || data.message;
+                        const msg = typeof d === 'string' ? d : (d?.message || JSON.stringify(d) || 'unknown error');
                         setWizardStep('review');
-                        addMessage('assistant', `Submission failed: ${typeof d === 'string' ? d : 'unknown error'}. You can try Confirm again.`, null, { type: 'wizard_review' });
+                        addMessage('assistant', `Submission failed: ${msg}. You can try Confirm again.`, null, { type: 'wizard_review' });
                         return;
                     }
                     const refId = data.data?.reference_id;
@@ -1833,6 +2385,33 @@
                 if (wizardService) beginService(wizardService);
             };
 
+            const wizardCancel = async () => {
+                if (!window.confirm('Are you sure you want to cancel this application? Any uploaded documents will be removed.')) {
+                    return;
+                }
+                setLoading(true);
+                try {
+                    const token = getToken();
+                    if (wizardAppId) {
+                        await fetch(`${API_BASE}/wizard/${encodeURIComponent(wizardAppId)}/cancel${token ? `?token=${encodeURIComponent(token)}` : ''}`, {
+                            method: 'POST'
+                        }).catch(() => {});
+                    }
+                    setWizardStep(null);
+                    setWizardDocs([]);
+                    setWizardService(null);
+                    setWizardName('');
+                    setWizardAppId(null);
+                    addMessage('assistant', 'Application cancelled. Any uploaded documents have been removed.');
+                    loadDocuments();
+                    loadApplications();
+                } catch (e) {
+                    console.error('Failed to cancel wizard application:', e);
+                } finally {
+                    setLoading(false);
+                }
+            };
+
             // Inline edit handler
             const wizardEditField = async (fieldKey, newValue) => {
                 if (!newValue || newValue.trim().length < 2) {
@@ -1845,7 +2424,7 @@
                     const res = await fetch(`${API_BASE}/wizard/${wizardAppId}/edit?token=${encodeURIComponent(token)}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ field_key: fieldKey, new_value: newValue.trim() })
+                        body: JSON.stringify({ field_name: fieldKey, field_value: newValue.trim() })
                     });
                     const data = await res.json().catch(() => ({}));
                     if (!res.ok || !data.success) {
@@ -1856,10 +2435,16 @@
                     // Re-fetch review data
                     const reviewRes = await fetch(`${API_BASE}/wizard/${wizardAppId}/review?token=${encodeURIComponent(token)}`);
                     const reviewData = await reviewRes.json().catch(() => ({}));
-                    if (reviewData.success && reviewData.data) {
-                        const docs = (reviewData.data.documents || []).map(d => ({
-                            ...d,
-                            extractedFields: d.extracted_fields || d.extractedFields || {}
+                    if (reviewData.success && reviewData.data && reviewData.data.document_checks) {
+                        const docs = reviewData.data.document_checks.map(d => ({
+                            docType: d.doc_type,
+                            filename: d.file_name,
+                            extractedFields: d.extracted_fields || {},
+                            malwareScan: d.malware_scan || 'clean',
+                            pdfValid: d.pdf_valid,
+                            qualityScore: d.quality_score,
+                            isBlurry: d.is_blurry || false,
+                            blurryFields: d.blurry_fields || [],
                         }));
                         setWizardDocs(docs);
                     }
@@ -1885,11 +2470,11 @@
                 if (msg.type === 'wizard_services') return <WizardServices services={services} onPick={startWizardService} />;
                 if (msg.type === 'wizard_upload') {
                     return <WizardUpload docs={wizardRequiredDocs()} uploaded={wizardDocs} busy={wizardBusy}
-                        onFile={wizardUploadDocument} isId={isIdDocument} pretty={prettyDoc} />;
+                        onFile={wizardUploadDocument} isId={isIdDocument} pretty={prettyDoc} onCancel={wizardCancel} />;
                 }
                 if (msg.type === 'wizard_review') {
                     return <WizardReview name={wizardName} docs={wizardDocs} mask={maskWizardValue} pretty={prettyDoc}
-                        disabled={wizardStep !== 'review'} onConfirm={wizardSubmitReview} onReplace={wizardReplaceDoc} onRestart={wizardRestart} onEdit={wizardEditField} />;
+                        disabled={wizardStep !== 'review'} onConfirm={wizardSubmitReview} onReplace={wizardReplaceDoc} onRestart={wizardRestart} onEdit={wizardEditField} onCancel={wizardCancel} />;
                 }
                 if (msg.type === 'wizard_success') {
                     return <SuccessResult name={msg.name} service={msg.service} refId={msg.refId}
@@ -1898,8 +2483,96 @@
                 return null;
             };
 
+            // Field labels for display
+            const NATIONAL_ID_LABELS = {
+                full_name: 'Full Name',
+                national_id_number: 'ID Number',
+                date_of_birth: 'Date of Birth',
+                nationality: 'Nationality',
+                issue_date: 'Issue Date',
+                expiry_date: 'Expiry Date',
+                gender: 'Gender',
+                card_number: 'Card Number',
+                occupation: 'Occupation',
+                issue_place: 'Issue Place',
+            };
+            
+            const PASSPORT_LABELS = {
+                given_name: 'Given Name',
+                surname: 'Surname',
+                passport_number: 'Passport Number',
+                date_of_birth: 'Date of Birth',
+                nationality: 'Nationality',
+                sex: 'Sex',
+                date_of_issue: 'Date of Issue',
+                date_of_expiry: 'Date of Expiry',
+            };
+            
+            const DRIVING_LICENSE_LABELS = {
+                name: 'Name',
+                full_name: 'Full Name',
+                license_no: 'License Number',
+                license_number: 'License Number',
+                nationality: 'Nationality',
+                date_of_birth: 'Date of Birth',
+                issue_date: 'Issue Date',
+                expiry_date: 'Expiry Date',
+                licensing_authority: 'Licensing Authority',
+                place_of_issue: 'Place of Issue',
+                traffic_code_no: 'Traffic Code No',
+                traffic_code: 'Traffic Code No',
+                gear_type: 'Gear Type',
+                glasses_requirement: 'Glasses Requirement',
+                restrictions: 'Restrictions',
+            };
+
+            const formatFieldValue = (key, value, serviceId) => {
+                if (value === null || value === undefined || value === '') return <span style={{ color: '#555' }}>—</span>;
+                const fn = String(key).toLowerCase();
+                const strVal = String(value).trim();
+
+                // Glasses requirement: yes or no
+                if (fn.includes('glasses')) {
+                    const lower = strVal.toLowerCase();
+                    if (lower === 'no' || lower === 'none' || lower === 'false' || lower.includes('no glasses')) {
+                        return 'No';
+                    }
+                    if (lower === 'yes' || lower === 'true' || lower.includes('glasses') || lower.includes('logo') || lower.includes('required')) {
+                        return 'Yes';
+                    }
+                    return 'Yes';
+                }
+
+                // For Mobility & Rental, capitalize each word in fields
+                const isMobility = serviceId === 'mobility_rental' || (typeof serviceId === 'string' && serviceId.toLowerCase().includes('mobility'));
+                if (isMobility) {
+                    // Do not alter ISO dates or numbers
+                    if (/^\d{1,4}[-/.]\d{1,2}[-/.]\d{1,4}$/.test(strVal) || /^\d+$/.test(strVal)) {
+                        return strVal;
+                    }
+                    return strVal.replace(/\b\w+/g, txt => txt.charAt(0).toUpperCase() + txt.slice(1).toLowerCase());
+                }
+
+                return strVal;
+            };
+
+            const getDocLabels = (docType) => {
+                if (!docType) return NATIONAL_ID_LABELS;
+                const dt = String(docType).toLowerCase();
+                if (dt.includes('licen')) return DRIVING_LICENSE_LABELS;
+                if (dt.includes('passport')) return PASSPORT_LABELS;
+                return NATIONAL_ID_LABELS;
+            };
+            
+            const getDocType = (doc) => {
+                if (doc.document_type) return doc.document_type;
+                if (doc.filename && doc.filename.toLowerCase().includes('licen')) return 'driving_license';
+                if (doc.filename && doc.filename.toLowerCase().includes('passport')) return 'passport';
+                return 'national_id';
+            };
+            
             const renderDocumentsPage = () => (
-                <div className="chat-area">
+                <div className="chat-area" style={{ overflowY: 'auto' }}>
                     <div className="page-header">
                         <h2><i className="fas fa-folder" style={{ marginRight: '8px' }}></i>Uploaded Documents ({documents.length})</h2>
                         <button className="btn btn-secondary" onClick={() => setShowDocumentsPage(false)}>
@@ -1916,120 +2589,461 @@
                                 </div>
                             </div>
                         ) : (
-                            <div style={{ display: 'grid', gap: '12px' }}>
-                                {documents.map((doc, idx) => (
-                                    <div key={idx} style={{
-                                        padding: '16px',
-                                        background: '#1a1a1a',
-                                        border: '1px solid #2a2a2a',
-                                        borderRadius: '12px',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '12px'
-                                    }}>
-                                        <div style={{ fontSize: '24px' }}>📄</div>
-                                        <div style={{ flex: 1 }}>
-                                            <div style={{ fontSize: '14px', fontWeight: '500', marginBottom: '4px' }}>
-                                                {doc.filename || doc.name || 'Unknown file'}
+                            <div style={{ display: 'grid', gap: '16px' }}>
+                                {documents.map((doc, idx) => {
+                                    const docType = getDocType(doc);
+                                    const labels = getDocLabels(docType);
+                                    const extracted = doc.extracted_fields || doc.extractedFields || {};
+                                    const fields = Object.entries(extracted).filter(([k]) => !k.startsWith('_'));
+                                    
+                                    const rawDate = doc.upload_date || doc.date || doc.uploaded_at;
+                                    let formattedDate = 'Unknown date';
+                                    if (rawDate) {
+                                        try {
+                                            const d = new Date(rawDate);
+                                            formattedDate = isNaN(d.getTime()) ? rawDate : d.toLocaleString();
+                                        } catch (e) {
+                                            formattedDate = rawDate;
+                                        }
+                                    }
+                                    const serviceDisplayName = doc.service_name || (doc.service_id ? doc.service_id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Basic Registration');
+                                    const docTypeDisplay = docType.includes('licen') ? '🚗 Driving License' : docType === 'passport' ? '🛂 Passport' : '🆔 National ID';
+                                    const token = getToken();
+                                    const docId = doc.id || doc.document_id;
+                                    const viewUrl = `${API_BASE}/documents/${encodeURIComponent(docId)}/view?token=${encodeURIComponent(token)}`;
+                                    const downloadUrl = `${API_BASE}/documents/${encodeURIComponent(docId)}/download?token=${encodeURIComponent(token)}`;
+                                    
+                                    return (
+                                        <div key={idx} style={{
+                                            padding: '20px',
+                                            background: '#1a1a1a',
+                                            border: '1px solid #2a2a2a',
+                                            borderRadius: '12px',
+                                        }}>
+                                            {/* Header */}
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #2a2a2a', flexWrap: 'wrap', gap: '12px' }}>
+                                                <div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                                                        <span style={{ fontSize: '15px', fontWeight: '600', color: '#f3f4f6' }}>
+                                                            {doc.filename || doc.name || 'Unknown file'}
+                                                        </span>
+                                                        <span style={{
+                                                            padding: '2px 8px',
+                                                            background: '#1e3a5f',
+                                                            color: '#60a5fa',
+                                                            border: '1px solid #2563eb55',
+                                                            borderRadius: '6px',
+                                                            fontSize: '11px',
+                                                            fontWeight: '500',
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: '4px'
+                                                        }}>
+                                                            <i className="fas fa-briefcase" style={{ fontSize: '10px' }}></i> {serviceDisplayName}
+                                                        </span>
+                                                    </div>
+                                                    <div style={{ fontSize: '12px', color: '#888', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                        <span><i className="far fa-clock" style={{ marginRight: '4px' }}></i>{formattedDate}</span>
+                                                        <span>·</span>
+                                                        <span>{formatFileSize(doc.file_size || doc.size || 0)}</span>
+                                                        <span>·</span>
+                                                        <span>{docTypeDisplay}</span>
+                                                    </div>
+                                                </div>
+                                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                    {doc.extraction_confidence !== undefined && (
+                                                        <span style={{ fontSize: '12px', color: doc.extraction_confidence > 0.7 ? '#22c55e' : doc.extraction_confidence > 0.4 ? '#eab308' : '#ef4444' }}>
+                                                            {(doc.extraction_confidence * 100).toFixed(0)}% confidence
+                                                        </span>
+                                                    )}
+                                                    <span style={{ fontSize: '12px', color: '#22c55e', marginRight: '4px' }}>
+                                                        ✓ Processed
+                                                    </span>
+
+                                                    {/* View & Download buttons */}
+                                                    {docId && (
+                                                        <a
+                                                            href={viewUrl}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="btn btn-secondary"
+                                                            style={{ fontSize: '12px', padding: '6px 10px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                                            title="View original document"
+                                                        >
+                                                            <i className="fas fa-eye"></i> View
+                                                        </a>
+                                                    )}
+                                                    {docId && (
+                                                        <a
+                                                            href={downloadUrl}
+                                                            download
+                                                            className="btn btn-primary"
+                                                            style={{ fontSize: '12px', padding: '6px 10px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                                            title="Download original document"
+                                                        >
+                                                            <i className="fas fa-download"></i> Download
+                                                        </a>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div style={{ fontSize: '12px', color: '#666' }}>
-                                                {doc.upload_date || doc.date || doc.uploaded_at || 'Unknown date'}
-                                                {' · '}{formatFileSize(doc.file_size || doc.size || 0)}
-                                            </div>
+                                            
+                                            {/* Extracted Fields Table */}
+                                            {fields.length > 0 ? (
+                                                <div>
+                                                    <div style={{ fontSize: '12px', color: '#888', marginBottom: '8px', fontWeight: '600' }}>
+                                                        EXTRACTED DATA ({fields.length} fields)
+                                                    </div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px' }}>
+                                                        {fields.map(([key, value]) => (
+                                                            <div key={key} style={{
+                                                                padding: '8px 12px',
+                                                                background: '#141414',
+                                                                border: '1px solid #2a2a2a',
+                                                                borderRadius: '6px',
+                                                                fontSize: '12px',
+                                                            }}>
+                                                                <div style={{ color: '#888', marginBottom: '2px', fontSize: '11px' }}>
+                                                                    {labels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                                </div>
+                                                                <div style={{ color: '#e4e4e4', wordBreak: 'break-word', fontWeight: '500' }}>
+                                                                    {formatFieldValue(key, value, doc.service_id)}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div style={{ fontSize: '12px', color: '#666', fontStyle: 'italic', padding: '8px 0' }}>
+                                                    No data extracted yet. Upload the document again to trigger extraction.
+                                                </div>
+                                            )}
                                         </div>
-                                        <div style={{ fontSize: '12px', color: '#22c55e' }}>
-                                            Processed
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
                 </div>
             );
 
-            const renderServicesPage = () => (
-                <div className="chat-area">
+            const renderApplicationsPage = () => (
+                <div className="chat-area" style={{ overflowY: 'auto' }}>
                     <div className="page-header">
-                        <h2><i className="fas fa-cogs" style={{ marginRight: '8px' }}></i>Services</h2>
-                        <button className="btn btn-secondary" onClick={() => setShowServicesPage(false)}>
-                            <i className="fas fa-arrow-left" style={{ marginRight: '4px' }}></i>Back to Chat
-                        </button>
+                        <h2><i className="fas fa-file-invoice" style={{ marginRight: '8px' }}></i>Applications</h2>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button className="btn btn-secondary" onClick={loadApplications}>
+                                <i className="fas fa-sync" style={{ marginRight: '4px' }}></i>Refresh
+                            </button>
+                            <button className="btn btn-secondary" onClick={() => setShowApplicationsPage(false)}>
+                                <i className="fas fa-arrow-left" style={{ marginRight: '4px' }}></i>Back to Chat
+                            </button>
+                        </div>
                     </div>
                     <div style={{ padding: '0 24px 24px' }}>
-                        {services.length === 0 ? (
+                        {applications.length === 0 ? (
                             <div style={{ textAlign: 'center', padding: '60px 20px', color: '#666' }}>
-                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔧</div>
-                                <div style={{ fontSize: '18px', marginBottom: '8px' }}>No services available</div>
-                                <div style={{ fontSize: '14px', color: '#888' }}>
-                                    No services have been loaded yet. Please check the system configuration.
+                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+                                <div style={{ fontSize: '18px', marginBottom: '8px' }}>No applications submitted yet</div>
+                                <div style={{ fontSize: '14px', color: '#888', marginBottom: '16px' }}>
+                                    Your completed service onboarding applications will be securely stored and listed here.
                                 </div>
+                                <button className="btn btn-primary" onClick={() => {
+                                    setShowApplicationsPage(false);
+                                    handleStartApplication();
+                                }}>
+                                    Start an Application
+                                </button>
                             </div>
                         ) : (
                             <div style={{ display: 'grid', gap: '16px' }}>
-                                {services.map((svc, idx) => (
-                                    <div key={idx} style={{
-                                        padding: '20px',
-                                        background: '#1a1a1a',
-                                        border: '1px solid #2a2a2a',
-                                        borderRadius: '12px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '12px'
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                            <div style={{ fontSize: '28px' }}>{getServiceIcon(svc.id)}</div>
-                                            <div style={{ flex: 1 }}>
-                                                <div style={{ fontSize: '16px', fontWeight: '600' }}>{svc.name}</div>
-                                                <div style={{ fontSize: '12px', color: svc.status === 'available' ? '#22c55e' : '#666', marginTop: '2px' }}>
-                                                    {svc.status === 'available' ? '● Available' : '○ Coming Soon'}
+                                {applications.map((app, idx) => {
+                                    const serviceLabel = app.service_name || (app.service_type || app.service_id || 'Application').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                                    const appStatus = (app.status || 'PENDING').toUpperCase();
+                                    const isComplete = appStatus === 'COMPLETE' || appStatus === 'COMPLETED' || appStatus === 'SUBMITTED' || appStatus === 'PASS';
+                                    const isReview = appStatus.includes('REVIEW');
+                                    const badgeBg = isComplete ? 'rgba(34, 197, 94, 0.15)' : isReview ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+                                    const badgeColor = isComplete ? '#22c55e' : isReview ? '#f59e0b' : '#ef4444';
+                                    const badgeBorder = isComplete ? 'rgba(34, 197, 94, 0.35)' : isReview ? 'rgba(245, 158, 11, 0.35)' : 'rgba(239, 68, 68, 0.35)';
+
+                                    return (
+                                        <div key={app.id || app.application_id || idx} style={{
+                                            padding: '22px',
+                                            background: 'linear-gradient(135deg, rgba(26,26,26,0.85) 0%, rgba(20,20,20,0.95) 100%)',
+                                            border: '1px solid rgba(255,255,255,0.08)',
+                                            borderRadius: '16px',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: '14px',
+                                            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                                            backdropFilter: 'blur(10px)',
+                                            transition: 'transform 0.2s, border-color 0.2s'
+                                        }}>
+                                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                                                <div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        <span style={{ fontSize: '20px' }}>{getServiceIcon(app.service_id || app.service_type)}</span>
+                                                        <div style={{ fontSize: '18px', fontWeight: '700', color: '#f5f5f5', letterSpacing: '0.01em' }}>
+                                                            {serviceLabel}
+                                                        </div>
+                                                    </div>
+                                                    {app.applicant_name && (
+                                                        <div style={{ fontSize: '13px', color: '#84BD00', marginTop: '4px', fontWeight: '500' }}>
+                                                            <i className="fas fa-user" style={{ marginRight: '6px', opacity: 0.8 }}></i>
+                                                            Applicant: {app.applicant_name}
+                                                        </div>
+                                                    )}
+                                                    <div style={{ fontSize: '12px', color: '#777', marginTop: '6px' }}>
+                                                        Ref: <span style={{ color: '#aaa', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>{app.id || app.application_id}</span> • Submitted: {app.created_at || app.submitted_at ? new Date(app.created_at || app.submitted_at).toLocaleString() : 'Recent'}
+                                                    </div>
                                                 </div>
+                                                <span style={{
+                                                    padding: '6px 14px',
+                                                    borderRadius: '20px',
+                                                    fontSize: '11px',
+                                                    fontWeight: '700',
+                                                    letterSpacing: '0.05em',
+                                                    background: badgeBg,
+                                                    color: badgeColor,
+                                                    border: `1px solid ${badgeBorder}`,
+                                                    boxShadow: `0 0 12px ${badgeBg}`
+                                                }}>
+                                                    {appStatus.replace(/_/g, ' ')}
+                                                </span>
                                             </div>
-                                            <button className="btn btn-primary" onClick={() => {
-                                                if (user) {
-                                                    setShowServicesPage(false);
-                                                    sendMessage(`Tell me about ${svc.name}`);
-                                                } else {
-                                                    setShowAuth(true);
-                                                }
-                                            }} style={{ padding: '6px 16px', fontSize: '13px' }}>
-                                                Ask about this
-                                            </button>
-                                        </div>
-                                        <div style={{ fontSize: '14px', color: '#ccc', lineHeight: '1.5' }}>
-                                            {svc.description || 'No description available.'}
-                                        </div>
-                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '13px', color: '#888' }}>
-                                            <div>
-                                                <strong style={{ color: '#aaa' }}>Required Documents:</strong>
-                                                <div style={{ marginTop: '4px' }}>
-                                                    {(svc.documents_required || []).length > 0 
-                                                        ? (svc.documents_required || []).map((d, i) => (
-                                                            <span key={i} style={{ 
-                                                                display: 'inline-block', 
-                                                                padding: '2px 8px', 
-                                                                background: '#2a2a2a', 
-                                                                borderRadius: '4px', 
-                                                                marginRight: '4px',
-                                                                fontSize: '12px'
-                                                            }}>{d.replace(/_/g, ' ')}</span>
-                                                        ))
-                                                        : <span style={{ color: '#666' }}>None specified</span>
-                                                    }
+
+                                            {app.metadata && Object.keys(app.metadata).length > 0 && (
+                                                <div style={{ background: 'rgba(0,0,0,0.35)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: '600', marginBottom: '8px', letterSpacing: '0.05em' }}>DETAILS</div>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', fontSize: '12px' }}>
+                                                        {Object.entries(app.metadata).map(([k, v]) => (
+                                                            <div key={k}>
+                                                                <span style={{ color: '#888' }}>{k.replace(/_/g, ' ')}: </span>
+                                                                <span style={{ color: '#e4e4e4', fontWeight: '500' }}>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
-                                            <div>
-                                                <strong style={{ color: '#aaa' }}>Processing Time:</strong>
-                                                <span style={{ marginLeft: '8px' }}>{svc.processing_time || 'TBD'}</span>
+                                            )}
+
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                                <button
+                                                    className="btn btn-ghost"
+                                                    style={{
+                                                        color: '#ef4444',
+                                                        borderColor: 'rgba(239, 68, 68, 0.3)',
+                                                        background: 'rgba(239, 68, 68, 0.08)',
+                                                        fontSize: '12px',
+                                                        padding: '6px 14px',
+                                                        borderRadius: '8px',
+                                                        cursor: 'pointer',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '6px',
+                                                    }}
+                                                    onClick={() => handleCancelApplication(app.id || app.application_id)}
+                                                >
+                                                    <i className="fas fa-times-circle"></i> Cancel Application
+                                                </button>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
                 </div>
             );
+
+            const renderServicesPage = () => {
+                const availableServices = services.filter(s => s.status === 'available');
+                const comingSoonServices = services.filter(s => s.status !== 'available');
+
+                const renderServiceCard = (svc, isAvailable) => (
+                    <div key={svc.id} style={{
+                        padding: '22px',
+                        background: 'rgba(26, 26, 26, 0.75)',
+                        border: isAvailable ? '1px solid rgba(132, 189, 0, 0.25)' : '1px dashed rgba(255, 255, 255, 0.15)',
+                        borderRadius: '14px',
+                        backdropFilter: 'blur(12px)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '14px',
+                        transition: 'all 0.25s ease',
+                        boxShadow: isAvailable ? '0 4px 20px -5px rgba(0,0,0,0.5)' : 'none',
+                        opacity: isAvailable ? 1 : 0.88
+                    }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ fontSize: '32px', filter: isAvailable ? 'drop-shadow(0 0 8px rgba(132,189,0,0.3))' : 'grayscale(60%)' }}>
+                                    {getServiceIcon(svc.id)}
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff', letterSpacing: '-0.01em' }}>
+                                        {svc.name}
+                                    </div>
+                                    <div style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.06em', color: isAvailable ? '#84BD00' : '#888', marginTop: '3px' }}>
+                                        {isAvailable ? '● Available Now' : '⏳ Coming Soon'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style={{ fontSize: '13px', color: '#bbb', lineHeight: '1.6' }}>
+                            {svc.description || 'Comprehensive document onboarding and verification service.'}
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', background: 'rgba(0, 0, 0, 0.25)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                            <div>
+                                <span style={{ color: '#888', fontWeight: '600', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.05em' }}>Required Documents:</span>
+                                <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                    {(svc.documents_required || []).length > 0 
+                                        ? (svc.documents_required || []).map((d, i) => (
+                                            <span key={i} style={{ 
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                padding: '3px 8px', 
+                                                background: 'rgba(255, 255, 255, 0.06)', 
+                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                borderRadius: '6px', 
+                                                fontSize: '11px',
+                                                color: '#ddd'
+                                            }}>
+                                                <i className="fas fa-file-check" style={{ marginRight: '5px', fontSize: '10px', color: '#84BD00' }}></i>
+                                                {d.replace(/_/g, ' ')}
+                                            </span>
+                                        ))
+                                        : <span style={{ color: '#666', fontStyle: 'italic' }}>None specified</span>
+                                    }
+                                </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', paddingTop: '6px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                                <span style={{ color: '#888', fontWeight: '600', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.05em' }}>Processing Time:</span>
+                                <span style={{ color: '#84BD00', fontWeight: '600' }}>{svc.processing_time || 'Instant'}</span>
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                            {isAvailable ? (
+                                <button className="btn btn-primary" onClick={() => {
+                                    setShowServicesPage(false);
+                                    startApplication(svc.id);
+                                }} style={{ flex: 1, padding: '8px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', borderRadius: '8px' }}>
+                                    <i className="fas fa-play"></i> Apply for this service
+                                </button>
+                            ) : (
+                                <div style={{ flex: 1, padding: '8px 12px', fontSize: '12px', textAlign: 'center', color: '#777', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <i className="fas fa-lock" style={{ marginRight: '6px' }}></i>Opening soon
+                                </div>
+                            )}
+                            <button className="btn btn-secondary" onClick={() => {
+                                if (user) {
+                                    setShowServicesPage(false);
+                                    sendMessage(`Tell me about ${svc.name}`);
+                                } else {
+                                    setShowAuth(true);
+                                }
+                            }} style={{ padding: '8px 14px', fontSize: '13px', borderRadius: '8px' }} title="Ask Lynx AI about this service">
+                                <i className="fas fa-comment-dots" style={{ marginRight: '4px' }}></i> Ask
+                            </button>
+                        </div>
+                    </div>
+                );
+
+                return (
+                    <div className="chat-area" style={{ overflowY: 'auto' }}>
+                        <div className="page-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '18px 24px' }}>
+                            <div>
+                                <h2 style={{ fontSize: '20px', fontWeight: '700', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <i className="fas fa-cubes" style={{ color: '#84BD00' }}></i> Service Catalog
+                                </h2>
+                                <div style={{ fontSize: '13px', color: '#888', marginTop: '4px' }}>
+                                    Browse available intake programs and upcoming automated verification pipelines.
+                                </div>
+                            </div>
+                            <button className="btn btn-secondary" onClick={() => setShowServicesPage(false)} style={{ borderRadius: '8px' }}>
+                                <i className="fas fa-arrow-left" style={{ marginRight: '6px' }}></i>Back to Chat
+                            </button>
+                        </div>
+
+                        <div style={{ padding: '24px' }}>
+                            {services.length === 0 ? (
+                                <div style={{ textAlign: 'center', padding: '60px 20px', color: '#666' }}>
+                                    <div style={{ fontSize: '48px', marginBottom: '16px' }}>🔧</div>
+                                    <div style={{ fontSize: '18px', marginBottom: '8px' }}>No services available</div>
+                                    <div style={{ fontSize: '14px', color: '#888' }}>
+                                        No services have been loaded yet. Please check the system configuration.
+                                    </div>
+                                </div>
+                            ) : (
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+                                    gap: '24px',
+                                    alignItems: 'start'
+                                }}>
+                                    {/* Column 1: Available Services */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            paddingBottom: '8px',
+                                            borderBottom: '2px solid rgba(132, 189, 0, 0.4)'
+                                        }}>
+                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <i className="fas fa-check-circle" style={{ color: '#84BD00' }}></i>
+                                                Available Services
+                                            </div>
+                                            <span style={{ fontSize: '12px', background: 'rgba(132, 189, 0, 0.15)', color: '#84BD00', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
+                                                {availableServices.length} Active
+                                            </span>
+                                        </div>
+
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                            {availableServices.length === 0 ? (
+                                                <div style={{ padding: '20px', color: '#666', textAlign: 'center', background: '#161616', borderRadius: '10px' }}>
+                                                    No available services right now.
+                                                </div>
+                                            ) : (
+                                                availableServices.map(svc => renderServiceCard(svc, true))
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Column 2: Coming Soon */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'space-between',
+                                            paddingBottom: '8px',
+                                            borderBottom: '2px solid rgba(255, 255, 255, 0.15)'
+                                        }}>
+                                            <div style={{ fontSize: '15px', fontWeight: '700', color: '#bbb', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <i className="fas fa-clock" style={{ color: '#888' }}></i>
+                                                Coming Soon
+                                            </div>
+                                            <span style={{ fontSize: '12px', background: 'rgba(255, 255, 255, 0.08)', color: '#aaa', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
+                                                {comingSoonServices.length} In Pipeline
+                                            </span>
+                                        </div>
+
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                            {comingSoonServices.length === 0 ? (
+                                                <div style={{ padding: '20px', color: '#666', textAlign: 'center', background: '#161616', borderRadius: '10px' }}>
+                                                    No upcoming services announced yet.
+                                                </div>
+                                            ) : (
+                                                comingSoonServices.map(svc => renderServiceCard(svc, false))
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
 
             // Auth Modal
             if (showAuth) {
@@ -2052,6 +3066,20 @@
                                     placeholder="Enter username"
                                 />
                             </div>
+
+                            {authMode === 'register' && (
+                                <div className="form-group">
+                                    <label>Email Address</label>
+                                    <input
+                                        className="form-input"
+                                        type="email"
+                                        value={authData.email}
+                                        onChange={e => setAuthData({...authData, email: e.target.value})}
+                                        placeholder="Enter your email"
+                                        autoComplete="email"
+                                    />
+                                </div>
+                            )}
 
                             <div className="form-group">
                                 <label>Password</label>
@@ -2079,7 +3107,7 @@
 
                             {authMode === 'register' && (
                                 <div className="form-group">
-                                    <label>Name (optional)</label>
+                                    <label>Full Name (optional)</label>
                                     <input
                                         className="form-input"
                                         value={authData.name}
@@ -2167,14 +3195,17 @@
 
                     {/* Main layout */}
                     <div className="main-layout">
+                        {sidebarOpen && (
+                            <div className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} />
+                        )}
                         {/* Sidebar */}
                         <div className={`sidebar ${!sidebarOpen ? 'collapsed' : ''}`}>
                             <div className="sidebar-header">
-                                <button className="sidebar-btn" onClick={handleResetChat}>
+                                <button className="sidebar-btn" onClick={() => { handleResetChat(); if (window.innerWidth <= 768) setSidebarOpen(false); }}>
                                     <i className="fas fa-undo"></i>
                                     Reset Chat
                                 </button>
-                                <button className="sidebar-btn" onClick={handleStartApplication} style={{ borderColor: '#84BD00', background: 'rgba(132, 189, 0, 0.1)' }}>
+                                <button className="sidebar-btn" onClick={() => { handleStartApplication(); if (window.innerWidth <= 768) setSidebarOpen(false); }} style={{ borderColor: '#84BD00', background: 'rgba(132, 189, 0, 0.1)' }}>
                                     <i className="fas fa-file-alt"></i>
                                     Start New Application
                                 </button>
@@ -2182,29 +3213,21 @@
 
                             <div className="sidebar-section">
                                 <div className="sidebar-section-title">Navigation</div>
-                                <div className={`sidebar-item ${!showServicesPage && !showDocumentsPage && !showApplicationFlow ? 'active' : ''}`} onClick={() => { setShowDocumentsPage(false); setShowServicesPage(false); setShowApplicationFlow(false); setMessages([]); }}>
+                                <div className={`sidebar-item ${!showServicesPage && !showDocumentsPage && !showApplicationsPage && !showApplicationFlow ? 'active' : ''}`} onClick={() => { setShowDocumentsPage(false); setShowServicesPage(false); setShowApplicationsPage(false); setShowApplicationFlow(false); setMessages([]); if (window.innerWidth <= 768) setSidebarOpen(false); }}>
                                     <i className="fas fa-comment"></i> Chat
                                 </div>
-                                <div className={`sidebar-item ${showServicesPage ? 'active' : ''}`} onClick={() => { setShowServicesPage(true); setShowDocumentsPage(false); setShowApplicationFlow(false); }}>
+                                <div className={`sidebar-item ${showServicesPage ? 'active' : ''}`} onClick={() => { setShowServicesPage(true); setShowDocumentsPage(false); setShowApplicationsPage(false); setShowApplicationFlow(false); if (window.innerWidth <= 768) setSidebarOpen(false); }}>
                                     <i className="fas fa-cogs"></i> Services
                                 </div>
-                                <div className={`sidebar-item ${showDocumentsPage ? 'active' : ''}`} onClick={() => { setShowDocumentsPage(true); setShowServicesPage(false); setShowApplicationFlow(false); loadDocuments(); }}>
+                                <div className={`sidebar-item ${showDocumentsPage ? 'active' : ''}`} onClick={() => { setShowDocumentsPage(true); setShowServicesPage(false); setShowApplicationsPage(false); setShowApplicationFlow(false); loadDocuments(); if (window.innerWidth <= 768) setSidebarOpen(false); }}>
                                     <i className="fas fa-folder"></i> Documents
                                     <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#666' }}>{documents.length}</span>
                                 </div>
-                            </div>
-
-                            {services.length > 0 && (
-                                <div className="sidebar-section">
-                                    <div className="sidebar-section-title">Services</div>
-                                    {services.map(svc => (
-                                        <div key={svc.id} className="sidebar-item" onClick={() => handleServiceClick(svc.id, svc.name)}>
-                                            <span>{getServiceIcon(svc.id)}</span>
-                                            {svc.name}
-                                        </div>
-                                    ))}
+                                <div className={`sidebar-item ${showApplicationsPage ? 'active' : ''}`} onClick={() => { setShowApplicationsPage(true); setShowDocumentsPage(false); setShowServicesPage(false); setShowApplicationFlow(false); loadApplications(); if (window.innerWidth <= 768) setSidebarOpen(false); }}>
+                                    <i className="fas fa-file-invoice"></i> Applications
+                                    <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#666' }}>{applications.length}</span>
                                 </div>
-                            )}
+                            </div>
 
                             <div className="sidebar-status">
                                 <div className="status-item">
@@ -2227,6 +3250,8 @@
                             renderServicesPage()
                         ) : showDocumentsPage ? (
                             renderDocumentsPage()
+                        ) : showApplicationsPage ? (
+                            renderApplicationsPage()
                         ) : (
                             <div className="chat-area">
                             <div className="chat-messages">
@@ -2250,11 +3275,6 @@
                                                 <div className="feature-icon">🚗</div>
                                                 <div className="feature-title">Mobility/Rental</div>
                                                 <div className="feature-desc">Vehicle rental service</div>
-                                            </div>
-                                            <div className="feature-card" onClick={() => handleFeatureClick('Upload a document')}>
-                                                <div className="feature-icon">📎</div>
-                                                <div className="feature-title">Upload Document</div>
-                                                <div className="feature-desc">Upload documents (PDF, PNG, JPG)</div>
                                             </div>
                                         </div>
                                     </div>
@@ -2308,29 +3328,7 @@
 
                             <div className="chat-input-area">
                                 <div className="input-container">
-                                    {file && (
-                                        <div className="file-preview">
-                                            <i className="fas fa-file-pdf"></i>
-                                            <span>{file.name}</span>
-                                            <span className="file-remove" onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}>
-                                                <i className="fas fa-times"></i>
-                                            </span>
-                                            <button className="btn btn-primary" onClick={() => { if (!user) { setShowAuth(true); } else { handleFileUpload(); } }} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: '12px' }}>
-                                                Upload
-                                            </button>
-                                        </div>
-                                    )}
                                     <div className="input-wrapper">
-                                        <button className="upload-btn" onClick={() => { if (!user) { setShowAuth(true); } else { fileInputRef.current?.click(); } }}>
-                                            <i className="fas fa-paperclip"></i>
-                                        </button>
-                                        <input
-                                            type="file"
-                                            ref={fileInputRef}
-                                            accept=".pdf,.png,.jpg,.jpeg,.tiff,.bmp"
-                                            style={{ display: 'none' }}
-                                            onChange={e => setFile(e.target.files[0])}
-                                        />
                                         <textarea
                                             id="chatInput"
                                             value={input}

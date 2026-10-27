@@ -17,7 +17,7 @@ import os
 import logging
 import hashlib
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from contextlib import contextmanager
 
 from sqlalchemy import (
@@ -102,7 +102,7 @@ class Document(Base):
     filename = Column(String(255), nullable=False)
     object_name = Column(String(500), nullable=True)  # MinIO/S3 object key
     file_size = Column(Integer, nullable=False)
-    content_hash = Column(String(64), unique=True, nullable=False, index=True)  # SHA-256
+    content_hash = Column(String(64), unique=True, nullable=True)
     content_type = Column(String(100), nullable=False)
     document_type = Column(String(50), nullable=True, index=True)  # national_id, passport, etc.
     status = Column(String(20), default="uploaded")  # uploaded, processed, failed
@@ -336,6 +336,90 @@ class ApplicationEvent(Base):
     application = relationship("Application")
 
 
+# ── Phase 3: Collection sessions, validation rules, idempotency ──────
+
+class CollectionSession(Base):
+    """DB-backed collection agent session state — replaces in-memory dict."""
+    __tablename__ = "collection_sessions"
+
+    session_id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.user_id"), nullable=True, index=True)
+    application_id = Column(String(36), ForeignKey("applications.application_id"), nullable=True, index=True)
+    service_id = Column(String(100), nullable=False)
+    service_name = Column(String(255), nullable=True)
+    status = Column(String(20), default="collecting")  # collecting | incomplete | complete | interrupted | exception
+    document_requirements = Column(JSON, nullable=True)  # {doc_type: {mandatory, submitted, extraction_ok, …}}
+    submitted_file_ids = Column(JSON, nullable=True)     # list of file_ids
+    conversation_history = Column(JSON, nullable=True)   # chat turns array
+    notes = Column(JSON, nullable=True)                  # free-form notes
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    user = relationship("User")
+
+    def to_dict(self):
+        return {
+            "session_id": self.session_id,
+            "user_id": self.user_id,
+            "application_id": self.application_id,
+            "service_id": self.service_id,
+            "service_name": self.service_name,
+            "status": self.status,
+            "document_requirements": self.document_requirements,
+            "submitted_file_ids": self.submitted_file_ids,
+            "conversation_history": self.conversation_history,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ValidationRule(Base):
+    """Per-document-type validation rules stored in DB (loaded from config.yaml)."""
+    __tablename__ = "validation_rules"
+
+    id = Column(String(36), primary_key=True)
+    service_id = Column(String(100), nullable=False, index=True)
+    document_type = Column(String(50), nullable=False)
+    mandatory_fields = Column(JSON, nullable=True)  # list of field names
+    optional_fields = Column(JSON, nullable=True)
+    field_rules = Column(JSON, nullable=True)  # {field_name: {regex, min_length, …}}
+    extraction_threshold = Column(Float, nullable=True, default=0.5)
+    human_review_threshold = Column(Float, nullable=True, default=0.7)
+    reject_threshold = Column(Integer, nullable=True, default=3)
+    source = Column(String(500), nullable=True)  # config.yaml path or "inline"
+    created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (Index("ix_validation_rules_service_doc", "service_id", "document_type"),)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "service_id": self.service_id,
+            "document_type": self.document_type,
+            "mandatory_fields": self.mandatory_fields,
+            "optional_fields": self.optional_fields,
+            "field_rules": self.field_rules,
+            "extraction_threshold": self.extraction_threshold,
+            "human_review_threshold": self.human_review_threshold,
+            "reject_threshold": self.reject_threshold,
+            "source": self.source,
+        }
+
+
+class IdempotencyKey(Base):
+    """Stores idempotency keys to prevent duplicate uploads on retry."""
+    __tablename__ = "idempotency_keys"
+
+    idempotency_key = Column(String(64), primary_key=True)
+    application_id = Column(String(36), ForeignKey("applications.application_id"), nullable=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.user_id"), nullable=True, index=True)
+    response_json = Column(JSON, nullable=True)
+    response_status = Column(Integer, nullable=True, default=200)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 # ──────────────────────────────────────────────────────────────────────
 #  Engine & Session management
 # ──────────────────────────────────────────────────────────────────────
@@ -360,9 +444,13 @@ class DatabaseService:
         pool_size = db_config.get("pool_size", 10)
         max_overflow = db_config.get("max_overflow", 20)
 
-        # Try PostgreSQL first, fall back to SQLite
+        # PostgreSQL is the database of record. SQLite is used ONLY when explicitly allowed
+        # (database.allow_sqlite_fallback: true), because a silent fallback sends every write to a
+        # local file while everything else believes it is talking to PostgreSQL.
         pg_url = f"postgresql://{user}:{password}@{host}:{port}/{name}"
-        sqlite_url = f"sqlite:///{os.path.join(os.path.dirname(__file__), '..', 'data', 'app.db')}"
+        allow_fallback = bool(db_config.get("allow_sqlite_fallback", False))
+        sqlite_path = db_config.get("sqlite_path") or os.path.join(os.path.dirname(__file__), '..', 'data', 'app.db')
+        sqlite_url = f"sqlite:///{sqlite_path}"
 
         try:
             self.engine = create_engine(pg_url, pool_pre_ping=True, echo=False)
@@ -372,7 +460,15 @@ class DatabaseService:
             self._connected = True
             logger.info(f"Connected to PostgreSQL at {host}:{port}/{name}")
         except Exception as e:
-            logger.warning(f"PostgreSQL connection failed ({e}). Falling back to SQLite.")
+            if not allow_fallback:
+                self.engine = None
+                self._connected = False
+                raise RuntimeError(
+                    f"PostgreSQL connection failed at {host}:{port}/{name} ({type(e).__name__}). "
+                    "Not falling back to SQLite. For local development only, set "
+                    "database.allow_sqlite_fallback: true in config.yaml."
+                ) from e
+            logger.warning(f"PostgreSQL connection failed ({type(e).__name__}). Falling back to SQLite (allowed by config).")
             self.engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
             self._connected = True
             logger.info("Connected to SQLite database")
@@ -386,17 +482,21 @@ class DatabaseService:
                 cursor.execute("PRAGMA foreign_keys=ON")
                 cursor.close()
 
-        # Drop any legacy tables (e.g. from init_db.sql) that conflict with
-        # SQLAlchemy model column names, then recreate fresh.
-        # Using raw SQL DROP ... CASCADE bypasses ORM constraint resolution.
-        try:
-            with self.engine.connect() as conn:
-                conn.execute(text("DROP SCHEMA public CASCADE"))
-                conn.execute(text("CREATE SCHEMA public"))
-                conn.commit()
-            logger.info("Dropped legacy tables (if any) via raw SQL CASCADE")
-        except Exception as e:
-            logger.warning(f"Failed to drop legacy tables (non-fatal): {e}")
+        # The old code ran DROP SCHEMA public CASCADE here on EVERY start, which deleted all users,
+        # applications and documents each time the server restarted. It now runs only when you
+        # explicitly ask for it, once, to clear legacy tables from init_db.sql:
+        #     database:
+        #       reset_schema_on_start: true     # then set it back to false
+        if db_config.get("reset_schema_on_start", False) and "postgresql" in str(self.engine.url):
+            logger.warning("database.reset_schema_on_start is true: DROPPING ALL TABLES AND DATA in schema public")
+            try:
+                with self.engine.connect() as conn:
+                    conn.execute(text("DROP SCHEMA public CASCADE"))
+                    conn.execute(text("CREATE SCHEMA public"))
+                    conn.commit()
+                logger.warning("Schema reset complete. Set database.reset_schema_on_start back to false.")
+            except Exception as e:
+                logger.error(f"Schema reset failed: {type(e).__name__}: {e}")
 
         Base.metadata.create_all(self.engine)
         self.SessionLocal = sessionmaker(bind=self.engine)
@@ -432,13 +532,27 @@ class DatabaseService:
         return hashlib.sha256(file_data).hexdigest()
 
     @staticmethod
-    def is_duplicate(session: Session, content_hash: str) -> Optional[str]:
+    def scoped_hash(user_id: Optional[str], raw_hash: str) -> str:
+        """Compute a user-scoped content hash so two users can upload identical files.
+        
+        If user_id is provided, returns sha256(f"{user_id}:{raw_hash}").
+        Otherwise returns the raw hash.
+        """
+        if not user_id:
+            return raw_hash
+        return hashlib.sha256(f"{user_id}:{raw_hash}".encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def is_duplicate(session: Session, content_hash: str, user_id: Optional[str] = None) -> Optional[str]:
         """Check if a document with this hash already exists.
 
         Returns:
             document_id if duplicate found, None otherwise
         """
-        doc = session.query(Document).filter_by(content_hash=content_hash).first()
+        q = session.query(Document).filter_by(content_hash=content_hash)
+        if user_id:
+            q = q.filter_by(user_id=user_id)
+        doc = q.first()
         return doc.document_id if doc else None
 
     # ────────────────────────────────────────────────────────────────
@@ -577,9 +691,13 @@ class DatabaseService:
     #  Chat session CRUD
     # ────────────────────────────────────────────────────────────────
 
-    def get_or_create_chat_session(self, user_id: str = None) -> str:
-        """Get or create a chat session."""
+    def get_or_create_chat_session(self, user_id: str = None, force_new: bool = False) -> str:
+        """Get or create a chat session. If force_new=False and active session exists for user, reuse it."""
         with self.session_scope() as session:
+            if user_id and not force_new:
+                existing = session.query(ChatSession).filter_by(user_id=user_id).order_by(ChatSession.created_at.desc()).first()
+                if existing:
+                    return existing.session_id
             session_id = f"chat_{os.urandom(4).hex()}"
             chat = ChatSession(
                 session_id=session_id,
@@ -667,6 +785,45 @@ class DatabaseService:
     #  Health check
     # ────────────────────────────────────────────────────────────────
 
+    def log_trace_event(self, application_id: str, stage: str, inputs: Dict,
+                        scores: Dict, rule: str, confidence: float) -> str:
+        """Log a trace event for deterministic routing & other stages."""
+        import uuid
+        event_id = str(uuid.uuid4())
+        with self.session_scope() as session:
+            trace = TraceEvent(
+                id=event_id,
+                application_id=application_id,
+                stage=stage,
+                inputs=inputs,
+                scores=scores,
+                rule=rule,
+                confidence=confidence,
+            )
+            session.add(trace)
+            return event_id
+
+    def get_trace_events(self, application_id: str, stage: str = None, limit: int = 100) -> List[Dict]:
+        """Retrieve trace events, optionally filtered by stage."""
+        with self.session_scope() as session:
+            query = session.query(TraceEvent).filter_by(application_id=application_id)
+            if stage:
+                query = query.filter_by(stage=stage)
+            query = query.order_by(TraceEvent.created_at.desc()).limit(limit)
+            events = query.all()
+            return [
+                {
+                    "id": e.id,
+                    "stage": e.stage,
+                    "inputs": e.inputs,
+                    "scores": e.scores,
+                    "rule": e.rule,
+                    "confidence": e.confidence,
+                    "created_at": e.created_at.isoformat() if e.created_at else None,
+                }
+                for e in events
+            ]
+
     def check_connection(self) -> str:
         """Check if database connection is healthy."""
         if not self._connected:
@@ -677,3 +834,505 @@ class DatabaseService:
             return "healthy"
         except Exception as e:
             return f"error: {str(e)[:100]}"
+
+    @staticmethod
+    def compute_content_hash(file_bytes: bytes) -> str:
+        """Compute SHA-256 hash of file content for deduplication."""
+        return hashlib.sha256(file_bytes).hexdigest()
+
+    def check_duplicate_upload(self, application_id: str, document_slot: str, content_hash: str) -> Optional[dict]:
+        """Check if this exact document has already been uploaded.
+        
+        Returns None if no duplicate, or dict with existing doc info if duplicate.
+        Uses the unique (application_id, document_slot, content_hash) constraint.
+        """
+        with self.session_scope() as session:
+            row = (
+                session.query(Document)
+                .filter_by(
+                    application_id=application_id,
+                    document_type=document_slot,
+                    content_hash=content_hash
+                )
+                .first()
+            )
+            if row:
+                return {
+                    "document_id": row.document_id,
+                    "uploaded_at": row.uploaded_at.isoformat() if row.uploaded_at else None,
+                    "filename": row.filename,
+                    "file_size": row.file_size,
+                }
+            return None
+
+    def get_service_for_slot(self, application_id: str, document_slot: str) -> Optional[str]:
+        """Get the assigned service for a given document slot in an application."""
+        with self.session_scope() as session:
+            row = (
+                session.query(Document)
+                .filter_by(
+                    application_id=application_id,
+                    document_type=document_slot
+                )
+                .first()
+            )
+            return row.document_type if row else None
+
+    def log_collection_event(self, application_id: str, event_type: str,
+                            document_slot: str = None, session_id: str = None,
+                            details: dict = None) -> str:
+        """Log a collection agent event (scan detected, human_review, etc.)."""
+        import uuid
+        event_id = str(uuid.uuid4())
+        with self.session_scope() as session:
+            app_event = ApplicationEvent(
+                id=event_id,
+                application_id=application_id,
+                event_type=f"collection.{event_type}",
+                details=details or {},
+                created_at=datetime.now(timezone.utc),
+            )
+            session.add(app_event)
+            return event_id
+
+    # ────────────────────────────────────────────────────────────────
+    #  Phase 3: Collection session persistence (DB-backed agent)
+    # ────────────────────────────────────────────────────────────────
+
+    def save_collection_session(self, session_id: str, user_id: str, service_id: str,
+                               service_name: str, status: str,
+                               document_requirements: dict, submitted_file_ids: list,
+                               conversation_history: list = None, notes: list = None,
+                               application_id: str = None) -> bool:
+        """Persist or update a CollectionAgent session in DB."""
+        from datetime import datetime, timezone
+        with self.session_scope() as session:
+            coll = (
+                session.query(CollectionSession)
+                .filter_by(session_id=session_id)
+                .first()
+            )
+            if not coll:
+                coll = CollectionSession(
+                    session_id=session_id,
+                    user_id=user_id,
+                    application_id=application_id,
+                    service_id=service_id,
+                    service_name=service_name,
+                    status=status,
+                    document_requirements=document_requirements,
+                    submitted_file_ids=submitted_file_ids,
+                    conversation_history=conversation_history or [],
+                    notes=notes or [],
+                )
+                session.add(coll)
+            else:
+                coll.user_id = user_id
+                coll.application_id = application_id
+                coll.service_id = service_id
+                coll.service_name = service_name
+                coll.status = status
+                coll.document_requirements = document_requirements
+                coll.submitted_file_ids = submitted_file_ids
+                if conversation_history is not None:
+                    coll.conversation_history = conversation_history
+                if notes is not None:
+                    coll.notes = notes
+                coll.updated_at = datetime.now(timezone.utc)
+            return True
+
+    def get_collection_session(self, session_id: str, user_id: str = None) -> Optional[Dict]:
+        """Retrieve a CollectionAgent session, optionally verifying user ownership."""
+        with self.session_scope() as session:
+            q = session.query(CollectionSession).filter_by(session_id=session_id)
+            if user_id:
+                q = q.filter_by(user_id=user_id)
+            coll = q.first()
+            if not coll:
+                return None
+            return coll.to_dict()
+
+    def list_user_collection_sessions(self, user_id: str) -> List[Dict]:
+        """List all collection sessions for a user."""
+        with self.session_scope() as session:
+            rows = (
+                session.query(CollectionSession)
+                .filter_by(user_id=user_id)
+                .order_by(CollectionSession.updated_at.desc())
+                .all()
+            )
+            return [r.to_dict() for r in rows]
+
+    # ────────────────────────────────────────────────────────────────
+    #  Phase 3: Validation rule registry (from config.yaml)
+    # ────────────────────────────────────────────────────────────────
+
+    def get_validation_rules(self, service_id: str, document_type: str = None) -> List[Dict]:
+        """Fetch validation rules for a service/doc_type combo."""
+        with self.session_scope() as session:
+            q = session.query(ValidationRule).filter_by(service_id=service_id)
+            if document_type:
+                q = q.filter_by(document_type=document_type)
+            return [r.to_dict() for r in q.all()]
+
+    def load_default_validation_rules(self):
+        """Load default validation rules from config.yaml → DB (idempotent)."""
+        from datetime import datetime, timezone
+        import uuid
+        rules = self._build_default_rules()
+        if not rules:
+            return
+        with self.session_scope() as session:
+            for rule_data in rules:
+                existing = (
+                    session.query(ValidationRule)
+                    .filter_by(service_id=rule_data["service_id"],
+                               document_type=rule_data["document_type"])
+                    .first()
+                )
+                if not existing:
+                    rid = str(uuid.uuid4())
+                    entry = ValidationRule(id=rid, **{k: v for k, v in rule_data.items() if k != "id"})
+                    session.add(entry)
+
+    def _build_default_rules(self) -> List[Dict]:
+        """Build default validation rules from config.yaml or hardcoded defaults."""
+        try:
+            config_path = os.path.join(os.path.dirname(__file__), "..", "config.yaml")
+            with open(config_path, "r", encoding="utf-8") as f:
+                import yaml
+                config = yaml.safe_load(f) or {}
+        except Exception:
+            config = {}
+
+        rules = []
+        # Read per-document-type config
+        doc_config = config.get("validation_rules", {})
+        if not doc_config:
+            # Hardcoded defaults if config.yaml has no validation_rules key
+            doc_config = {
+                "national_id": {
+                    "mandatory_fields": ["name", "national_id_number", "date_of_birth",
+                                         "gender", "expiry_date"],
+                    "optional_fields": ["address", "issuing_country"],
+                    "extraction_threshold": 0.5,
+                    "human_review_threshold": 0.7,
+                    "reject_threshold": 3,
+                },
+                "passport": {
+                    "mandatory_fields": ["name", "passport_number", "date_of_birth",
+                                         "nationality", "expiry_date", "issue_date"],
+                    "optional_fields": ["place_of_birth", "place_of_issue"],
+                    "extraction_threshold": 0.5,
+                    "human_review_threshold": 0.7,
+                    "reject_threshold": 3,
+                },
+                "driving_license": {
+                    "mandatory_fields": ["name", "license_number", "date_of_birth",
+                                         "expiry_date", "license_class"],
+                    "optional_fields": ["address", "restrictions"],
+                    "extraction_threshold": 0.5,
+                    "human_review_threshold": 0.7,
+                    "reject_threshold": 3,
+                },
+            }
+
+        for doc_type, fields in doc_config.items():
+            rules.append({
+                "service_id": "all",  # applies to all services unless overridden
+                "document_type": doc_type,
+                "mandatory_fields": fields.get("mandatory_fields", []),
+                "optional_fields": fields.get("optional_fields", []),
+                "field_rules": fields.get("field_rules", {}),
+                "extraction_threshold": fields.get("extraction_threshold", 0.5),
+                "human_review_threshold": fields.get("human_review_threshold", 0.7),
+                "reject_threshold": fields.get("reject_threshold", 3),
+                "source": "config.yaml",
+            })
+        return rules
+
+    # ────────────────────────────────────────────────────────────────
+    #  Phase 3: Idempotency key support
+    # ────────────────────────────────────────────────────────────────
+
+    def register_idempotency_key(self, key: str, application_id: str,
+                                 user_id: str, response: dict,
+                                 expires_seconds: int = 3600) -> bool:
+        """Register an idempotency key for future dedup on retry."""
+        from datetime import datetime, timezone, timedelta
+        with self.session_scope() as session:
+            entry = IdempotencyKey(
+                idempotency_key=key,
+                application_id=application_id,
+                user_id=user_id,
+                response_json=response,
+                response_status=200,
+                expires_at=datetime.now(timezone.utc) + timedelta(seconds=expires_seconds),
+            )
+            session.add(entry)
+            return True
+
+    def check_idempotency_key(self, key: str, user_id: Optional[str] = None) -> Optional[Dict]:
+        """Check if an idempotency key has already been used.
+        
+        Returns the stored response if found and not expired, else None.
+        """
+        with self.session_scope() as session:
+            q = session.query(IdempotencyKey).filter_by(idempotency_key=key)
+            if user_id:
+                q = q.filter_by(user_id=user_id)
+            entry = q.first()
+            if not entry:
+                return None
+            if entry.expires_at:
+                exp = entry.expires_at
+                if exp.tzinfo is None:
+                    exp = exp.replace(tzinfo=timezone.utc)
+                if exp < datetime.now(timezone.utc):
+                    return {"expired": True}
+            return entry.response_json
+
+    # ────────────────────────────────────────────────────────────────
+    #  Phase 3: Delete application (cascade delete all related data)
+    # ────────────────────────────────────────────────────────────────
+
+    def delete_application(self, application_id: str, storage, user_id: str = None) -> Dict:
+        """Delete an application and all associated data atomically.
+        
+        Removes:
+        - All documents (rows in documents table + MinIO objects)
+        - All extracted fields
+        - All review items
+        - All trace events
+        - All application events
+        - All audit logs
+        - The application row itself
+        
+        Args:
+            application_id: The application to delete
+            storage: StorageService instance for MinIO cleanup
+            user_id: Optional user ownership check
+            
+        Returns:
+            Dict with counts of deleted items and any errors
+        """
+        from datetime import datetime, timezone
+        result = {
+            "deleted": False,
+            "application_id": application_id,
+            "deleted_documents": 0,
+            "deleted_minio_objects": 0,
+            "deleted_extracted_fields": 0,
+            "deleted_review_items": 0,
+            "deleted_trace_events": 0,
+            "deleted_application_events": 0,
+            "deleted_audit_logs": 0,
+            "deleted_idempotency_keys": 0,
+            "errors": [],
+        }
+
+        try:
+            with self.session_scope() as session:
+                # 0. Check application existence and ownership
+                app_q = session.query(Application).filter_by(application_id=application_id)
+                if user_id:
+                    app_q = app_q.filter_by(user_id=user_id)
+                app = app_q.first()
+                if not app:
+                    result["errors"].append("Application not found or unauthorized")
+                    return result
+
+                # 1. Get all documents for this application
+                docs = session.query(Document).filter_by(application_id=application_id).all()
+                result["deleted_documents"] = len(docs)
+
+                # 2. Collect MinIO object names for deletion
+                minio_objects = []
+                for doc in docs:
+                    if doc.object_name:
+                        minio_objects.append(doc.object_name)
+
+                # 3. Delete MinIO objects
+                if storage and minio_objects:
+                    for obj_name in minio_objects:
+                        try:
+                            storage.delete_file(obj_name)
+                            result["deleted_minio_objects"] += 1
+                        except Exception as e:
+                            result["errors"].append(f"MinIO delete {obj_name}: {str(e)}")
+
+                # 4. Delete extracted fields
+                ext_ids = [
+                    ef.id for ef in session.query(ExtractedField)
+                    .join(Document).filter(Document.application_id == application_id).all()
+                ]
+                result["deleted_extracted_fields"] = len(ext_ids)
+                if ext_ids:
+                    session.query(ExtractedField).filter(ExtractedField.id.in_(ext_ids)).delete(synchronize_session=False)
+
+                # 5. Delete review items
+                ri_ids = [
+                    ri.id for ri in session.query(ReviewItem)
+                    .filter_by(application_id=application_id).all()
+                ]
+                result["deleted_review_items"] = len(ri_ids)
+
+                # 6. Delete trace events
+                te_ids = [
+                    te.id for te in session.query(TraceEvent)
+                    .filter_by(application_id=application_id).all()
+                ]
+                result["deleted_trace_events"] = len(te_ids)
+
+                # 7. Delete application events
+                ae_ids = [
+                    ae.id for ae in session.query(ApplicationEvent)
+                    .filter_by(application_id=application_id).all()
+                ]
+                result["deleted_application_events"] = len(ae_ids)
+
+                # 8. Delete audit logs
+                al_ids = [
+                    al.log_id for al in session.query(AuditLog)
+                    .filter_by(application_id=application_id).all()
+                ]
+                result["deleted_audit_logs"] = len(al_ids)
+
+                # 9. Delete idempotency keys
+                ik_count = session.query(IdempotencyKey).filter_by(application_id=application_id).delete(synchronize_session="fetch")
+                result["deleted_idempotency_keys"] = ik_count
+
+                # 10. Clear ChatSession application_id references
+                session.query(ChatSession).filter_by(application_id=application_id).update({"application_id": None}, synchronize_session="fetch")
+
+                # 11. Delete documents
+                session.query(Document).filter_by(application_id=application_id).delete(synchronize_session="fetch")
+
+                # 12. Delete review items
+                session.query(ReviewItem).filter_by(application_id=application_id).delete(synchronize_session="fetch")
+
+                # 13. Delete trace events
+                session.query(TraceEvent).filter_by(application_id=application_id).delete(synchronize_session="fetch")
+
+                # 14. Delete application events
+                session.query(ApplicationEvent).filter_by(application_id=application_id).delete(synchronize_session="fetch")
+
+                # 15. Delete audit logs
+                session.query(AuditLog).filter_by(application_id=application_id).delete(synchronize_session="fetch")
+
+                # 16. Delete collection sessions linked to this application
+                session.query(CollectionSession).filter_by(application_id=application_id).delete(synchronize_session="fetch")
+
+                # 17. Delete the application itself
+                session.delete(app)
+
+        except Exception as e:
+            result["errors"].append(f"Database error: {str(e)}")
+
+        result["deleted"] = len(result["errors"]) == 0
+        return result
+
+    # ────────────────────────────────────────────────────────────────
+    #  Phase 3: Race-safe status transition (SELECT FOR UPDATE + compare-and-set)
+    # ────────────────────────────────────────────────────────────────
+
+    def transition_application_status(self, application_id: str,
+                                      current_status: str, new_status: str, user_id: str = None) -> bool:
+        """Atomically transition application status if it matches current_status.
+        
+        Uses SELECT FOR UPDATE + compare-and-set to prevent race conditions
+        when multiple threads/processes try to update status simultaneously.
+        
+        Returns True if transition succeeded, False if status didn't match.
+        """
+        with self.session_scope() as session:
+            # Lock the row (FOR UPDATE in PG; no-op in SQLite but still serializes)
+            q = session.query(Application).filter_by(application_id=application_id)
+            if user_id:
+                q = q.filter_by(user_id=user_id)
+            app = q.with_for_update().first()
+            if not app:
+                return False
+            if app.status != current_status:
+                return False  # Someone else changed it
+            app.status = new_status
+            app.updated_at = datetime.now(timezone.utc)
+            return True
+
+    def check_and_mark_application_complete(self, application_id: str, user_id: str = None) -> Tuple[bool, str]:
+        """Atomically check if all required documents are present and mark complete ONCE.
+
+        Uses SELECT FOR UPDATE on the application row to prevent race conditions when two
+        documents arrive nearly at the same time:
+        - Locks the application row.
+        - Retrieves required document slots (e.g. ['national_id', 'passport']).
+        - Counts distinct valid document types attached to this application.
+        - If distinct document types count >= required document types count and all required types are met:
+          - If app.status == 'complete':
+            returns (False, 'already_complete') -> Does NOT mark complete twice!
+          - If app.status != 'complete':
+            app.status = 'complete'
+            app.updated_at = datetime.now(timezone.utc)
+            # Log single audit event
+            audit = AuditLog(
+                log_id=f"audit_{os.urandom(4).hex()}",
+                user_id=app.user_id,
+                application_id=application_id,
+                event_type="application_completed",
+                details={
+                    "application_id": application_id,
+                    "service_id": app.service_id,
+                    "status": "complete"
+                },
+            )
+            session.add(audit)
+            return (True, "marked_complete")
+        - If document count is incomplete (e.g. 1 out of 2):
+          return (False, f"incomplete: missing {missing}")
+        """
+        with self.session_scope() as session:
+            q = session.query(Application).filter_by(application_id=application_id)
+            if user_id:
+                q = q.filter_by(user_id=user_id)
+            app = q.with_for_update().first()
+            if not app:
+                return False, "application_not_found"
+
+            required_docs = app.required_documents or []
+            if not required_docs:
+                fallback_map = {
+                    "basic_registration": ["national_id"],
+                    "premium_crossborder": ["national_id", "passport"],
+                    "mobility_rental": ["driving_license"],
+                }
+                required_docs = fallback_map.get(app.service_id, ["national_id"])
+
+            docs = session.query(Document).filter_by(application_id=application_id).all()
+            submitted_types = {d.document_type for d in docs if d.status in ("uploaded", "processed") and d.document_type}
+
+            missing = [rd for rd in required_docs if rd not in submitted_types]
+
+            # Count check: wrong number of documents must NOT be marked complete
+            if missing or len(submitted_types) < len(required_docs):
+                return False, f"incomplete: missing {missing}"
+
+            if app.status == "complete":
+                return False, "already_complete"
+
+            app.status = "complete"
+            app.updated_at = datetime.now(timezone.utc)
+
+            audit = AuditLog(
+                log_id=f"audit_{os.urandom(4).hex()}",
+                user_id=app.user_id,
+                application_id=application_id,
+                event_type="application_completed",
+                details={
+                    "application_id": application_id,
+                    "service_id": app.service_id,
+                    "status": "complete",
+                },
+            )
+            session.add(audit)
+            return True, "marked_complete"
+

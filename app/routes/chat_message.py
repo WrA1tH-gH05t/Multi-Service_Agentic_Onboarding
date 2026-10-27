@@ -1,4 +1,41 @@
-"""Chat message route — the main conversational AI endpoint."""
+"""
+Chat message route — the main conversational AI endpoint for the Moro Hub onboarding system.
+
+Role in Project:
+    This is the central HTTP endpoint that receives every user chat message and routes it
+    through the full conversational AI pipeline. It is the "nerve centre" connecting:
+    the security layer, the intent classifier, the LLM generation service, the wizard state
+    machine, and the database audit log.
+
+Conversation Pipeline (in order):
+    1. **Auth resolution**: Bearer token → user_id (or anonymous).
+    2. **Chat persistence**: User message saved to `chat_messages` PostgreSQL table.
+    3. **Service routing**: `ServiceCatalogService.match_service` classifies the query intent.
+    4. **Prompt injection guard**: `security.detect_prompt_injection` blocks jailbreak attempts.
+    5. **Service keyword fallback**: Secondary keyword matching if catalog routing misses a service name.
+    6. **Intent classification**: Determines if the user wants to apply, ask an FAQ, or browse.
+    7. **Auth gate**: If apply intent is detected, checks authentication. If unauthenticated,
+       prompts login instead of opening an application.
+    8. **Context building**: Assembles service details + policy grounding for the LLM.
+    9. **LLM generation**: `GenerationService.generate_response` produces Lynx's reply.
+    10. **Response persistence**: Assistant reply saved to `chat_messages` table.
+    11. **Audit logging**: Event written to `audit_events` for traceability.
+
+Cross-File Interconnections:
+    - `services.security.detect_prompt_injection` — step 4: jailbreak/injection guard.
+    - `services.service_catalog.ServiceCatalogService.match_service` — step 3: intent + routing.
+    - `services.service_catalog.ServiceCatalogService.answer_faq` — FAQ context for LLM.
+    - `services.policy_service.get_grounding_context` — step 8: anti-hallucination grounding.
+    - `services.generation.GenerationService.generate_response` — step 9: LLM call.
+    - `services.auth.AuthService.validate_token` — step 1, 7: token validation.
+    - `services.database.DatabaseService.get_or_create_chat_session` — step 2: session mgmt.
+    - `services.database.DatabaseService.save_chat_message` — steps 2, 10: persistence.
+    - `services.database.DatabaseService.log_event` — step 11: audit trail.
+    - `app.schemas.ChatMessage`, `ChatResponse` — Pydantic request/response models.
+    - `app.main.app_state` — all service instances fetched from the shared state dict.
+
+Phase 3: Persists all chat messages, enforces auth gate for application intent.
+"""
 
 import json
 import re
@@ -13,14 +50,43 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 def get_state():
+    """Return the shared app_state. Lazy import avoids circular dependencies with app.main."""
     from app.main import app_state
     return app_state
 
 @router.post("/chat/message")
 async def chat(req: ChatMessage):
-    """Send a chat message and get a reply.
-    
-    Phase 3: Persists all chat messages, enforces auth gate for application intent.
+    """Receive a user chat message and return Lynx's AI-generated reply.
+
+    This is the primary endpoint for the conversational UI in `app.py`. Every message typed
+    by the user in the chat panel is sent here, and the returned `ChatResponse` provides the
+    assistant reply, intent classification, and metadata for rendering.
+
+    Security guardrail (step 4 of the pipeline):
+        Prompt injection attempts are detected by `security.detect_prompt_injection` before
+        any LLM call is made. Blocked messages get a canned refusal reply and are logged to
+        the audit trail under `intent='blocked_injection'`.
+
+    Application intent + auth gate (step 7):
+        If the user's message expresses intent to apply for a service AND they are not
+        authenticated, the bot responds with a login prompt rather than initiating an
+        application flow. This prevents anonymous sessions from creating dangling applications.
+
+    Args:
+        req: `ChatMessage` Pydantic model with:
+            - `query` (str): The user's message.
+            - `token` (str, optional): Bearer token for auth-aware responses.
+            - `context` (str, optional): Additional context passed by the frontend.
+
+    Returns:
+        `ChatResponse` with:
+            - `response` (str): The assistant's reply text.
+            - `sources` (list): Policy/service sources cited.
+            - `confidence` (float): Routing confidence score.
+            - `intent` (str): Classified intent (e.g. 'apply', 'faq', 'browse', 'blocked_injection').
+            - `matched_service` (str|None): service_id if a service was matched.
+
+    Phase 3: Persists all chat messages to DB, enforces auth gate for application intent.
     """
     import traceback
     try:
@@ -57,6 +123,35 @@ async def chat(req: ChatMessage):
 
         # Normalise the query once (curly apostrophes from mobile keyboards -> straight)
         q = req.query.lower().strip().replace("\u2019", "'").replace("\u2018", "'")
+
+        # ── Prompt injection / jailbreak guard ────────────────────────────────────
+        from services.security import detect_prompt_injection, SAFE_INJECTION_REPLY
+        _is_injection, _inj_reason = detect_prompt_injection(req.query)
+        if _is_injection:
+            logger.warning("Prompt injection attempt blocked for user %s: %s", user_id, _inj_reason)
+            # Persist the blocked attempt so it appears in the audit trail
+            if db and session_id:
+                try:
+                    db.save_chat_message(
+                        session_id=session_id,
+                        user_id=user_id,
+                        role="assistant",
+                        content=SAFE_INJECTION_REPLY,
+                        intent="blocked_injection",
+                        matched_service=None,
+                        confidence=1.0,
+                    )
+                except Exception:
+                    pass
+            return ChatResponse(
+                response=SAFE_INJECTION_REPLY,
+                sources=[],
+                confidence=1.0,
+                intent="blocked_injection",
+                matched_service=None,
+            )
+        # ──────────────────────────────────────────────────────────────────────────
+
 
         # If the user names a service (e.g. "basic registration") but the catalog matcher
         # didn't resolve it, resolve it here -- BEFORE building context / calling the LLM --
@@ -182,16 +277,17 @@ async def chat(req: ChatMessage):
                         "Required documents: driving_license, proof of address. "
             "Processing time: 1-2 business days. Coming soon.\n\n"
             "KEY RULES:\n"
-            "1. If a user asks about applying, signing up, or registering, be encouraging and offer to help them start. "
+            "1. If a user asks about applying, signing up, or registering, be encouraging and offer to help them start ONLY if the service is available. "
+            "If the service is coming soon or unavailable, state clearly that it is not open for applications yet and do NOT offer or ask to start an application. "
             "If they have NOT named a service, say something like: \"Sure! I'd be happy to help you get started. Which service are you interested in?\" "
-            "If they HAVE named a service (it appears in the context above), never ask which service; say something like: "
+            "If they HAVE named an available service (it appears in the context above), never ask which service; say something like: "
             "\"Great choice! {service.name} is a great option. Would you like me to help you start your application?\" "
             "IMPORTANT: Never jump straight to asking for documents. Always ask the user if they want to apply FIRST, even if they seem interested. "
             "Don't be robotic.\n"
             "2. If a user asks a greeting (hi, hello, hey), greet them warmly. "
             "Example: \"Hi there! How can I help you today?\" or \"Good to see you! What can I do for you?\"\n"
             "3. Use the service info above to answer questions. Don't make up details.\n"
-            "4. If a service isn't available, say so casually: \"That one isn't ready yet, but check back soon!\"\n"
+            "4. If a service isn't available or is coming soon, say so clearly and casually: \"That service isn't available yet, but check back soon!\" Do NOT ask if they would like to start or apply for it.\n"
             "5. If you don't know the answer, say so: \"I don't have info on that right now, but our team can help.\"\n"
             "6. Never say 'I don't have information about that in my current service catalog' — that's too formal.\n"
             "7. Keep responses under 3-4 sentences for natural flow."
@@ -230,6 +326,9 @@ async def chat(req: ChatMessage):
             matched_service = service.service_id
             if status.value == "coming_soon":
                 intent = "faq"
+                # Ensure the LLM didn't hallucinate an offer to start/apply for an unavailable service
+                if reply and re.search(r"(would you like|do you want|shall we|let's|lets)\s+(me\s+to\s+)?(help\s+you\s+)?(start|begin|apply|open)", reply, re.I):
+                    reply = f"{service.name} is currently coming soon and not open for applications yet. Please check back later!"
             else:
                 intent = "apply" if is_apply else "faq"
         elif is_generic_apply:
@@ -293,3 +392,107 @@ async def chat(req: ChatMessage):
         print(f"Error: {e}", flush=True)
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Chat memory: retrieve conversation history for a user
+# ──────────────────────────────────────────────────────────────────────────────
+
+@router.get("/chat/history")
+async def get_chat_history(token: Optional[str] = Query(None, alias="token")):
+    """Return the authenticated user's full chat history.
+
+    Only messages belonging to the authenticated user's chat session(s) are
+    returned — it is impossible for one user to read another user's messages
+    because the session is looked up via the user_id bound to their token.
+    """
+    state = get_state()
+    db = state.get("database")
+
+    # Authenticate
+    user_id = None
+    if token:
+        auth = state.get("auth")
+        if auth:
+            user = auth.validate_token(token)
+            if user:
+                user_id = user.user_id
+
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required to view chat history.")
+
+    if not db:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    try:
+        # Retrieve the most-recent chat session for this user
+        session_id = db.get_or_create_chat_session(user_id=user_id, force_new=False)
+        messages = db.get_chat_session_messages(session_id)
+        return {
+            "success": True,
+            "session_id": session_id,
+            "messages": messages,
+            "count": len(messages),
+        }
+    except Exception as e:
+        logger.error(f"Failed to retrieve chat history: {e}")
+        raise HTTPException(status_code=500, detail="Could not retrieve chat history.")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Application status: answer "what is the status of my application?"
+# ──────────────────────────────────────────────────────────────────────────────
+
+@router.get("/applications/status")
+async def get_application_status(token: Optional[str] = Query(None, alias="token")):
+    """Return the status of the authenticated user's onboarding application(s).
+
+    Ownership is enforced: each DB query is scoped to user_id so no cross-user
+    data can leak. Unauthenticated requests are rejected with 401.
+    """
+    state = get_state()
+    db = state.get("database")
+
+    # Authenticate
+    user_id = None
+    if token:
+        auth = state.get("auth")
+        if auth:
+            user = auth.validate_token(token)
+            if user:
+                user_id = user.user_id
+
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required to check application status.")
+
+    if not db:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    try:
+        apps = db.get_user_applications(user_id)
+        if not apps:
+            return {
+                "success": True,
+                "message": "You have no applications yet. Start one through the onboarding wizard.",
+                "applications": [],
+            }
+
+        # Build a human-readable summary for each application
+        summaries = []
+        for app in apps:
+            summaries.append({
+                "application_id": app.get("application_id"),
+                "service_id": app.get("service_id"),
+                "status": app.get("status", "unknown"),
+                "submitted_at": app.get("submitted_at"),
+                "updated_at": app.get("updated_at"),
+            })
+
+        return {
+            "success": True,
+            "message": f"Found {len(summaries)} application(s).",
+            "applications": summaries,
+        }
+    except Exception as e:
+        logger.error(f"Failed to retrieve application status: {e}")
+        raise HTTPException(status_code=500, detail="Could not retrieve application status.")

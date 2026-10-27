@@ -13,11 +13,15 @@ Process:
 1. Customer initiates a mobility rental application
 2. System confirms driving license is required
 3. Customer uploads the driving license
-4. System extracts fields: name, date of birth, document number, expiry date, license class, issue date
+4. System extracts fields:
+   - Front page: name, license no, nationality, date of birth, issue date, expiry date, licensing authority, place of issue
+   - Back page: traffic code no, gear type (automatic / manual gear), glasses restriction (glasses logo / no glasses logo)
 5. Validation agent checks:
    - Document is valid (not expired)
-   - License class is appropriate for the vehicle type
-   - All mandatory fields are present and valid
+   - Name entered matches the driving license
+   - All mandatory fields (name, license no, nationality, issue date, expiry date, licensing authority, traffic code no, gear type, glasses requirement) are present and readable
+   - Transmission / gear eligibility (automatic or manual gear) is verified
+   - Correct vision correction restrictions (glasses logo / no glasses logo) are noted
 6. Application status determined:
    - Complete: all checks pass
    - Needs human review: confidence issues or borderline expiry
@@ -27,18 +31,23 @@ Processing Time:
 Same day (if document is valid and clearly readable)
 
 Field Requirements:
-- Name: mandatory
+- Name: mandatory (as per driving license)
+- License no: mandatory
+- Nationality: mandatory
 - Date of birth: mandatory
-- Document number: mandatory
-- Expiry date: mandatory (must be future date)
-- License class: mandatory (must be valid class)
 - Issue date: mandatory
+- Expiry date: mandatory (must be future date)
+- Licensing authority: mandatory
+- Traffic code no: mandatory (from back page)
+- Automatic gear / manual gear: mandatory (from back page)
+- Glasses logo / no glasses logo: mandatory (from back page)
 
 Validation Rules:
 - License must not be expired
 - Name must match format requirements (2+ characters)
-- License class must be one of recognized classes (A, B, C, D, or local equivalents)
-- Document number must follow the country's standard format
+- License number and traffic code number must be present
+- Transmission must be specified as Automatic Gear or Manual Gear
+- Glasses restriction must be identified (glasses logo present vs absent)
 
 Important Notes:
 - Unlike the Basic Registration service, this service does NOT accept a National ID card

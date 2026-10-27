@@ -4,6 +4,27 @@ Service Catalogue - Phase 1 & 2
 Defines all services (working + coming soon) and provides routing lookup.
 Uses a fixed service-matching approach for routing (not agentic reasoning),
 as specified in the spec.
+
+Module Architecture & Interconnections:
+----------------------------------------
+- Role in the Project:
+  * Central authority on onboarding service definitions, required documents, alternative documents,
+    service SLA/processing times, and catalog statuses (`AVAILABLE`, `COMING_SOON`, `NOT_FOUND`).
+  * Employs deterministic keyword and fuzzy prefix matching for routing requests to prevent LLM
+    hallucinations in critical onboarding paths.
+- Upstream Callers:
+  * `services.deterministic_router.DeterministicRouter`:
+    Uses `ServiceCatalogue` to classify incoming user intent and route users to specific onboarding flows.
+  * `app.routes.wizard`:
+    Queries service requirements to validate whether an onboarding session has all mandatory documents.
+  * `app.routes.validation` & `app.routes.documents`:
+    Queries document type requirements and validation rules mapped to specific service IDs.
+  * `agents.collection_agent.CollectionAgent`:
+    References catalog document requirements to guide applicants through step-by-step document collection.
+- Data Models & Catalogs:
+  * Manages active services: `basic_registration`, `premium_crossborder`, `mobility_rental`.
+  * Manages roadmap services: `bank_account`, `insurance`, `sim_registration`, `loan_application`,
+    `utility_connection`, `tenancy_agreement`, `professional_license`, `vehicle_registration`.
 """
 
 from enum import Enum
@@ -11,13 +32,29 @@ from typing import Dict, List, Optional, Set
 
 
 class ServiceStatus(str, Enum):
+    """Enumeration of service availability statuses in the onboarding platform."""
     AVAILABLE = "available"
     COMING_SOON = "coming_soon"
     NOT_FOUND = "not_found"
 
 
 class ServiceDefinition:
-    """Represents a single service in the catalogue."""
+    """Represents a single service in the catalogue.
+
+    Attributes:
+        service_id (str): Unique programmatic service identifier (e.g. 'basic_registration').
+        name (str): Human-readable service title.
+        description (str): Comprehensive overview of what the service covers.
+        required_documents (List[str]): List of required document types (e.g. ['national_id']).
+        allowed_alternatives (Dict[str, List[str]]): Map of primary document type to acceptable alternatives.
+        status (ServiceStatus): Service status enum (AVAILABLE, COMING_SOON, NOT_FOUND).
+        processing_time (str): Human-readable SLA for document review and approval.
+        definition_doc_path (str): Relative path to formal specification document.
+
+    Interconnections:
+        - Used by `CollectionAgent` and `ValidationAgent` to ascertain required document sets.
+        - Serialized into responses for wizard guidance and FAQ answers.
+    """
 
     def __init__(
         self,
@@ -30,6 +67,18 @@ class ServiceDefinition:
         processing_time: str = "",
         definition_doc_path: str = "",
     ):
+        """Initialize a ServiceDefinition instance.
+
+        Args:
+            service_id: Machine identifier string.
+            name: Display name of the onboarding service.
+            description: Narrative description of the service and requirements.
+            required_documents: Canonical document types needed for application completion.
+            allowed_alternatives: Mapping of required docs to substitute acceptable docs.
+            status: Availability status enum.
+            processing_time: Estimated processing timeframe.
+            definition_doc_path: Path to specification PDF or markdown doc.
+        """
         self.service_id = service_id
         self.name = name
         self.description = description
@@ -51,15 +100,24 @@ class ServiceCatalogue:
 
     Scalability: To add a new service, you only add a ServiceDefinition
     to build_catalogue(). No code change needed.
+
+    Attributes:
+        _services (Dict[str, ServiceDefinition]): Internal registry of service_id -> ServiceDefinition.
+        _keyword_index (Dict[str, str]): Reverse lookup index mapping search keywords to service IDs.
+
+    Interconnections:
+        - Exported and aliased as `ServiceCatalogService` for system-wide consumption.
+        - Instantiated in application initialization and shared across routers and agents.
     """
 
     def __init__(self):
+        """Initialize ServiceCatalogue and populate service definitions and keyword indexes."""
         self._services: Dict[str, ServiceDefinition] = {}
         self._keyword_index: Dict[str, str] = {}  # keyword -> service_id
         self._build_catalogue()
 
     def _build_catalogue(self):
-        """Build the complete service catalogue."""
+        """Build the complete service catalogue and construct inverted keyword index."""
         # === AVAILABLE SERVICES (Phase 1 + 2) ===
 
         self._services["basic_registration"] = ServiceDefinition(
@@ -196,10 +254,15 @@ class ServiceCatalogue:
         3. Fixed matching is auditable and testable
 
         Args:
-            user_input: The user's message
+            user_input: The user's query or message string.
 
         Returns:
-            (service_status, service_definition) tuple
+            tuple[ServiceStatus, Optional[ServiceDefinition]]:
+                (status, service_definition). If not recognized, status is NOT_FOUND and service is None.
+
+        Interconnections:
+            - Used by `services.deterministic_router.DeterministicRouter` to categorize intent.
+            - Guides initial conversation steps in onboarding wizard.
         """
         input_lower = user_input.lower()
 
@@ -229,25 +292,53 @@ class ServiceCatalogue:
         return (ServiceStatus.NOT_FOUND, None)
 
     def get_service(self, service_id: str) -> Optional[ServiceDefinition]:
-        """Get a service definition by ID."""
+        """Get a service definition by ID.
+
+        Args:
+            service_id: Unique string identifier of the service.
+
+        Returns:
+            Optional[ServiceDefinition]: Matching service definition, or None.
+
+        Interconnections:
+            - Called by route handlers in `app.routes.wizard` and `app.routes.documents`
+              to verify service existence and fetch required documents.
+        """
         return self._services.get(service_id)
 
     def get_all_services(self) -> List[ServiceDefinition]:
-        """Get all available services."""
+        """Get all registered services (both available and coming soon).
+
+        Returns:
+            List[ServiceDefinition]: List of all service definitions.
+        """
         return list(self._services.values())
 
     def get_available_services(self) -> List[ServiceDefinition]:
-        """Get only available (not coming soon) services."""
+        """Get only active and available services.
+
+        Returns:
+            List[ServiceDefinition]: List of services where status == ServiceStatus.AVAILABLE.
+        """
         return [s for s in self._services.values() if s.status == ServiceStatus.AVAILABLE]
 
     def answer_faq(self, question: str) -> tuple[str, float]:
         """
         Answer a FAQ question using keyword matching against service definitions.
-        Returns (answer, confidence).
         
         Policy: Every answer must come from actual service definition documents,
         never invented. This method uses structured keyword matching to ensure
         answers are grounded in the service catalogue.
+
+        Args:
+            question: User inquiry string.
+
+        Returns:
+            tuple[str, float]: (answer_text, confidence_score).
+
+        Interconnections:
+            - Used by `app.routes.validation.ask_faq()` as a reliable local fallback
+              grounded in catalogue definitions when LLM generation is unavailable.
         """
         q = question.lower()
 
