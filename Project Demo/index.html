@@ -1,0 +1,4277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task 1 — Multi-Service Agentic Onboarding Tour</title>
+  <style>
+
+    /* =====================================================================
+       SELF-CONTAINED FONT STACKS (no external dependencies, works offline)
+       ===================================================================== */
+    @font-face {
+      font-family: 'Cinzel';
+      src: local('Georgia'), local('Times New Roman');
+      font-weight: 500 900;
+    }
+    @font-face {
+      font-family: 'JetBrains Mono';
+      src: local('Consolas'), local('Courier New'), local('Lucida Console');
+      font-weight: 400 700;
+    }
+    @font-face {
+      font-family: 'Plus Jakarta Sans';
+      src: local('Segoe UI'), local('Arial'), local('Helvetica Neue');
+      font-weight: 300 800;
+    }
+    /* =====================================================================
+       DESIGN TOKENS (PREMOTIO x DAIKI FUJITA x GRAIL x TUCCI BRUTALISM)
+       ===================================================================== */
+    :root {
+      --bg-space: #07090e;
+      --bg-panel: rgba(7, 20, 15, 0.9);
+      --bg-card: rgba(10, 28, 20, 0.76);
+      --border-hairline: rgba(120, 221, 178, 0.1);
+      --border-medium: rgba(120, 221, 178, 0.2);
+      --border-focus: #78ddb2;
+      --accent: #78ddb2;
+      --accent-glow: rgba(120, 221, 178, 0.35);
+      --accent-dark: #00a651;
+      --primary: #00a651;
+      --primary-glow: rgba(0, 166, 81, 0.4);
+      --warning: #f59e0b;
+      --danger: #f43f5e;
+      --danger-glow: rgba(244, 63, 94, 0.6);
+      --success: #10b981;
+      --text-pure: #f0faf5;
+      --text-muted: #94b8aa;
+      --text-dim: #5e7a6e;
+      --font-editorial: 'Cinzel', 'Palatino Linotype', 'Book Antiqua', Georgia, serif;
+      --font-sans: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, Arial, sans-serif;
+      --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', Consolas, 'Courier New', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-space);
+      color: var(--text-pure);
+      font-family: var(--font-sans);
+      overflow-x: hidden;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      cursor: crosshair;
+    }
+
+    /* Ambient Warp Canvas */
+    #ambientCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Hairline Grid Overlay */
+    .arch-grid-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+      background-size: 60px 60px;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Warp Flash Effect */
+    .warp-flash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: #ffffff;
+      opacity: 0;
+      pointer-events: none;
+      z-index: 150;
+      transition: opacity 0.5s ease;
+    }
+    .warp-flash.active {
+      opacity: 0.95;
+      transition: opacity 0.1s ease;
+    }
+
+    /* =====================================================================
+       DAIKI FUJITA STYLE HERO INTRO (MINIMALIST TASK 1 + PLAY BUTTON)
+       ===================================================================== */
+    .hero-intro-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: radial-gradient(circle at 50% 50%, #0c1424 0%, #020408 100%);
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .hero-intro-screen.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(1.08);
+    }
+    .intro-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      color: var(--accent);
+      background: rgba(120, 221, 178, 0.08);
+      border: 1px solid var(--accent-glow);
+      padding: 6px 18px;
+      border-radius: 30px;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      box-shadow: 0 0 25px var(--accent-glow);
+    }
+    .intro-title {
+      font-family: var(--font-editorial);
+      font-size: clamp(64px, 12vw, 130px);
+      font-weight: 900;
+      letter-spacing: 6px;
+      background: linear-gradient(180deg, #ffffff 30%, rgba(255,255,255,0.4) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 16px;
+      text-shadow: 0 0 80px rgba(120, 221, 178, 0.25);
+    }
+    .intro-sub {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      letter-spacing: 3px;
+      color: var(--text-muted);
+      text-align: center;
+      max-width: 680px;
+      line-height: 1.8;
+      margin-bottom: 48px;
+      text-transform: uppercase;
+    }
+    .intro-buttons-row {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .btn-warp-enter {
+      position: relative;
+      background: linear-gradient(135deg, var(--accent) 0%, #0284c7 100%);
+      color: #030508;
+      font-family: var(--font-editorial);
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      padding: 20px 48px;
+      border-radius: 50px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 0 50px var(--accent-glow);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      overflow: hidden;
+    }
+    .btn-warp-enter:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 80px var(--accent-glow), 0 0 30px #ffffff;
+    }
+    .btn-secondary-quest {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(16px) saturate(160%);
+      -webkit-backdrop-filter: blur(16px) saturate(160%);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #f1f5f9;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      padding: 16px 34px;
+      border-radius: 50px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+    .btn-secondary-quest:hover {
+      background: rgba(255, 255, 255, 0.11);
+      border-color: rgba(120, 221, 178, 0.65);
+      color: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 12px 30px rgba(0, 166, 81, 0.28);
+    }
+
+    /* =====================================================================
+       TOP NAVIGATION BAR
+       ===================================================================== */
+    header {
+      background: rgba(7, 10, 18, 0.92);
+      border-bottom: 1px solid var(--border-hairline);
+      padding: 12px 36px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      backdrop-filter: blur(20px);
+    }
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand-badge {
+      background: linear-gradient(135deg, var(--accent) 0%, #0284c7 100%);
+      color: #05070b;
+      font-family: var(--font-editorial);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 1.5px;
+      padding: 5px 12px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .title-box h1 {
+      font-family: var(--font-editorial);
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--text-pure);
+    }
+    .mode-switcher-group {
+      display: flex;
+      background: rgba(13, 19, 32, 0.7);
+      border: 1px solid var(--border-hairline);
+      border-radius: 30px;
+      padding: 4px;
+      gap: 4px;
+    }
+    .mode-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      padding: 7px 18px;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.25s ease;
+    }
+    .mode-tab-btn.active {
+      background: var(--accent);
+      color: #04060a;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+    .pillar-hud {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(13, 19, 32, 0.7);
+      border: 1px solid var(--border-hairline);
+      border-radius: 8px;
+      padding: 6px 14px;
+    }
+    .pillar-stat {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      padding: 0 8px;
+      border-right: 1px solid var(--border-hairline);
+    }
+    .pillar-stat:last-child {
+      border-right: none;
+      padding-right: 0;
+    }
+    .stat-label {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.8px;
+    }
+    .stat-val {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+    .audio-toggle-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+      color: var(--text-muted);
+      user-select: none;
+      padding: 7px 13px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-hairline);
+      transition: all 0.25s ease;
+    }
+    .audio-toggle-badge:hover {
+      color: var(--text-pure);
+      border-color: var(--border-medium);
+    }
+
+    /* Main Container */
+    .app-container {
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 10;
+      padding: 16px 36px 36px;
+      max-width: 1800px;
+      margin: 0 auto;
+    }
+
+    /* =====================================================================
+       VERSION 1: FULLSCREEN WALKTHROUGH THEATER & TRANSLUCENT SIDEBAR
+       ===================================================================== */
+    .cinema-view-container {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 20px;
+      transition: all 0.4s ease;
+      align-items: stretch;
+    }
+    .cinema-view-container.hidden {
+      display: none;
+    }
+    .cinema-view-container.sidebar-hidden {
+      grid-template-columns: 1fr;
+    }
+
+    /* Immersive Video Viewport */
+    .video-viewport {
+      background: #020408;
+      border-radius: 20px;
+      border: 1px solid var(--border-hairline);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      min-height: calc(100vh - 140px);
+      box-shadow: 0 35px 80px rgba(0, 0, 0, 0.85);
+      perspective: 1200px;
+    }
+
+    /* Premotio Dynamic 3D Camera Stage */
+    .screen-stage {
+      flex: 1;
+      min-height: 440px;
+      background: radial-gradient(circle at 50% 25%, #101a2f 0%, #030509 90%);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 36px 50px;
+      overflow: hidden;
+      transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), background 0.8s ease;
+      transform-style: preserve-3d;
+    }
+    .screen-stage.focus-client {
+      transform: perspective(1200px) rotateY(4deg) scale(1.02) translateX(2%);
+    }
+    .screen-stage.focus-service {
+      transform: perspective(1200px) rotateY(1deg) scale(1.03) translateY(-1%);
+    }
+    .screen-stage.focus-minio {
+      transform: perspective(1200px) rotateY(-3deg) scale(1.03) translateX(-2%);
+    }
+    .screen-stage.focus-postgres {
+      transform: perspective(1200px) rotateY(-5deg) scale(1.02) translateX(-3%);
+    }
+
+    .stage-watermark {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.45);
+      letter-spacing: 1px;
+      z-index: 15;
+      pointer-events: none;
+    }
+    .rec-indicator {
+      width: 8px;
+      height: 8px;
+      background: #ef4444;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #ef4444;
+      animation: blink 1.2s infinite alternate;
+    }
+    @keyframes blink { 0% { opacity: 0.3; } 100% { opacity: 1; } }
+
+    .stage-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      z-index: 10;
+      position: relative;
+      margin-top: 14px;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+    .stage-content.veiled {
+      opacity: 0.05;
+      transform: scale(0.98);
+      pointer-events: none;
+    }
+
+    .scene-meta {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+    .scene-number {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(120, 221, 178, 0.12);
+      border: 1px solid rgba(120, 221, 178, 0.3);
+      padding: 4px 10px;
+      border-radius: 4px;
+    }
+    .scene-category {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      font-weight: 600;
+    }
+    .scene-timecode {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-left: auto;
+    }
+    .scene-headline {
+      font-family: var(--font-editorial);
+      font-size: clamp(26px, 3.5vw, 40px);
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: -0.5px;
+      line-height: 1.2;
+      text-shadow: 0 4px 20px rgba(0,0,0,0.8);
+      margin-bottom: 8px;
+    }
+    .scene-summary {
+      font-size: 14.5px;
+      color: #94a3b8;
+      line-height: 1.55;
+      max-width: 960px;
+      margin-bottom: 20px;
+    }
+
+    /* Wide Dynamic Topology Flow (Clickable inside the video) */
+    .flow-diagram {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 18px;
+      position: relative;
+      margin-top: 10px;
+      margin-bottom: 16px;
+    }
+    .bus-track {
+      position: absolute;
+      top: 50%;
+      left: 8%;
+      right: 8%;
+      height: 3px;
+      background: linear-gradient(90deg, rgba(255,255,255,0.05) 0%, rgba(0, 166, 81, 0.6) 50%, rgba(255,255,255,0.05) 100%);
+      z-index: 1;
+      transform: translateY(-50%);
+    }
+    .topology-node {
+      background: rgba(13, 19, 32, 0.88);
+      border: 1px solid var(--border-hairline);
+      border-radius: 14px;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      z-index: 2;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      backdrop-filter: blur(14px);
+      cursor: pointer;
+      user-select: none;
+    }
+    .topology-node:hover {
+      transform: translateY(-4px) scale(1.03);
+      border-color: var(--accent);
+      box-shadow: 0 10px 30px var(--accent-glow);
+    }
+    .topology-node.active {
+      border-color: var(--primary);
+      box-shadow: 0 0 28px var(--primary-glow);
+    }
+    .topology-node.success {
+      border-color: var(--accent);
+      box-shadow: 0 0 28px var(--accent-glow);
+    }
+    .node-icon-box {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-hairline);
+      transition: all 0.3s ease;
+    }
+    .node-icon-box svg { width: 24px; height: 24px; }
+    .node-title {
+      font-family: var(--font-editorial);
+      font-size: 13.5px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .node-status {
+      font-size: 10.5px;
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+    .packet-trace {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 20px var(--accent);
+      top: calc(50% - 7px);
+      left: 10%;
+      z-index: 3;
+      transition: left 0.9s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s;
+    }
+    .packet-tail {
+      position: absolute;
+      width: 32px;
+      height: 3px;
+      border-radius: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent));
+      top: calc(50% - 1.5px);
+      left: calc(10% - 32px);
+      z-index: 2;
+      transition: left 0.9s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s;
+    }
+
+    .code-preview {
+      background: rgba(5, 8, 14, 0.92);
+      border: 1px solid var(--border-hairline);
+      border-radius: 10px;
+      padding: 12px 20px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.55;
+      color: #cbd5e1;
+      backdrop-filter: blur(10px);
+      max-height: 105px;
+      overflow: hidden;
+    }
+    .code-preview .comment { color: #64748b; font-style: italic; }
+    .code-preview .keyword { color: #f472b6; font-weight: 600; }
+    .code-preview .func { color: #00a651; font-weight: 600; }
+    .code-preview .str { color: #34d399; }
+
+    .subtitles-bar {
+      background: rgba(8, 12, 20, 0.94);
+      border: 1px solid var(--border-hairline);
+      border-radius: 12px;
+      padding: 12px 20px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #e2e8f0;
+      backdrop-filter: blur(16px);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      z-index: 10;
+    }
+    .subtitles-bar .speaker-tag {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(120, 221, 178, 0.12);
+      border: 1px solid rgba(120, 221, 178, 0.3);
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    .subtitle-words .word {
+      opacity: 0.35;
+      transition: opacity 0.15s ease, color 0.15s ease;
+    }
+    .subtitle-words .word.on {
+      opacity: 1;
+      color: #ffffff;
+      text-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+    }
+
+    .act-card {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(4, 7, 12, 0.96);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 25;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      backdrop-filter: blur(24px);
+    }
+    .act-card.show { opacity: 1; pointer-events: auto; }
+    .act-numeral { font-family: var(--font-mono); font-size: 13px; font-weight: 700; letter-spacing: 3px; color: var(--accent); margin-bottom: 10px; text-transform: uppercase; }
+    .act-name { font-family: var(--font-editorial); font-size: clamp(32px, 5vw, 52px); font-weight: 800; color: #fff; letter-spacing: -0.8px; margin-bottom: 12px; text-align: center; }
+    .act-hook { font-size: 15px; color: var(--text-muted); max-width: 600px; text-align: center; line-height: 1.5; }
+
+    /* FIXED HORIZONTAL VIDEO TRANSPORT CONTROLS (NO VERTICAL STACKING) */
+    .video-controls {
+      background: rgba(10, 15, 25, 0.98);
+      padding: 14px 28px;
+      border-top: 1px solid var(--border-hairline);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      position: relative;
+      z-index: 20;
+    }
+    .progress-container {
+      width: 100%;
+      height: 7px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 4px;
+      position: relative;
+      cursor: pointer;
+    }
+    .progress-filled {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #0284c7);
+      border-radius: 4px;
+      width: 0%;
+      position: relative;
+      transition: width 0.1s linear;
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+    .progress-handle {
+      width: 14px;
+      height: 14px;
+      background: #ffffff;
+      border-radius: 50%;
+      position: absolute;
+      right: -7px;
+      top: -3.5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.8);
+    }
+    .control-buttons-row {
+      display: flex !important;
+      flex-direction: row !important;
+      justify-content: space-between !important;
+      align-items: center !important;
+      width: 100% !important;
+      min-height: 44px;
+    }
+    .left-controls {
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      gap: 10px !important;
+      flex-shrink: 0;
+    }
+    .center-chapter-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-hairline);
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+    .center-chapter-indicator .act-pill {
+      color: var(--accent);
+      font-weight: 700;
+    }
+    .right-controls {
+      display: flex !important;
+      flex-direction: row !important;
+      align-items: center !important;
+      gap: 12px !important;
+      flex-shrink: 0;
+    }
+    .time-readout {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-left: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      white-space: nowrap;
+    }
+    .btn-icon {
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      color: #fff;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 14px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 14px rgba(0, 0, 0, 0.25);
+      transition: all 0.2s;
+    }
+    .btn-icon:hover {
+      background: rgba(255, 255, 255, 0.13);
+      border-color: rgba(120, 221, 178, 0.65);
+      transform: translateY(-1px);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 6px 18px rgba(0, 166, 81, 0.3);
+    }
+    .btn-play-pause {
+      background: linear-gradient(135deg, #00a651 0%, #78ddb2 100%);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      color: #ffffff;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 1px solid rgba(120, 221, 178, 0.45);
+      font-size: 16px;
+      display: inline-flex !important;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.55), 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 25px var(--accent-glow);
+      transition: transform 0.2s, box-shadow 0.2s;
+      font-weight: 700;
+    }
+    .btn-play-pause:hover {
+      transform: scale(1.08);
+      box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.7), 0 8px 25px rgba(0, 0, 0, 0.45), 0 0 38px var(--accent-glow);
+    }
+    .speed-selector {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-hairline);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      outline: none;
+    }
+    .speed-selector option {
+      background: #090e18;
+      color: #fff;
+    }
+
+    /* TRANSLUCENT SIDEBAR FOR PARTS & MODULES */
+    .cinema-sidebar {
+      background: rgba(10, 16, 28, 0.85);
+      backdrop-filter: blur(24px);
+      border: 1px solid var(--border-hairline);
+      border-radius: 20px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      height: 100%;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+      overflow: hidden;
+      position: relative;
+    }
+    .cinema-sidebar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+    .cinema-sidebar-title {
+      font-family: var(--font-editorial);
+      font-size: 13.5px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .cinema-acts-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      overflow-y: auto;
+      max-height: 380px;
+      padding-right: 4px;
+    }
+    .cinema-act-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-hairline);
+      border-radius: 10px;
+      padding: 9px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+    }
+    .cinema-act-item:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--accent);
+      transform: translateX(3px);
+    }
+    .cinema-act-item.active {
+      background: rgba(120, 221, 178, 0.1);
+      border-color: var(--accent);
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+    .cinema-act-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .cinema-act-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      width: 22px;
+    }
+    .cinema-act-info {
+      display: flex;
+      flex-direction: column;
+    }
+    .cinema-act-title {
+      font-family: var(--font-editorial);
+      font-size: 12.5px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .cinema-act-meta {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: var(--text-dim);
+    }
+    .sidebar-box-title {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-dim);
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .module-pills-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+    .module-quick-pill {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-hairline);
+      border-radius: 6px;
+      padding: 7px 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .module-quick-pill:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+    .sidebar-voice-box {
+      margin-top: auto;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-hairline);
+      border-radius: 10px;
+      padding: 10px 12px;
+    }
+    .voice-dropdown-styled {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-hairline);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      outline: none;
+    }
+    .voice-dropdown-styled option { background: #090e18; color: #fff; }
+
+    /* =====================================================================
+       VERSION 2: THE REVISED 5-LEVEL INTERACTIVE QUEST GAME
+       ===================================================================== */
+    .game-view-container {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      transition: opacity 0.4s ease;
+    }
+    .game-view-container.hidden { display: none; }
+
+    /* 5-Level Progress Bar Header */
+    .game-progress-header {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-hairline);
+      border-radius: 16px;
+      padding: 18px 24px;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+    .level-track-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      position: relative;
+    }
+    .level-step-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-hairline);
+      border-radius: 12px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      cursor: pointer;
+    }
+    .level-step-card.active {
+      background: rgba(120, 221, 178, 0.08);
+      border-color: var(--accent);
+      box-shadow: 0 0 24px var(--accent-glow);
+      transform: translateY(-2px);
+    }
+    .level-step-card.completed {
+      background: rgba(16, 185, 129, 0.08);
+      border-color: var(--success);
+    }
+    .level-step-card.failed {
+      background: rgba(244, 63, 94, 0.12);
+      border-color: var(--danger);
+      box-shadow: 0 0 24px var(--danger-glow);
+    }
+    .level-badge-num {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .level-step-card.active .level-badge-num {
+      background: var(--accent);
+      color: #04060a;
+    }
+    .level-step-card.completed .level-badge-num {
+      background: var(--success);
+      color: #04060a;
+    }
+    .level-step-card.failed .level-badge-num {
+      background: var(--danger);
+      color: #fff;
+    }
+    .level-step-name {
+      font-family: var(--font-editorial);
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      line-height: 1.2;
+    }
+    .level-step-status {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* Main Game Arena */
+    .game-arena-grid {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 20px;
+    }
+    @media (max-width: 1200px) {
+      .game-arena-grid { grid-template-columns: 1fr; }
+    }
+    .game-main-stage {
+      background: #020408;
+      border: 1px solid var(--border-hairline);
+      border-radius: 20px;
+      padding: 34px 40px;
+      min-height: 520px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.8);
+      overflow: hidden;
+    }
+
+    .game-level-view {
+      display: none;
+      flex-direction: column;
+      animation: fadeIn 0.4s ease forwards;
+    }
+    .game-level-view.active { display: flex; }
+
+    .level-header-title {
+      font-family: var(--font-editorial);
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .level-header-sub {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      line-height: 1.6;
+      max-width: 720px;
+    }
+
+    /* Level 1: Log In Form */
+    .login-box-card {
+      background: rgba(13, 19, 32, 0.7);
+      border: 1px solid var(--border-hairline);
+      border-radius: 14px;
+      padding: 24px 28px;
+      max-width: 540px;
+      margin-bottom: 24px;
+    }
+    .login-field-row {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .login-label {
+      font-family: var(--font-mono);
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+    .login-input {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-hairline);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      outline: none;
+      transition: all 0.2s ease;
+      cursor: text;
+    }
+    .login-input:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.08);
+    }
+    .login-input:focus {
+      border-color: var(--accent);
+      background: rgba(0, 240, 181, 0.05);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+    .login-input::placeholder {
+      color: rgba(255, 255, 255, 0.25);
+    }
+    .narrator-listen-badge {
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      color: var(--accent);
+      background: rgba(0, 240, 181, 0.1);
+      border: 1px solid rgba(0, 240, 181, 0.3);
+      padding: 2px 7px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-reset-creds {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-muted);
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+    .btn-reset-creds:hover {
+      color: #fff;
+      border-color: var(--accent);
+      background: rgba(0, 166, 81, 0.18);
+      box-shadow: 0 0 14px var(--accent-glow);
+    }
+
+    /* Level 2: Project Services Selection */
+    .services-selection-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .service-select-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1.5px solid var(--border-hairline);
+      border-radius: 14px;
+      padding: 18px;
+      cursor: pointer;
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+      transition: all 0.25s ease;
+    }
+    .service-select-card:hover {
+      background: rgba(255, 255, 255, 0.07);
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .service-select-card.selected {
+      background: rgba(120, 221, 178, 0.08);
+      border-color: var(--accent);
+      box-shadow: 0 0 25px var(--accent-glow);
+    }
+    .service-icon-wrap {
+      width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .service-card-name {
+      font-family: var(--font-editorial);
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 3px;
+    }
+    .service-card-desc {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Level 3: Scanner Box */
+    .document-scanner-box {
+      background: rgba(13, 19, 32, 0.7);
+      border: 1px solid var(--border-hairline);
+      border-radius: 16px;
+      padding: 26px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 22px;
+    }
+    .scanner-target-doc {
+      width: 320px;
+      height: 170px;
+      background: linear-gradient(135deg, #131d31 0%, #0c1220 100%);
+      border: 1px solid var(--border-medium);
+      border-radius: 12px;
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+    }
+    .laser-scan-line {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent);
+      box-shadow: 0 0 18px var(--accent), 0 0 8px #ffffff;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .laser-scan-line.scanning {
+      opacity: 1;
+      animation: laserSweep 1.4s ease-in-out infinite alternate;
+    }
+    @keyframes laserSweep { 0% { top: 0%; } 100% { top: 98%; } }
+
+    .doc-chip {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: #78ddb2;
+      background: rgba(120, 221, 178, 0.1);
+      border: 1px solid rgba(120, 221, 178, 0.3);
+      padding: 4px 10px;
+      border-radius: 6px;
+      align-self: flex-start;
+      backdrop-filter: blur(8px);
+    }
+    .doc-fake-lines {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .fake-line {
+      height: 5px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 3px;
+    }
+    .scan-progress-wrap {
+      width: 100%;
+      max-width: 440px;
+      margin-top: 20px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .scan-progress-wrap.active { display: flex; }
+    .scan-progress-bar {
+      width: 100%;
+      height: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 5px;
+      overflow: hidden;
+      position: relative;
+    }
+    .scan-progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #0284c7);
+      border-radius: 5px;
+      transition: width 0.15s linear;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+    .scan-status-text {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Level 4: Verify & Confirm */
+    .verify-matrix-card {
+      background: rgba(13, 19, 32, 0.7);
+      border: 1px solid var(--border-hairline);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 24px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      text-align: center;
+    }
+
+    /* Level 5: Application Status (Success or Failed) */
+    .completion-success-card {
+      background: radial-gradient(circle at 50% 30%, rgba(0, 166, 81, 0.12) 0%, transparent 70%), rgba(5, 20, 14, 0.9);
+      border: 1px solid rgba(120, 221, 178, 0.45);
+      box-shadow: 0 0 60px rgba(0, 166, 81, 0.28), inset 0 0 25px rgba(0, 166, 81, 0.05);
+      border: 1px solid var(--accent);
+      border-radius: 20px;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: 0 0 60px var(--accent-glow);
+    }
+    .completion-failure-card {
+      background: radial-gradient(circle at 50% 30%, rgba(244, 63, 94, 0.15) 0%, transparent 70%), rgba(20, 10, 15, 0.9);
+      border: 1px solid var(--danger);
+      border-radius: 20px;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: 0 0 60px var(--danger-glow);
+    }
+    .success-trophy-badge {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #00a651 0%, #065f38 100%);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 30px;
+      margin-bottom: 18px;
+      box-shadow: 0 0 45px rgba(0, 166, 81, 0.7);
+    }
+    .failure-alert-badge {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: var(--danger);
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      margin-bottom: 18px;
+      box-shadow: 0 0 40px var(--danger-glow);
+      animation: pulseAlert 0.8s infinite alternate;
+    }
+    @keyframes pulseAlert { 0% { transform: scale(0.95); } 100% { transform: scale(1.05); } }
+
+    .game-action-btn {
+      background: linear-gradient(135deg, rgba(0, 166, 81, 0.92) 0%, rgba(244, 63, 94, 0.88) 100%);
+      backdrop-filter: blur(16px) saturate(180%);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      color: #ffffff;
+      font-family: var(--font-editorial);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      padding: 15px 34px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), inset 0 -1px 2px rgba(0, 0, 0, 0.3), 0 8px 25px rgba(0, 0, 0, 0.35), 0 0 35px var(--accent-glow);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      text-transform: uppercase;
+      align-self: flex-start;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+    .game-action-btn:hover {
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.45);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 12px 35px rgba(0, 0, 0, 0.45), 0 0 50px var(--accent-glow);
+    }
+    .game-action-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .game-action-btn.retry-btn {
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.95) 0%, rgba(245, 158, 11, 0.88) 100%);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.45), 0 8px 25px rgba(244, 63, 94, 0.5);
+    }
+
+    /* SIDEBAR LAB (CUSTOMIZATION & CHAOS LAB) */
+    .game-side-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .studio-panel {
+      background: var(--bg-panel);
+      border: 1px solid var(--border-hairline);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(20px);
+    }
+    .panel-headline {
+      font-family: var(--font-editorial);
+      font-size: 13.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+
+
+    .chaos-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .chaos-toggle-btn {
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+    .chaos-toggle-btn:hover {
+      background: rgba(255, 255, 255, 0.09);
+      color: #fff;
+      border-color: rgba(255, 255, 255, 0.22);
+    }
+    .chaos-toggle-btn.armed {
+      background: rgba(244, 63, 94, 0.2);
+      border-color: var(--danger);
+      color: #fff;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 0 20px var(--danger-glow);
+    }
+    /* ===================================================================
+       EXPLOSION OVERLAY ENHANCED STYLES
+       =================================================================== */
+    #explosionCanvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      pointer-events: none;
+      z-index: 9000;
+      display: none;
+    }
+    #explosionCanvas.active { display: block; }
+
+    .shockwave-ring {
+      position: fixed;
+      border-radius: 50%;
+      border: 3px solid rgba(244,63,94,0.8);
+      animation: shockwaveExpand 0.9s ease-out forwards;
+      pointer-events: none;
+      z-index: 8999;
+    }
+    @keyframes shockwaveExpand {
+      0%  { width: 0; height: 0; opacity: 1; }
+      100%{ width: 300vw; height: 300vw; opacity: 0; }
+    }
+
+    .flash-white {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: #fff;
+      animation: flashFade 0.6s ease-out forwards;
+      pointer-events: none;
+      z-index: 8998;
+    }
+    @keyframes flashFade {
+      0%  { opacity: 1; }
+      100%{ opacity: 0; }
+    }
+
+    /* Failed card canvas layer */
+    #failedExplosionCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      border-radius: 20px;
+      z-index: 0;
+    }
+    .completion-failure-card { position: relative; overflow: hidden; }
+
+    .console-card {
+      background: #030509;
+      border: 1px solid var(--border-hairline);
+      border-radius: 10px;
+      padding: 12px;
+      height: 140px;
+      overflow-y: auto;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      line-height: 1.55;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .log-line { display: flex; gap: 8px; }
+    .log-ts { color: var(--text-dim); }
+    .log-msg.info { color: #94a3b8; }
+    .log-msg.success { color: var(--accent); }
+    .log-msg.warn { color: var(--warning); }
+    .log-msg.error { color: var(--danger); }
+
+    /* =====================================================================
+       FULL-SCREEN RED DISASTER ALARM & EXPLOSION OVERLAY
+       ===================================================================== */
+    .disaster-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(18, 0, 4, 0.94);
+      z-index: 500;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      box-shadow: inset 0 0 120px rgba(244, 63, 94, 0.8);
+      animation: redFlashPulse 0.4s infinite alternate;
+    }
+    .disaster-overlay.active { display: flex; }
+    @keyframes redFlashPulse {
+      0% { box-shadow: inset 0 0 80px rgba(244, 63, 94, 0.5); }
+      100% { box-shadow: inset 0 0 180px rgba(244, 63, 94, 0.95); }
+    }
+    #disasterCanvas {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .disaster-content-box {
+      position: relative;
+      z-index: 10;
+      background: rgba(10, 2, 5, 0.92);
+      border: 2px solid var(--danger);
+      border-radius: 20px;
+      padding: 36px 44px;
+      max-width: 720px;
+      text-align: center;
+      box-shadow: 0 0 80px var(--danger-glow);
+    }
+    .disaster-title {
+      font-family: var(--font-editorial);
+      font-size: 34px;
+      font-weight: 900;
+      color: var(--danger);
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      text-shadow: 0 0 20px var(--danger);
+    }
+    .disaster-desc {
+      font-size: 15px;
+      color: #ffffff;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .disaster-details-grid {
+      background: rgba(120, 221, 178, 0.08);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      border-radius: 12px;
+      padding: 16px 20px;
+      text-align: left;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.6;
+      color: #cbd5e1;
+      margin-bottom: 24px;
+    }
+    .disaster-details-grid strong { color: var(--danger); }
+
+    /* Custom Cursor */
+    .auto-cursor {
+      position: fixed;
+      top: 0; left: 0;
+      width: 24px; height: 24px;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 1;
+      transform: translate3d(-100px, -100px, 0);
+      transition: transform 0.04s linear;
+    }
+    .auto-cursor svg {
+      width: 100%; height: 100%;
+      filter: drop-shadow(0 2px 8px var(--accent-glow));
+    }
+    .cursor-label {
+      position: absolute;
+      left: 20px; top: 14px;
+      background: rgba(8, 12, 20, 0.95);
+      border: 1px solid var(--accent);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .cursor-label.on { opacity: 1; }
+    .focus-ring {
+      position: fixed;
+      top: 0; left: 0;
+      border: 1.5px solid var(--accent);
+      border-radius: 8px;
+      pointer-events: none;
+      z-index: 9990;
+      opacity: 0;
+      transition: opacity 0.25s ease;
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+    .focus-ring.on { opacity: 1; }
+    .cursor-ripple {
+      position: fixed;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      pointer-events: none;
+      z-index: 9995;
+      transform: translate(-50%, -50%);
+      animation: rippleAnim 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes rippleAnim {
+      0% { opacity: 1; transform: translate(-50%, -50%) scale(0.4); }
+      100% { opacity: 0; transform: translate(-50%, -50%) scale(2.4); }
+    }
+  
+    /* ===== Dark Emerald / Premium SaaS ===== */
+    .hero-intro-screen{background:radial-gradient(120% 60% at 50% 108%,rgba(0,166,90,.55) 0%,rgba(120,221,178,.22) 32%,transparent 62%),linear-gradient(rgba(245,248,246,.035) 1px,transparent 1px) 0 0/64px 64px,linear-gradient(90deg,rgba(245,248,246,.035) 1px,transparent 1px) 0 0/64px 64px,#071e16}
+    .intro-badge{border:1px solid rgba(120,221,178,.35);background:rgba(120,221,178,.08);color:#78ddb2;border-radius:99px;padding:8px 20px;font-family:var(--font-sans);letter-spacing:.08em;font-size:12px}
+    .intro-title{font-family:var(--font-sans)!important;text-transform:none!important;font-weight:500!important;letter-spacing:-.035em!important;line-height:1.02!important;font-size:clamp(44px,7vw,96px)!important;color:#f5f8f6}
+    .intro-sub{font-family:var(--font-sans);text-transform:none!important;letter-spacing:0!important;color:#b7c9bf;font-size:18px!important}
+    .btn-warp-enter{border-radius:99px!important;background:linear-gradient(135deg,rgba(0,166,81,.95) 0%,rgba(244,63,94,.85) 100%)!important;backdrop-filter:blur(16px) saturate(180%)!important;-webkit-backdrop-filter:blur(16px) saturate(180%)!important;border:1px solid rgba(120,221,178,.45)!important;color:#ffffff!important;box-shadow:inset 0 1px 1px rgba(255,255,255,.5),inset 0 -1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.4),0 0 40px var(--accent-glow)!important;transition:all .3s cubic-bezier(.16,1,.3,1)!important;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+    .btn-warp-enter:hover{transform:translateY(-2px) scale(1.03)!important;box-shadow:inset 0 1px 1px rgba(255,255,255,.65),0 14px 45px rgba(0,0,0,.5),0 0 60px rgba(0,166,81,.6)!important;border-color:rgba(120,221,178,.7)!important}
+    .mono-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--text-dim);margin:14px 0 8px}
+    .svc-meta{margin-top:8px;font-family:var(--font-mono);font-size:12px;color:#78ddb2}
+    .service-select-card.soon{opacity:.62;padding:12px 14px;border-style:dashed}
+    .soon-grid{grid-template-columns:1fr 1fr 1fr!important;gap:10px!important;margin-bottom:14px!important}
+    .soon-tag{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:99px;background:rgba(245,248,246,.1);color:#b7c9bf;font:600 10px var(--font-mono);letter-spacing:.08em;vertical-align:middle}
+    .soon-notice{margin:0 0 14px;padding:14px 18px;border-radius:12px;border:1px solid #f59e0b;background:rgba(245,158,11,.12);color:#fde7b0;font-size:15px}
+    .soon-notice[hidden]{display:none}
+
+    #loader{position:fixed;inset:0;z-index:100000;background:radial-gradient(90% 55% at 50% 110%,rgba(0,166,90,.45),transparent 65%),#071e16;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;color:#f5f8f6;font-family:var(--font-sans);transition:opacity .6s ease,visibility .6s}
+    #loader.done{opacity:0;visibility:hidden;pointer-events:none}
+    .ld-brand{font-family:var(--font-mono);font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#78ddb2}
+    .ld-count{font-size:clamp(96px,16vw,200px);font-weight:300;letter-spacing:-.06em;line-height:1;font-variant-numeric:tabular-nums}
+    .ld-count small{font-size:.28em;color:#78ddb2;margin-left:6px;letter-spacing:0}
+    .ld-bar{width:min(420px,70vw);height:3px;background:rgba(245,248,246,.14);border-radius:2px;overflow:hidden}
+    .ld-bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#00a651,#f43f5e);box-shadow:0 0 18px rgba(0,166,81,.7)}
+    .ld-label{font-size:14px;color:#b7c9bf;min-height:20px}
+    .intro-hint{font-family:var(--font-mono);font-size:12px;letter-spacing:.18em;color:#78ddb2;margin:6px 0 10px;animation:hintPulse 2s ease-in-out infinite}
+    @keyframes hintPulse{0%,100%{opacity:.45}50%{opacity:1}}
+    #voiceToast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);opacity:0;z-index:99999;padding:12px 20px;border-radius:12px;background:#0b281e;border:1px solid #00a651;color:#f0faf5;font:500 14px var(--font-sans);transition:all .3s;pointer-events:none;max-width:90vw;box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 25px rgba(0,166,81,.35)}
+    #voiceToast.show{opacity:1;transform:translate(-50%,0)}
+    @media (prefers-reduced-motion:reduce){.intro-hint{animation:none}}
+
+    .doc-slots{display:grid;gap:14px;margin-bottom:18px}
+    .doc-slot{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:16px 18px;border-radius:14px;border:1.5px dashed var(--border-medium);background:rgba(255,255,255,.03);transition:all .25s}
+    .doc-slot strong{font-size:20px;font-weight:500;color:var(--text-pure)}
+    .doc-slot .slot-label{font-family:var(--font-mono);font-size:11px;letter-spacing:.14em;color:var(--text-dim)}
+    .doc-slot .slot-state{font-size:13px;color:var(--text-muted)}
+    .doc-slot.active{border:1.5px solid var(--accent);background:rgba(120,221,178,.08);box-shadow:0 0 24px var(--accent-glow)}
+    .doc-slot.done{border:1.5px solid #00a651;background:rgba(0,166,81,.14)}
+    .doc-slot.done .slot-state{color:#78ddb2}
+    .doc-slot:focus-visible{outline:2px solid #78ddb2;outline-offset:2px}
+</style>
+</head>
+<body>
+<div id="loader" role="status" aria-live="polite">
+  <div class="ld-brand">moro.hub · Task 1</div>
+  <div class="ld-count"><span id="ldNum">0</span><small>%</small></div>
+  <div class="ld-bar"><i id="ldBar"></i></div>
+  <div class="ld-label" id="ldLabel">Starting up</div>
+</div>
+
+  <!-- Ambient Warp Canvas -->
+  <canvas id="ambientCanvas"></canvas>
+  <div class="warp-flash" id="warpFlash"></div>
+  <div class="arch-grid-overlay"></div>
+
+  <!-- =====================================================================
+       FULL-SCREEN RED DISASTER & EXPLOSIONS OVERLAY
+       ===================================================================== -->
+  <div class="disaster-overlay" id="disasterOverlay">
+    <canvas id="disasterCanvas"></canvas>
+    <div class="disaster-content-box">
+      <div style="font-size: 40px; margin-bottom: 8px;">🚨💥</div>
+      <h2 class="disaster-title" id="disasterTitle">DISASTER: UPLOAD CUTOFF AT 70%</h2>
+      <p class="disaster-desc" id="disasterDesc">
+         Layla's network connection dropped mid-stream at byte 2,936,012 of 4,194,304!
+      </p>
+      <div class="disaster-details-grid" id="disasterDetails">
+        <div><strong>Root Cause:</strong> Client socket severed prematurely before EOF.</div>
+        <div><strong>Systems Affected:</strong> FastAPI stream severed; MinIO holds partial orphaned chunks.</div>
+        <div><strong>Integrity Action:</strong> <code>StorageService</code> detected size mismatch via <code>stat_object()</code>, immediately executed <code>remove_object()</code> atomic purge, and blocked PostgreSQL record creation!</div>
+        <div><strong>Outcome:</strong> 0 corrupt bytes committed to database. Perfect data hygiene preserved.</div>
+      </div>
+      <button class="game-action-btn retry-btn" id="btnDisasterAcknowledge" style="align-self: center;">
+        <span>View Incident in Level 5 (Application Failed) ▸</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       DAIKI FUJITA MINIMALIST HERO INTRO
+       ===================================================================== -->
+  <div class="hero-intro-screen" id="heroIntroScreen">
+    <div class="intro-badge">AUTOMATED DOCUMENT PROCESSING &amp; VERIFICATION</div>
+    <h1 class="intro-title">Multi Service<br>Agentic Onboarding</h1>
+    <div class="intro-hint">CHOOSE HOW TO BEGIN</div>
+    <p class="intro-sub">Task 1 · Take the narrated walkthrough, or play the five-level quest.</p>
+    
+    <div class="intro-buttons-row">
+      <button class="btn-warp-enter" id="btnLaunchCinema">
+        <span>▶ ENTER TASK 1 (WALKTHROUGH)</span>
+      </button>
+      <button class="btn-secondary-quest" id="btnLaunchQuest">
+        <span>🎮 PLAY 5-LEVEL QUEST</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Top Navigation Bar -->
+  <header>
+    <div class="brand-group">
+      <div class="brand-badge">TASK 1</div>
+      <div class="title-box">
+        <h1>Agentic Onboarding</h1>
+      </div>
+    </div>
+
+    <!-- Mode Switcher Tabs -->
+    <div class="mode-switcher-group">
+      <button class="mode-tab-btn active" id="tabCinemaMode">
+        <span>AUTOPLAY WALKTHROUGH</span>
+      </button>
+      <button class="mode-tab-btn" id="tabQuestMode">
+        <span>🎮 QUEST GAME</span>
+      </button>
+    </div>
+
+    <!-- Pillar Stat HUD -->
+    <div class="pillar-hud">
+      <div class="pillar-stat">
+        <span class="stat-label">DOCVQA ACCURACY</span>
+        <span class="stat-val" id="statReliability">92.9%</span>
+      </div>
+      <div class="pillar-stat">
+        <span class="stat-label">LIVE SERVICES</span>
+        <span class="stat-val" id="statIntegrity">3 of 11</span>
+      </div>
+      <div class="pillar-stat">
+        <span class="stat-label">VRAM NEEDED</span>
+        <span class="stat-val" id="statThroughput">~6.0 GB</span>
+      </div>
+      <div class="pillar-stat">
+        <span class="stat-label">DATA LEAVES SITE</span>
+        <span class="stat-val" id="statSecurity">0</span>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <div class="audio-toggle-badge" id="audioToggleBtn" title="Toggle AI Narration & Soundscape">
+        <span id="audioIcon">🔊</span>
+        <span id="audioStatusText">Sound: ON</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Viewport Container -->
+  <main class="app-container">
+    
+    <!-- =====================================================================
+         VERSION 1: FULLSCREEN WALKTHROUGH THEATER & TRANSLUCENT SIDEBAR
+         ===================================================================== -->
+    <div class="cinema-view-container" id="cinemaContainer">
+      <div class="video-viewport">
+        <!-- Live Simulated Screen Canvas with Premotio Camera Dolly -->
+        <div class="screen-stage" id="screenStage">
+          <div class="stage-watermark">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span class="rec-indicator"></span>
+              <span id="currentScenarioTag">SCENARIO: NORMAL_SUCCESSFUL_PIPELINE</span>
+            </div>
+            <div style="display: flex; gap: 14px;">
+              <span id="watermarkChrono">T+ 00:00.00</span>
+              <span>•</span>
+              <span>60 FPS REALTIME</span>
+            </div>
+          </div>
+
+          <!-- Dynamic Stage Content -->
+          <div class="stage-content" id="stageContent">
+            <div class="scene-meta">
+              <span class="scene-number" id="sceneBadge">ACT I / X</span>
+              <span class="scene-category" id="sceneCategory">System Bootstrap & Architecture</span>
+              <span class="scene-timecode" id="sceneTimecode">00:00 — 00:52</span>
+            </div>
+
+            <h2 class="scene-headline" id="sceneTitle">Task 1: A Conversational Agent for Onboarding</h2>
+            <p class="scene-summary" id="sceneSummary">
+              Layla is signing up for a service. Task 1 guides her through sign up, document upload and verification, with vision AI reading her documents directly.</p>
+
+            <!-- Wide Dynamic Topology Flow (Nodes are clickable to jump to Acts) -->
+            <div class="flow-diagram">
+              <div class="bus-track"></div>
+
+              <!-- Node 1: FastAPI Route -->
+              <div class="topology-node" id="nodeClient" data-act="0" title="Click to examine React / Streamlit UI in Act I">
+                <div class="node-icon-box" style="color: #78ddb2;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                  </svg>
+                </div>
+                <div class="node-title">React / Streamlit UI</div>
+                <div class="node-status" id="statusClient">Ready</div>
+              </div>
+
+              <!-- Node 2: StorageService Shield -->
+              <div class="topology-node" id="nodeService" data-act="1" title="Click to examine Agents in Act II">
+                <div class="node-icon-box" style="color: #00a651;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <polyline points="9 12 11 14 15 10"></polyline>
+                  </svg>
+                </div>
+                <div class="node-title">FastAPI + Agents</div>
+                <div class="node-status" id="statusService">Collection · Validation</div>
+              </div>
+
+              <!-- Node 3: MinIO S3 Object Store -->
+              <div class="topology-node" id="nodeMinIO" data-act="6" title="Click to examine Qwen2.5-VL 7B in Act VII">
+                <div class="node-icon-box" style="color: #ef4444;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                    <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                    <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                  </svg>
+                </div>
+                <div class="node-title">Qwen2.5-VL 7B</div>
+                <div class="node-status" id="statusMinIO">Ollama · vision</div>
+              </div>
+
+              <!-- Node 4: PostgreSQL Metadata -->
+              <div class="topology-node" id="nodePostgres" data-act="9" title="Click to examine Audit trail in Act X">
+                <div class="node-icon-box" style="color: #3b82f6;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                  </svg>
+                </div>
+                <div class="node-title">PostgreSQL DB</div>
+                <div class="node-status" id="statusPostgres">Metadata sync</div>
+              </div>
+
+              <div class="packet-tail" id="packetTail"></div>
+              <div class="packet-trace" id="packetTrace"></div>
+            </div>
+
+            <!-- Code Focus -->
+            <div class="code-preview" id="codeFocusBlock">
+              <span class="comment"># README.md</span><br>
+              <span class="keyword">class</span> <span class="func">StorageService</span>:<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment">"""S3-compatible object storage for document files with enterprise hardening."""</span>
+            </div>
+          </div>
+
+          <!-- Subtitles Bar -->
+          <div class="subtitles-bar">
+            <span class="speaker-tag" id="subtitleSpeaker">AI Lead Architect</span>
+            <span class="subtitle-words" id="subtitleText">
+              "Welcome to Task 1. We engineered this storage service around zero data loss, strict verification, and graceful degradation."
+            </span>
+          </div>
+
+          <!-- Interstitial Act Card -->
+          <div class="act-card" id="actCard">
+            <div class="act-numeral" id="actNumeral">ACT I</div>
+            <div class="act-name" id="actName">The Promise</div>
+            <div class="act-hook" id="actHook">Every customer trusts us with something irreplaceable.</div>
+          </div>
+        </div>
+
+        <!-- FIXED HORIZONTAL VIDEO TRANSPORT CONTROLS -->
+        <div class="video-controls">
+          <div class="progress-container" id="progressBarContainer">
+            <div class="progress-filled" id="progressFilled">
+              <div class="progress-handle"></div>
+            </div>
+            <div class="scene-markers" id="sceneMarkers"></div>
+          </div>
+
+          <div class="control-buttons-row">
+            <div class="left-controls">
+              <button class="btn-icon" id="prevSceneBtn" title="Previous Act">⏮</button>
+              <button class="btn-play-pause" id="playPauseBtn" title="Play / Pause">▶</button>
+              <button class="btn-icon" id="nextSceneBtn" title="Next Act">⏭</button>
+              <button class="btn-icon" id="restartBtn" title="Restart Tour">🔄</button>
+              
+              <div class="time-readout">
+                <span class="current-time" id="currentTimeLabel">00:00</span> / <span id="totalDurationLabel">09:00</span>
+              </div>
+            </div>
+
+            <div class="center-chapter-indicator" id="centerChapterIndicator">
+              <span class="act-pill" id="centerActPill">ACT I</span>
+              <span id="centerActName">The Sovereign Promise</span>
+            </div>
+
+            <div class="right-controls">
+              <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">SPEED:</span>
+              <select class="speed-selector" id="playbackSpeed">
+                <option value="0.75">0.75x</option>
+                <option value="1" selected>1.0x (Normal)</option>
+                <option value="1.5">1.5x</option>
+                <option value="2">2.0x</option>
+              </select>
+              <button class="btn-icon" id="toggleSidebarBtn" title="Toggle Acts Sidebar">☷</button>
+              <button class="btn-icon" id="fullscreenBtn" title="Fullscreen View">⛶</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRANSLUCENT SIDEBAR OF CHAPTERS & MODULES -->
+      <div class="cinema-sidebar" id="cinemaSidebar">
+        <div class="cinema-sidebar-header">
+          <div class="cinema-sidebar-title">
+            <span>📑</span>
+            <span>CHAPTERS & ACTS</span>
+          </div>
+          <span style="font-family: var(--font-mono); font-size: 10px; color: var(--accent); background: rgba(120, 221, 178,0.1); padding: 3px 8px; border-radius: 4px;">10 ACTS (9:00)</span>
+        </div>
+
+        <div class="cinema-acts-list" id="cinemaActsList">
+          <!-- Dynamically populated -->
+        </div>
+
+        <div class="sidebar-modules-box">
+          <div class="sidebar-box-title">DIRECT MODULE JUMPS</div>
+          <div class="module-pills-grid">
+            <button class="module-quick-pill" data-act="1"><span>⚡</span> Architecture</button>
+            <button class="module-quick-pill" data-act="4"><span>🛡️</span> Collection</button>
+            <button class="module-quick-pill" data-act="6"><span>🗄️</span> Vision AI</button>
+            <button class="module-quick-pill" data-act="9"><span>🐘</span> Audit Trail</button>
+          </div>
+        </div>
+
+        <div class="sidebar-voice-box">
+          <div class="sidebar-box-title">NARRATOR ACCENT</div>
+          <select id="cinemaVoiceSelect" class="voice-dropdown-styled">
+            <option value="auto">System Default</option>
+            <option value="uk">🇬🇧 British UK</option>
+            <option value="us">🇺🇸 American US</option>
+            <option value="au">🇦🇺 Australian AU</option>
+            <option value="in">🇮🇳 Indian IN</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- =====================================================================
+         VERSION 2: THE REVISED 5-LEVEL INTERACTIVE QUEST GAME
+         ===================================================================== -->
+    <div class="game-view-container hidden" id="questContainer">
+      
+      <!-- 5-Level Progress Bar Header -->
+      <div class="game-progress-header">
+        <div class="level-track-row">
+          
+          <div class="level-step-card active" id="questStep1">
+            <div class="level-badge-num">1</div>
+            <div>
+              <div class="level-step-name">LOG IN</div>
+              <div class="level-step-status" id="qStatus1">In Progress</div>
+            </div>
+          </div>
+
+          <div class="level-step-card" id="questStep2">
+            <div class="level-badge-num">2</div>
+            <div>
+              <div class="level-step-name">SELECT SERVICE</div>
+              <div class="level-step-status" id="qStatus2">Locked</div>
+            </div>
+          </div>
+
+          <div class="level-step-card" id="questStep3">
+            <div class="level-badge-num">3</div>
+            <div>
+              <div class="level-step-name">SCAN DOCUMENT</div>
+              <div class="level-step-status" id="qStatus3">Locked</div>
+            </div>
+          </div>
+
+          <div class="level-step-card" id="questStep4">
+            <div class="level-badge-num">4</div>
+            <div>
+              <div class="level-step-name">VERIFY & CONFIRM</div>
+              <div class="level-step-status" id="qStatus4">Locked</div>
+            </div>
+          </div>
+
+          <div class="level-step-card" id="questStep5">
+            <div class="level-badge-num">5</div>
+            <div>
+              <div class="level-step-name">STATUS</div>
+              <div class="level-step-status" id="qStatus5">Pending</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Main Game Arena -->
+      <div class="game-arena-grid">
+        
+        <!-- Main Interactive Level Stage -->
+        <div class="game-main-stage">
+          
+<!-- LEVEL 1: Log In -->
+          <div class="game-level-view active" id="levelView1">
+            <h2 class="level-header-title">Level 1: Customer Authentication & Session Handshake</h2>
+            <p class="level-header-sub" id="level1Sub">
+              Layla is starting her onboarding journey. Authenticate customer credentials to establish a secure, cryptographically signed tenant session before uploading sensitive documents.
+            </p>
+
+            <div class="login-box-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.06);">
+                <span class="mono" style="font-size: 10px; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                  <span>EDITABLE CUSTOMER CREDENTIALS</span>
+                </span>
+                <button type="button" class="btn-reset-creds" id="btnResetCredentials" title="Reset all fields to Layla Ahmed default">Reset to Layla</button>
+              </div>
+
+              <!-- Extra field: Full Name (According to Passport) -->
+              <div class="login-field-row">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label class="login-label" for="inputCustomerName">Full Name (According to Passport)</label>
+                  <span class="narrator-listen-badge" id="nameSyncBadge">Narrator reads live</span>
+                </div>
+                <input type="text" class="login-input" id="inputCustomerName" value="Layla Ahmed" placeholder="e.g. Layla Ahmed" autocomplete="name">
+              </div>
+
+              <div class="login-field-row">
+                <label class="login-label" for="inputCustomerEmail">Customer Email / ID</label>
+                <input type="text" class="login-input" id="inputCustomerEmail" value="layla.ahmed@onboarding.ae" placeholder="e.g. layla.ahmed@onboarding.ae" autocomplete="email">
+              </div>
+
+              <div class="login-field-row">
+                <label class="login-label" for="inputNationalId">National Emirates ID</label>
+                <input type="text" class="login-input" id="inputNationalId" value="784-1992-108234-1" placeholder="e.g. 784-1992-108234-1">
+              </div>
+
+              <div class="login-field-row">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label class="login-label" for="inputTenantPartition" style="margin-bottom: 0;">Tenant Namespace Partition</label>
+                  <span class="mono" style="font-size: 9px; padding: 2px 7px; border-radius: 4px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-dim); display: flex; align-items: center; gap: 4px; letter-spacing: 0.5px;">
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    AUTO-GENERATED &bull; IMMUTABLE
+                  </span>
+                </div>
+                <input type="text" class="login-input" id="inputTenantPartition" value="ae-tenant-9842 (Immutable S3 Prefix)" readonly tabindex="-1" style="background: rgba(0, 0, 0, 0.4); border-color: rgba(255, 255, 255, 0.1); color: var(--text-muted); cursor: not-allowed; user-select: none;">
+              </div>
+            </div>
+
+            <button class="game-action-btn" id="btnLoginProceed">
+              <span id="btnLoginText">🔐 Authenticate & Enter Portal ▸</span>
+            </button>
+          </div>
+
+          
+
+          <!-- LEVEL 2: Select Service (Actual Project Services) -->
+          <div class="game-level-view" id="levelView2">
+            <h2 class="level-header-title">Level 2: Select a Service</h2>
+            <p class="level-header-sub">Choose the onboarding service Layla needs. Three services are live today; the rest are coming soon.</p>
+
+            <div class="mono-label">AVAILABLE SERVICES</div>
+            <div class="services-selection-grid">
+              <div class="service-select-card" data-service="basic" data-status="live">
+                <div><div class="service-card-name">Basic Registration</div>
+                <div class="service-card-desc">Requires: National ID Card</div>
+                <div class="svc-meta">Processing: 1-2 business days</div></div>
+              </div>
+              <div class="service-select-card" data-service="premium" data-status="live">
+                <div><div class="service-card-name">Premium / Cross Border</div>
+                <div class="service-card-desc">Requires: National ID Card + Passport</div>
+                <div class="svc-meta">Processing: 3-5 business days</div></div>
+              </div>
+              <div class="service-select-card" data-service="mobility" data-status="live">
+                <div><div class="service-card-name">Mobility / Rental</div>
+                <div class="service-card-desc">Requires: Driving Licence</div>
+                <div class="svc-meta">Processing: 2-3 business days</div></div>
+              </div>
+            </div>
+
+            <div class="mono-label">COMING SOON · NOT AVAILABLE YET</div>
+            <div class="services-selection-grid soon-grid">
+              <div class="service-select-card soon" data-service="soon-0" data-status="soon" data-name="Business Registration">
+                <div><div class="service-card-name">Business Registration <span class="soon-tag">COMING SOON</span></div>
+                <div class="service-card-desc">Requires: Business License</div></div>
+              </div>
+              <div class="service-select-card soon" data-service="soon-1" data-status="soon" data-name="Travel Visa Application">
+                <div><div class="service-card-name">Travel Visa Application <span class="soon-tag">COMING SOON</span></div>
+                <div class="service-card-desc">Requires: Passport + Visa Form</div></div>
+              </div>
+              <div class="service-select-card soon" data-service="soon-2" data-status="soon" data-name="Credit Card Application">
+                <div><div class="service-card-name">Credit Card Application <span class="soon-tag">COMING SOON</span></div>
+                <div class="service-card-desc">Requires: Income Proof + ID</div></div>
+              </div>
+              <div class="service-select-card soon" data-service="soon-3" data-status="soon" data-name="Insurance Enrollment">
+                <div><div class="service-card-name">Insurance Enrollment <span class="soon-tag">COMING SOON</span></div>
+                <div class="service-card-desc">Requires: Medical Records + ID</div></div>
+              </div>
+              <div class="service-select-card soon" data-service="soon-4" data-status="soon" data-name="Utility Connection">
+                <div><div class="service-card-name">Utility Connection <span class="soon-tag">COMING SOON</span></div>
+                <div class="service-card-desc">Requires: Utility Bill + ID</div></div>
+              </div>
+              <div class="service-select-card soon" data-service="soon-5" data-status="soon" data-name="Gym Membership">
+                <div><div class="service-card-name">Gym Membership <span class="soon-tag">COMING SOON</span></div>
+                <div class="service-card-desc">Requires: ID + Photo</div></div>
+              </div>
+              <div class="service-select-card soon" data-service="soon-6" data-status="soon" data-name="Library Card">
+                <div><div class="service-card-name">Library Card <span class="soon-tag">COMING SOON</span></div>
+                <div class="service-card-desc">Requires: ID + Address Proof</div></div>
+              </div>
+              <div class="service-select-card soon" data-service="soon-7" data-status="soon" data-name="Student Enrollment">
+                <div><div class="service-card-name">Student Enrollment <span class="soon-tag">COMING SOON</span></div>
+                <div class="service-card-desc">Requires: Student ID + Transcript</div></div>
+              </div>
+            </div>
+
+            <div id="soonNotice" class="soon-notice" role="alert" hidden></div>
+
+            <button class="game-action-btn" id="btnNextToScan" disabled>
+              <span>🚀 Initialize Pipeline & Proceed to Scan ▸</span>
+            </button>
+          </div>
+
+          <!-- LEVEL 3: Scan Document (3.5s loader, laser beam, Chaos triggers) -->
+          <div class="game-level-view" id="levelView3">
+            <h2 class="level-header-title">Level 3: Upload & Vision Extraction</h2>
+            <p class="level-header-sub">
+              Layla has provided her verified passport scan. Click <strong>Scan Document</strong> to initiate the ClamAV antivirus inspection and byte-level streaming.
+            </p>
+
+            <div class="doc-slots" id="docSlots"></div>
+
+            <div class="document-scanner-box">
+              <div class="scanner-target-doc">
+                <div class="laser-scan-line" id="laserScanLine"></div>
+                <div class="doc-chip">PASSPORT_SCAN_2026.PDF</div>
+                <div class="doc-fake-lines">
+                  <div class="fake-line" style="width: 85%;"></div>
+                  <div class="fake-line" style="width: 60%;"></div>
+                  <div class="fake-line" style="width: 75%;"></div>
+                </div>
+                <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); display: flex; justify-content: space-between;">
+                  <span id="docSizeDisplay">SIZE: 4,194,304 BYTES</span>
+                  <span>FIELDS PENDING</span>
+                </div>
+              </div>
+
+              <!-- 3.5 Second Animated Progress Bar -->
+              <div class="scan-progress-wrap" id="scanProgressWrap">
+                <div class="scan-status-text">
+                  <span id="scanStatusPhase">INITIALIZING SENSORS...</span>
+                  <span id="scanPercentLabel">0%</span>
+                </div>
+                <div class="scan-progress-bar">
+                  <div class="scan-progress-fill" id="scanProgressFill"></div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 14px;">
+              <button class="game-action-btn" id="btnStartScan">
+                <span>🔬 Scan & Stream Document (4.0 MB)</span>
+              </button>
+              <button class="game-action-btn" id="btnProceedToVerify" style="display: none;">
+                <span>Proceed to Verification ▸</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- LEVEL 4: Verify & Confirm -->
+          <div class="game-level-view" id="levelView4">
+            <h2 class="level-header-title">Level 4: Validate & Confirm</h2>
+            <p class="level-header-sub">
+              Scan passed successfully! Now execute the atomic <code>stat_object()</code> comparison. If any byte was lost or truncated, the partial file will be rolled back immediately.
+            </p>
+
+            <div class="verify-matrix-card">
+              <div>
+                <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);">SOURCE PAYLOAD</div>
+                <div style="font-family: var(--font-mono); font-size: 16px; font-weight: 700; color: #fff; margin-top: 4px;">4,194,304 B</div>
+              </div>
+              <div>
+                <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);">BUCKET KEY</div>
+                <div style="font-family: var(--font-mono); font-size: 13px; font-weight: 700; color: var(--accent); margin-top: 4px;">tenants/ae-9842/passport.pdf</div>
+              </div>
+              <div>
+                <div style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);">SHA-256 FINGERPRINT</div>
+                <div style="font-family: var(--font-mono); font-size: 11px; font-weight: 700; color: var(--text-muted); margin-top: 4px;">e3b0c44298fc...</div>
+              </div>
+            </div>
+
+            <button class="game-action-btn" id="btnConfirmCommit">
+              <span>✅ Confirm & Commit to S3 Cluster</span>
+            </button>
+          </div>
+
+          <!-- LEVEL 5: Application Status (Created OR Failed) -->
+          <div class="game-level-view" id="levelView5">
+            
+            <!-- State A: Application Created (Success) -->
+            <div class="completion-success-card" id="cardApplicationSuccess">
+              <div class="success-trophy-badge">🏆</div>
+              <h2 class="level-header-title" style="font-size: 34px;">Application Created Successfully!</h2>
+              <p style="font-size: 14.5px; color: var(--text-muted); max-width: 600px; line-height: 1.6; margin-bottom: 24px;">
+                Layla's document has been verified byte-for-byte and sealed with cryptographic SHA-256 immutability into MinIO object storage.
+              </p>
+
+              <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 30px; max-width: 680px;">
+                <div class="doc-chip" style="font-size: 11px;">✓ Byte Match: 4,194,304 / 4,194,304 (100%)</div>
+                <div class="doc-chip" style="font-size: 11px;">✓ ETag: "a4f8d2b901fc9e42"</div>
+                <div class="doc-chip" style="font-size: 11px;">✓ SHA-256 Stamped in S3 Metadata</div>
+                <div class="doc-chip" style="font-size: 11px;">✓ PostgreSQL Row ID: #8042 Committed</div>
+                <div class="doc-chip" style="font-size: 11px;">✓ Zero Data Loss Guaranteed</div>
+              </div>
+
+              <div style="display: flex; gap: 14px;">
+                <button class="game-action-btn" id="btnRestartQuest">
+                  <span>↺ Play Quest Again</span>
+                </button>
+                <button class="btn-secondary-quest" id="btnSwitchToCinemaAfterWin">
+                  <span>Watch Autonomous Movie</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- State B: Application Failed (Disaster / Rollback) -->
+            <div class="completion-failure-card" id="cardApplicationFailed" style="display: none;">
+              <canvas id="failedExplosionCanvas"></canvas>
+              <div class="failure-alert-badge">❌</div>
+              <h2 class="level-header-title" style="font-size: 34px; color: var(--danger);">Application Failed: Integrity Shield Activated</h2>
+              <p style="font-size: 14.5px; color: #ffffff; max-width: 620px; line-height: 1.6; margin-bottom: 20px;" id="failureSummaryText">
+                A simulated failure interrupted the pipeline. StorageService successfully executed an atomic rollback to protect your database.
+              </p>
+
+              <div class="disaster-details-grid" id="failureBreakdownGrid" style="width: 100%; max-width: 640px; margin-bottom: 28px;">
+                <div><strong>Failed Phase:</strong> Mid-stream Transmission</div>
+                <div><strong>Protective Action:</strong> Atomic rollback purged 100% of partial objects from MinIO.</div>
+                <div><strong>Integrity Status:</strong> Zero corrupt records written to PostgreSQL database.</div>
+              </div>
+
+              <button class="game-action-btn retry-btn" id="btnTryAgainQuest">
+                <span>↺ Try Again / Re-run Pipeline</span>
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Sidebar Lab: Website Customizer & Chaos Lab -->
+        <div class="game-side-controls">
+          
+          <!-- Audio & Narrator Controls -->
+          <div class="studio-panel">
+            <div class="panel-headline">
+              <span>🎙️ Narrator Voice Control</span>
+            </div>
+
+            <!-- Narrator Accent Picker -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+              <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">Voice Accent:</span>
+              <select id="gameVoiceSelect" class="voice-dropdown-styled" style="width: auto;">
+                <option value="auto">System Default</option>
+                <option value="uk">🇬🇧 British UK</option>
+                <option value="us">🇺🇸 American US</option>
+                <option value="au">🇦🇺 Australian AU</option>
+                <option value="in">🇮🇳 Indian IN</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Chaos Injection Testing -->
+          <div class="studio-panel">
+            <div class="panel-headline">
+              <span>🧪 Chaos Injection Lab</span>
+              <button id="btnDisarmAllChaos" style="background: transparent; border: 1px solid var(--border-hairline); color: var(--text-dim); font-family: var(--font-mono); font-size: 9px; padding: 2px 6px; border-radius: 4px; cursor: pointer;">RESET</button>
+            </div>
+            <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Arm a chaos failure to test pipeline resilience:</p>
+
+            <div class="chaos-grid">
+              <button class="chaos-toggle-btn" id="cChaosDrop">
+                <span>✂️ Sever Socket at 70%</span>
+                <span style="font-size: 10px;">OFF</span>
+              </button>
+              <button class="chaos-toggle-btn" id="cChaosLimit">
+                <span>📏 File Size > 50 MB (78.4 MB)</span>
+                <span style="font-size: 10px;">OFF</span>
+              </button>
+              <button class="chaos-toggle-btn" id="cChaosTraversal">
+                <span>🪲 Inject '../../' Traversal</span>
+                <span style="font-size: 10px;">OFF</span>
+              </button>
+              <button class="chaos-toggle-btn" id="cChaosOutage">
+                <span>⛔ MinIO Cluster Offline (503)</span>
+                <span style="font-size: 10px;">OFF</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Real-Time Audit Console -->
+          <div class="studio-panel">
+            <div class="panel-headline">
+              <span>💻 SIEM Diagnostic Log</span>
+            </div>
+            <div class="console-card" id="engineLogs">
+              <div class="log-line"><span class="log-ts">[00:00:01]</span> <span class="log-msg info">Task 1 S3 Architecture Studio v6.0 Ready.</span></div>
+              <div class="log-line"><span class="log-ts">[00:00:02]</span> <span class="log-msg success">MinIO Cluster: Operational. Cooldown: 3.0s armed.</span></div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Custom Cursor Elements -->
+  <div class="focus-ring" id="focusRing"></div>
+  <div class="auto-cursor" id="autoCursor" aria-hidden="true">
+    <svg viewBox="0 0 28 28">
+      <path d="M3 2 L3 21 L8 16.6 L11.6 24.4 L15.2 22.8 L11.7 15.2 L18.2 15 Z" fill="var(--accent)" stroke="#05070b" stroke-width="1.8" stroke-linejoin="round"/>
+    </svg>
+    <div class="cursor-label" id="cursorLabel"></div>
+  </div>
+
+  <script>
+    /* =====================================================================
+       10 MASTER ACTS — AUTONOMOUS 9-MINUTE FILM (VERBATIM)
+       ===================================================================== */
+const CHAPTERS = [
+      {
+        id: 0, numeral: "I", act: "Meet the System", category: "Architecture Overview", duration: 41,
+        cameraClass: "focus-client",
+        headline: "Task 1: A Conversational Agent for Onboarding",
+        hook: "Layla needs to sign up and upload her documents.",
+        summary: "Layla is signing up for a service. Task 1 guides her through sign up, document upload and verification, with vision AI reading her documents directly.",
+        speaker: "Product Narrator",
+        file: "README.md",
+        speech: "Meet Layla. She is signing up for a service, and she needs to upload her identity documents. Behind the scenes, Task 1 is a conversational onboarding agent, version two point zero. It guides customers through sign up, document upload and verification, across multiple services. Vision AI now reads documents directly from the image and extracts structured fields. Everything is built for fully on-premise deployment with Docker Desktop, and it runs on a consumer GPU, an RTX 4060 laptop.",
+        codeSnippet: "# Multi-Service Agentic Onboarding System v2.0\n# on-premise \u00b7 Docker Desktop \u00b7 RTX 4060 Laptop\ndocker compose up -d\nollama pull qwen2.5vl:7b",
+        packetPosition: 8,
+        stats: { rel: "92.9%", int: "3 of 11", thr: "~6.0 GB", sec: "0" }
+      },
+      {
+        id: 1, numeral: "II", act: "The Architecture", category: "System Design", duration: 41,
+        cameraClass: "focus-service",
+        headline: "React or Streamlit, FastAPI, Agents and Ollama",
+        hook: "Four tiers, three specialist agents.",
+        summary: "A React front end served by FastAPI, or Streamlit, talks to the API backend. PostgreSQL with pgvector, Redis and a local Ollama model sit behind it, with three specialist agents on top.",
+        speaker: "Solution Architect",
+        file: "docker-compose.yml",
+        speech: "Here is how the pieces fit. Customers talk to a React front end served by FastAPI, or to a Streamlit interface. FastAPI is the API backend. PostgreSQL with pgvector holds the data, Redis handles cache and queue duties, and Ollama runs the AI model locally. On top sit three specialists. The Collection Agent is a state machine that routes services and tracks progress. The Validation Agent runs cross-document checks. And the Auth Service handles login, signup and sessions.",
+        codeSnippet: "UI    React (:8000) | Streamlit (:8501)\nAPI   FastAPI  /docs\nAgents collection_agent \u00b7 validation_agent \u00b7 auth\nData  PostgreSQL + pgvector \u00b7 Redis\nAI    Ollama (local)",
+        packetPosition: 24,
+        stats: { rel: "92.9%", int: "3 of 11", thr: "~6.0 GB", sec: "0" }
+      },
+      {
+        id: 2, numeral: "III", act: "Service Discovery", category: "Service Catalogue", duration: 46,
+        cameraClass: "focus-client",
+        headline: "Three Live Services, Eight Coming Soon",
+        hook: "Ask what is on offer and the agent answers from the catalogue.",
+        summary: "Basic Registration, Premium / Cross Border and Mobility / Rental are live. Eight more services are recognised but clearly marked as not yet available.",
+        speaker: "Service Catalogue Lead",
+        file: "services/service_catalog.py",
+        speech: "Ask the agent what services do you offer, and it answers from the service catalogue. Three are live today. Basic Registration needs a National ID card and takes one to two business days. Premium, Cross Border needs a National ID card plus a passport, and takes three to five business days. Mobility, Rental needs a driving licence, and takes two to three business days. Eight more, such as Business Registration, Travel Visa and Credit Card, are coming soon. The agent recognises them, and clearly says they are not yet available.",
+        codeSnippet: "LIVE\nBasic Registration       National ID Card            1-2 days\nPremium / Cross Border   National ID Card + Passport 3-5 days\nMobility / Rental        Driving Licence             2-3 days\nCOMING SOON (8)  Business \u00b7 Visa \u00b7 Credit Card \u00b7 Insurance ...",
+        packetPosition: 36,
+        stats: { rel: "92.9%", int: "3 of 11", thr: "~6.0 GB", sec: "0" }
+      },
+      {
+        id: 3, numeral: "IV", act: "Intent Detection", category: "Conversation", duration: 41,
+        cameraClass: "focus-client",
+        headline: "Questions Answered, Applications Guided",
+        hook: "FAQ or application? The agent can tell.",
+        summary: "The agent separates FAQ questions from application intent, then checks which documents the chosen service requires.",
+        speaker: "Conversation Designer",
+        file: "agents/collection_agent.py",
+        speech: "Not every message is an application. The agent tells FAQ questions apart from application intent. Ask a question, and you get an answer. Say I want to apply for Basic Registration, and it moves into guided onboarding, checking which documents that service requires. For Basic Registration, that is a National ID card. And if someone asks for a coming soon service, the agent explains it is not available at the present time, and points them to a live one.",
+        codeSnippet: "user: \"what services do you offer?\"   -> FAQ\nuser: \"I want to apply for Basic Registration\"\n  -> intent: apply\n  -> required: [National ID Card]\nuser: \"Travel Visa\" -> coming soon, not available",
+        packetPosition: 46,
+        stats: { rel: "92.9%", int: "3 of 11", thr: "~6.0 GB", sec: "0" }
+      },
+      {
+        id: 4, numeral: "V", act: "Guided Collection", category: "Collection Agent", duration: 40,
+        cameraClass: "focus-service",
+        headline: "One Document at a Time, With Feedback",
+        hook: "The state machine always knows what comes next.",
+        summary: "The Collection Agent asks for one document at a time and gives real-time feedback on wrong or blurry uploads.",
+        speaker: "Collection Agent Lead",
+        file: "agents/collection_agent.py",
+        speech: "Once the intent is clear, the Collection Agent takes over. It asks for one document at a time, with real-time feedback on every upload. Upload the wrong document, and it says: that doesn't look like a National ID Card, please upload a government-issued ID card. Upload a blurry photo, and it asks for a clearer one with all the text visible. The customer is never left guessing, and the state machine always knows which document comes next.",
+        codeSnippet: "state: awaiting_document(national_id)\n  wrong doc -> \"That doesn't look like a National ID Card.\"\n  blurry    -> \"Please take a clearer photo, all text visible.\"\n  ok        -> next_document() | validate()",
+        packetPosition: 56,
+        stats: { rel: "92.9%", int: "3 of 11", thr: "~6.0 GB", sec: "0" }
+      },
+      {
+        id: 5, numeral: "VI", act: "Upload Guardrails", category: "Data Handling", duration: 36,
+        cameraClass: "focus-service",
+        headline: "Checked Before a Model Sees It",
+        hook: "Formats, size and permitted documents.",
+        summary: "Uploads are validated for type and size first. Permitted documents include driving licences, Emirates ID, passports and proof of address.",
+        speaker: "Compliance Officer",
+        file: "services/validation.py",
+        speech: "Before any model sees a file, the upload is validated. Accepted formats are PDF, PNG, JPG, TIFF and BMP, with a size limit of two hundred megabytes. Permitted documents include driving licences, Emirates ID, passports with the biometric photo page, and proof of address, such as Ejari contracts or DEWA and SEWA bills. Teams follow the data handling guidelines in the project documentation, so testing stays compliant.",
+        codeSnippet: "allowed_types = [PDF, PNG, JPG, JPEG, TIFF, BMP]\nmax_size      = 200 MB\ncategories    = driving_license | emirates_id\n                passport | proof_of_address",
+        packetPosition: 64,
+        stats: { rel: "92.9%", int: "3 of 11", thr: "~6.0 GB", sec: "0" }
+      },
+      {
+        id: 6, numeral: "VII", act: "Vision Extraction", category: "Qwen2.5-VL 7B", duration: 38,
+        cameraClass: "focus-minio",
+        headline: "No OCR Pipeline Needed",
+        hook: "The model reads the image itself.",
+        summary: "Qwen2.5-VL 7B receives the document image directly and returns structured JSON. About 6.0 GB of VRAM and 92.9% on DocVQA.",
+        speaker: "Vision AI Engineer",
+        file: "services/generation.py",
+        speech: "This is the big change in version two. Qwen2.5-VL seven billion, a state-of-the-art vision-language model, receives the document image directly. There is no separate OCR pipeline. It returns structured JSON with every field it can identify: name, date of birth, document number and more. It needs about six gigabytes of video memory, scores ninety-two point nine percent on the DocVQA benchmark, and is licensed under Apache two point zero.",
+        codeSnippet: "POST /api/v1/documents/extract\n  image -> qwen2.5vl:7b (Ollama)\n  <- { name, dob, document_number, ... }\nVRAM ~6.0 GB \u00b7 DocVQA 92.9% \u00b7 Apache 2.0",
+        packetPosition: 72,
+        stats: { rel: "92.9%", int: "3 of 11", thr: "~6.0 GB", sec: "0" }
+      },
+      {
+        id: 7, numeral: "VIII", act: "Document Type Detection", category: "Classification", duration: 38,
+        cameraClass: "focus-minio",
+        headline: "What Kind of Document Is This?",
+        hook: "Fields in, document type out.",
+        summary: "From the extracted fields the system decides: passport, driving licence or national ID, and shows a confidence score.",
+        speaker: "Vision AI Engineer",
+        file: "services/generation.py",
+        speech: "Next, the system classifies the document. From the extracted fields, it decides whether it is a passport, a driving licence or a national ID. The chat then shows the extracted fields with a confidence score, so the customer can see exactly what was read. If the type does not match what was requested, the Collection Agent asks again. Classification now happens through vision prompts, replacing the old classifier and confidence modules.",
+        codeSnippet: "fields -> detect_type()\n  passport | driving_license | national_id\nresponse: fields + confidence score\nmismatch -> ask again",
+        packetPosition: 78,
+        stats: { rel: "92.9%", int: "3 of 11", thr: "~6.0 GB", sec: "0" }
+      },
+      {
+        id: 8, numeral: "IX", act: "The Validation Agent", category: "Cross-Document Checks", duration: 35,
+        cameraClass: "focus-service",
+        headline: "Does Everything Agree?",
+        hook: "Names, dates and validity, across documents.",
+        summary: "For Premium / Cross Border, ID and passport must agree on name and date of birth, and neither may be expired.",
+        speaker: "Validation Specialist",
+        file: "agents/validation_agent.py",
+        speech: "Now the Validation Agent takes over. For Premium, Cross Border, it checks that the ID card and the passport agree: name, date of birth and other fields must match. It checks that each document is still valid and not expired. And it runs cross-field consistency checks, so a name spelled one way on the ID cannot quietly become another on the passport. Mismatches are never ignored.",
+        codeSnippet: "validate(id_card, passport):\n  name  == name\n  dob   == dob\n  not expired(id_card), not expired(passport)\n  cross-field consistency",
+        packetPosition: 86,
+        stats: { rel: "92.9%", int: "3 of 11", thr: "~6.0 GB", sec: "0" }
+      },
+      {
+        id: 9, numeral: "X", act: "Outcome and Audit Trail", category: "Decision", duration: 38,
+        cameraClass: "focus-postgres",
+        headline: "Complete, Incomplete or Human Review",
+        hook: "Every step logged for traceability.",
+        summary: "Applications end as complete, incomplete or needs human review, with specific reasons. Every step is logged in PostgreSQL.",
+        speaker: "Operations Lead",
+        file: "scripts/init_db.sql",
+        speech: "Every application ends in one of three outcomes: complete, incomplete, or needs human review, always with specific reasons. Doubts go to a person, never into a silent approval. And every step is logged in an audit trail, for traceability. Tables such as documents, processing log and chat history live in PostgreSQL, created automatically the first time the database starts. If anyone asks why an application was decided that way, the record answers.",
+        codeSnippet: "status: complete | incomplete | needs_human_review\nreasons: [ ... ]\ntables: documents, processing_log, chat_history\naudit: every step logged",
+        packetPosition: 94,
+        stats: { rel: "92.9%", int: "3 of 11", thr: "~6.0 GB", sec: "0" }
+      },
+      {
+        id: 10, numeral: "XI", act: "Golden Dataset and API", category: "Evaluation", duration: 37,
+        cameraClass: "focus-postgres",
+        headline: "Proving the Extraction Is Right",
+        hook: "Ground truth, test pairs and a documented API.",
+        summary: "A golden dataset and matched/mismatched identity pairs test the system. The API is documented at /docs.",
+        speaker: "Quality Engineer",
+        file: "data/golden_dataset.json",
+        speech: "How do we know extraction is right? A golden dataset holds ground truth for extraction evaluation, and identity pairs provide matched and mismatched cases for validation. Everything is reachable through the API: upload and extract documents, list or delete them, chat with the assistant, run golden dataset operations, and check system health, all documented interactively at slash docs. That is Task 1: multi-service agentic onboarding, running on your own hardware.",
+        codeSnippet: "data/golden_dataset.json   ground truth\ndata/identity_pairs.json   matched / mismatched\nGET /api/v1/health   \u00b7   GET /docs",
+        packetPosition: 98,
+        stats: { rel: "92.9%", int: "3 of 11", thr: "~6.0 GB", sec: "0" }
+      }
+    ];
+
+
+    class AudioEngine {
+      constructor() {
+        this.ctx = null;
+        this.isMuted = false;
+        this.droneOsc = null;
+        this.droneGain = null;
+      }
+
+      init() {
+        if (this.ctx) return;
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        this.ctx = new AudioCtx();
+        this.startDrone();
+      }
+
+      toggleMute(mute) {
+        this.isMuted = mute;
+        if (this.droneGain && this.ctx) {
+          this.droneGain.gain.setValueAtTime(mute ? 0 : 0.015, this.ctx.currentTime);
+        }
+      }
+
+      startDrone() {
+        if (!this.ctx || this.droneOsc) return;
+        try {
+          this.droneOsc = this.ctx.createOscillator();
+          this.droneGain = this.ctx.createGain();
+          this.droneOsc.type = 'sine';
+          this.droneOsc.frequency.setValueAtTime(55, this.ctx.currentTime); // 55Hz low A
+          this.droneGain.gain.setValueAtTime(this.isMuted ? 0 : 0.015, this.ctx.currentTime);
+          this.droneOsc.connect(this.droneGain);
+          this.droneGain.connect(this.ctx.destination);
+          this.droneOsc.start();
+        } catch (e) {}
+      }
+
+      playClick() {
+        if (!this.ctx || this.isMuted) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(1200, this.ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.04);
+          gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.04);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.04);
+        } catch (e) {}
+      }
+
+      playChime(freq = 880, duration = 0.5) {
+        if (!this.ctx || this.isMuted) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(0.12, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {}
+      }
+
+      playScanTone(freq = 600) {
+        if (!this.ctx || this.isMuted) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+          gain.gain.setValueAtTime(0.04, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.08);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 0.08);
+        } catch (e) {}
+      }
+
+      playAlarmSiren() {
+        if (!this.ctx || this.isMuted) return;
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+          osc.frequency.linearRampToValueAtTime(400, this.ctx.currentTime + 0.3);
+          osc.frequency.linearRampToValueAtTime(800, this.ctx.currentTime + 0.6);
+          gain.gain.setValueAtTime(0.2, this.ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.2);
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          osc.stop(this.ctx.currentTime + 1.2);
+        } catch (e) {}
+      }
+
+      playWarpSound() {
+        // Harsh sawtooth screech sound removed as requested
+      }
+    }
+
+    const audioEngine = new AudioEngine();
+
+    /* =====================================================================
+       APP STATE & DOM REFERENCES
+       ===================================================================== */
+    let isCinemaMode = true;
+    let isPlaying = false;
+    let currentChapterIndex = 0;
+    let currentChapterElapsed = 0;
+    let totalTourDuration = 0;
+    let playbackSpeed = 1.0;
+    let storyStarted = false;
+    let voiceEnabled = true;
+    let chosenAccent = "auto";
+    let isScanning = false;
+    let quest3Service = null, lastRendered3 = null, slotDone = [], activeSlot = 0; let selectedService = null; let selectedStatus = "live"; let selectedName = "";
+    let currentQuestLevel = 1;
+
+    // Chaos flags
+    let chaosDropEnabled = false;
+    let chaosLimitEnabled = false;
+    let chaosTraversalEnabled = false;
+    let chaosOutageEnabled = false;
+
+    // DOM Elements
+    const heroIntroScreen = document.getElementById('heroIntroScreen');
+    const btnLaunchCinema = document.getElementById('btnLaunchCinema');
+    const btnLaunchQuest = document.getElementById('btnLaunchQuest');
+    const tabCinemaMode = document.getElementById('tabCinemaMode');
+    const tabQuestMode = document.getElementById('tabQuestMode');
+    const cinemaContainer = document.getElementById('cinemaContainer');
+    const questContainer = document.getElementById('questContainer');
+
+    // Video Viewport & Controls
+    const screenStage = document.getElementById('screenStage');
+    const stageContent = document.getElementById('stageContent');
+    const actCard = document.getElementById('actCard');
+    const actNumeral = document.getElementById('actNumeral');
+    const actName = document.getElementById('actName');
+    const actHook = document.getElementById('actHook');
+    const playPauseBtn = document.getElementById('playPauseBtn');
+    const prevSceneBtn = document.getElementById('prevSceneBtn');
+    const nextSceneBtn = document.getElementById('nextSceneBtn');
+    const restartBtn = document.getElementById('restartBtn');
+    const progressBarContainer = document.getElementById('progressBarContainer');
+    const progressFilled = document.getElementById('progressFilled');
+    const currentTimeLabel = document.getElementById('currentTimeLabel');
+    const totalDurationLabel = document.getElementById('totalDurationLabel');
+    const speedSelect = document.getElementById('playbackSpeed');
+    const fullscreenBtn = document.getElementById('fullscreenBtn');
+    const audioToggleBtn = document.getElementById('audioToggleBtn');
+    const audioIcon = document.getElementById('audioIcon');
+    const audioStatusText = document.getElementById('audioStatusText');
+    const sceneBadge = document.getElementById('sceneBadge');
+    const sceneCategory = document.getElementById('sceneCategory');
+    const sceneTimecode = document.getElementById('sceneTimecode');
+    const sceneTitle = document.getElementById('sceneTitle');
+    const sceneSummary = document.getElementById('sceneSummary');
+    const codeFocusBlock = document.getElementById('codeFocusBlock');
+    const subtitleSpeaker = document.getElementById('subtitleSpeaker');
+    const subtitleText = document.getElementById('subtitleText');
+    const currentScenarioTag = document.getElementById('currentScenarioTag');
+    const watermarkChrono = document.getElementById('watermarkChrono');
+    const packetTrace = document.getElementById('packetTrace');
+    const packetTail = document.getElementById('packetTail');
+    const centerActPill = document.getElementById('centerActPill');
+    const centerActName = document.getElementById('centerActName');
+    const toggleSidebarBtn = document.getElementById('toggleSidebarBtn');
+    const cinemaSidebar = document.getElementById('cinemaSidebar');
+    const cinemaActsList = document.getElementById('cinemaActsList');
+    const cinemaVoiceSelect = document.getElementById('cinemaVoiceSelect');
+
+    // 5 Quest Steps
+    const questStep1 = document.getElementById('questStep1');
+    const questStep2 = document.getElementById('questStep2');
+    const questStep3 = document.getElementById('questStep3');
+    const questStep4 = document.getElementById('questStep4');
+    const questStep5 = document.getElementById('questStep5');
+    const qStatus1 = document.getElementById('qStatus1');
+    const qStatus2 = document.getElementById('qStatus2');
+    const qStatus3 = document.getElementById('qStatus3');
+    const qStatus4 = document.getElementById('qStatus4');
+    const qStatus5 = document.getElementById('qStatus5');
+
+    // Level Views
+    const levelView1 = document.getElementById('levelView1');
+    const levelView2 = document.getElementById('levelView2');
+    const levelView3 = document.getElementById('levelView3');
+    const levelView4 = document.getElementById('levelView4');
+    const levelView5 = document.getElementById('levelView5');
+    const btnLoginProceed = document.getElementById('btnLoginProceed');
+    const btnNextToScan = document.getElementById('btnNextToScan');
+    const btnStartScan = document.getElementById('btnStartScan');
+    const btnProceedToVerify = document.getElementById('btnProceedToVerify');
+    const btnConfirmCommit = document.getElementById('btnConfirmCommit');
+    const cardApplicationSuccess = document.getElementById('cardApplicationSuccess');
+    const cardApplicationFailed = document.getElementById('cardApplicationFailed');
+    const btnRestartQuest = document.getElementById('btnRestartQuest');
+    const btnTryAgainQuest = document.getElementById('btnTryAgainQuest');
+    const btnSwitchToCinemaAfterWin = document.getElementById('btnSwitchToCinemaAfterWin');
+    const laserScanLine = document.getElementById('laserScanLine');
+    const scanProgressWrap = document.getElementById('scanProgressWrap');
+    const scanProgressFill = document.getElementById('scanProgressFill');
+    const scanStatusPhase = document.getElementById('scanStatusPhase');
+    const scanPercentLabel = document.getElementById('scanPercentLabel');
+    const docSizeDisplay = document.getElementById('docSizeDisplay');
+    const failureSummaryText = document.getElementById('failureSummaryText');
+    const failureBreakdownGrid = document.getElementById('failureBreakdownGrid');
+
+    // Chaos & Customizer elements
+    const cChaosDrop = document.getElementById('cChaosDrop');
+    const cChaosLimit = document.getElementById('cChaosLimit');
+    const cChaosTraversal = document.getElementById('cChaosTraversal');
+    const cChaosOutage = document.getElementById('cChaosOutage');
+    const btnDisarmAllChaos = document.getElementById('btnDisarmAllChaos');
+    const gameVoiceSelect = document.getElementById('gameVoiceSelect');
+    const engineLogs = document.getElementById('engineLogs');
+    const disasterOverlay = document.getElementById('disasterOverlay');
+    const disasterTitle = document.getElementById('disasterTitle');
+    const disasterDesc = document.getElementById('disasterDesc');
+    const disasterDetails = document.getElementById('disasterDetails');
+    const btnDisasterAcknowledge = document.getElementById('btnDisasterAcknowledge');
+
+    // Custom Cursor & Warp Canvas
+    const autoCursor = document.getElementById('autoCursor');
+    const cursorLabel = document.getElementById('cursorLabel');
+    const focusRing = document.getElementById('focusRing');
+    const warpFlash = document.getElementById('warpFlash');
+    const ambientCanvas = document.getElementById('ambientCanvas');
+    const disasterCanvas = document.getElementById('disasterCanvas');
+
+    let mousePos = { x: -100, y: -100 };
+    let userMouseActive = false;
+    let userMouseTimer = null;
+    const mouse = { x: -100, y: -100, targetX: -100, targetY: -100 };
+    const ring = { x: 0, y: 0, w: 0, h: 0, init: false };
+    let focusedElement = null;
+
+    /* =====================================================================
+       INITIALIZATION
+       ===================================================================== */
+    function initApp() {
+      totalTourDuration = CHAPTERS.reduce((sum, ch) => sum + ch.duration, 0);
+      totalDurationLabel.textContent = formatTime(totalTourDuration);
+
+      buildSidebarChaptersList();
+      buildSceneMarkers();
+      setupEventListeners();
+      initWarpCanvas();
+      setupMouseTracking();
+      initDisasterCanvas();
+
+      goToChapter(0);
+      setQuestLevel(1);
+    }
+
+    /* Format mm:ss */
+    function formatTime(sec) {
+      const m = Math.floor(sec / 60);
+      const s = Math.floor(sec % 60);
+      return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    /* Build Sidebar Chapters */
+    function buildSidebarChaptersList() {
+      cinemaActsList.innerHTML = '';
+      CHAPTERS.forEach((ch, idx) => {
+        const item = document.createElement('div');
+        item.className = `cinema-act-item ${idx === 0 ? 'active' : ''}`;
+        item.id = `actItem_${idx}`;
+        item.innerHTML = `
+          <div class="cinema-act-left">
+            <span class="cinema-act-num">${ch.numeral}</span>
+            <div class="cinema-act-info">
+              <span class="cinema-act-title">${ch.act}</span>
+              <span class="cinema-act-meta">${formatTime(ch.duration)} • ${ch.category}</span>
+            </div>
+          </div>
+          <span style="font-family: var(--font-mono); font-size: 10px; color: var(--text-dim);">▸</span>
+        `;
+        item.addEventListener('click', () => {
+          jumpToChapter(idx);
+          playTour();
+          audioEngine.playClick();
+        });
+        cinemaActsList.appendChild(item);
+      });
+    }
+
+    /* Build Scrubber Markers */
+    function buildSceneMarkers() {
+      const markersBox = document.getElementById('sceneMarkers');
+      if (!markersBox) return;
+      markersBox.innerHTML = '';
+      let accum = 0;
+      CHAPTERS.forEach((ch, idx) => {
+        const marker = document.createElement('div');
+        marker.className = 'scene-marker';
+        marker.style.position = 'absolute';
+        marker.style.left = `${(accum / totalTourDuration) * 100}%`;
+        marker.style.top = '0';
+        marker.style.bottom = '0';
+        marker.style.width = '2px';
+        marker.style.background = 'rgba(255,255,255,0.2)';
+        marker.title = `Act ${ch.numeral}: ${ch.act}`;
+        marker.addEventListener('click', (e) => {
+          e.stopPropagation();
+          jumpToChapter(idx);
+        });
+        markersBox.appendChild(marker);
+        accum += ch.duration;
+      });
+    }
+
+    /* Switch Modes (Cinema vs Game) */
+    function setMode(cinema) {
+      isCinemaMode = cinema;
+      tabCinemaMode.classList.toggle('active', isCinemaMode);
+      tabQuestMode.classList.toggle('active', !isCinemaMode);
+
+      cinemaContainer.classList.toggle('hidden', !isCinemaMode);
+      questContainer.classList.toggle('hidden', isCinemaMode);
+
+      audioEngine.playChime(isCinemaMode ? 720 : 840, 0.3);
+
+      if (isCinemaMode) {
+        if (!isPlaying) playTour();
+      } else {
+        pauseTour();
+        speakLevelIntro(currentQuestLevel);
+      }
+    }
+
+    /* Chapter Navigation in Cinema Mode */
+    let swapTimer = null;
+    function goToChapter(index) {
+      stopSpeech();
+      currentChapterIndex = index;
+      currentChapterElapsed = 0;
+      const ch = CHAPTERS[index];
+
+      // Update UI elements
+      sceneBadge.textContent = `ACT ${ch.numeral} / ${CHAPTERS[CHAPTERS.length-1].numeral}`;
+      sceneCategory.textContent = ch.category;
+      sceneTitle.textContent = ch.headline;
+      sceneSummary.textContent = ch.summary;
+      centerActPill.textContent = `ACT ${ch.numeral}`;
+      centerActName.textContent = ch.act;
+      subtitleSpeaker.textContent = ch.speaker;
+
+      // Update sidebar active act
+      document.querySelectorAll('.cinema-act-item').forEach((item, i) => {
+        item.classList.toggle('active', i === index);
+      });
+      const activeItem = document.getElementById(`actItem_${index}`);
+      if (activeItem) activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      // Code preview
+      codeFocusBlock.innerHTML = `<span class="comment"># ${ch.file}</span><br>` +
+        escapeHtml(ch.codeSnippet).replace(/(POST|GET|docker|ollama)/g, '<span class="keyword">$1</span>')
+                                   .replace(/(complete|incomplete|needs_human_review|validate|detect_type|qwen2\.5vl:7b)/g, '<span class="func">$1</span>');
+
+      // Interstitial Card
+      actNumeral.textContent = `ACT ${ch.numeral}`;
+      actName.textContent = ch.act;
+      actHook.textContent = `"${ch.hook}"`;
+      actCard.classList.add('show');
+      stageContent.classList.add('veiled');
+
+      clearTimeout(swapTimer);
+      swapTimer = setTimeout(() => {
+        actCard.classList.remove('show');
+        stageContent.classList.remove('veiled');
+        audioEngine.playChime(640, 0.6);
+        if (voiceEnabled) speakText(ch.speech);
+      }, 900);
+
+      // Camera dolly
+      screenStage.className = `screen-stage ${ch.cameraClass}`;
+      applyScenarioToStage();
+      buildSubtitles(ch.speech);
+    }
+
+    function jumpToChapter(index) { goToChapter(index); }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    let wordEls = [];
+    const SPEECH_START = 1.2;
+    function buildSubtitles(text) {
+      subtitleText.innerHTML = '';
+      wordEls = [];
+      const words = text.split(/\s+/);
+      words.forEach(w => {
+        const span = document.createElement('span');
+        span.className = 'word';
+        span.textContent = w + ' ';
+        subtitleText.appendChild(span);
+        wordEls.push(span);
+      });
+    }
+
+    /* Autonomous Transport Loop */
+    let lastTickTime = performance.now();
+    function tick(now) {
+      const dt = (now - lastTickTime) / 1000;
+      lastTickTime = now;
+
+      if (isPlaying && isCinemaMode) {
+        currentChapterElapsed += dt * playbackSpeed;
+        const ch = CHAPTERS[currentChapterIndex];
+
+        if (currentChapterElapsed >= ch.duration) {
+          if (currentChapterIndex < CHAPTERS.length - 1) {
+            goToChapter(currentChapterIndex + 1);
+          } else {
+            pauseTour();
+          }
+        }
+
+        // Subtitle Word highlighting
+        if (wordEls.length && currentChapterElapsed >= SPEECH_START) {
+          const speechTime = currentChapterElapsed - SPEECH_START;
+          const totalSpeechDuration = Math.max(1, ch.duration - SPEECH_START - 2);
+          const fraction = Math.min(1, Math.max(0, speechTime / totalSpeechDuration));
+          const wordsToReveal = Math.floor(fraction * wordEls.length);
+          for (let i = 0; i < wordEls.length; i++) {
+            wordEls[i].classList.toggle('on', i <= wordsToReveal);
+          }
+        }
+
+        // Progress bar
+        let elapsedTotal = 0;
+        for (let i = 0; i < currentChapterIndex; i++) elapsedTotal += CHAPTERS[i].duration;
+        elapsedTotal += currentChapterElapsed;
+
+        const pct = Math.min(100, (elapsedTotal / totalTourDuration) * 100);
+        progressFilled.style.width = `${pct}%`;
+        currentTimeLabel.textContent = formatTime(elapsedTotal);
+        watermarkChrono.textContent = `T+ ${formatTime(elapsedTotal)}.00`;
+      }
+
+      updateFocusRing(dt);
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    /* Play / Pause / Restart */
+    function togglePlay() {
+      if (isPlaying) pauseTour();
+      else playTour();
+    }
+    function playTour() {
+      audioEngine.init();
+      isPlaying = true;
+      playPauseBtn.innerHTML = "❚❚";
+      playPauseBtn.title = "Pause Tour";
+      const ch = CHAPTERS[currentChapterIndex];
+      if (voiceEnabled && wordEls.length && currentChapterElapsed >= SPEECH_START && currentChapterElapsed < ch.duration - 1) {
+        resumeSpeech();
+      }
+    }
+    function pauseTour() {
+      isPlaying = false;
+      playPauseBtn.innerHTML = "▶";
+      playPauseBtn.title = "Play Tour";
+      stopSpeech();
+    }
+    function restartTour() {
+      stopSpeech();
+      goToChapter(0);
+      playTour();
+    }
+
+    /* Speech Synthesis */
+    
+    /* Robust local voice cache for file:// protocol */
+    let cachedVoices = [];
+    function loadVoices() {
+      if ('speechSynthesis' in window) {
+        cachedVoices = window.speechSynthesis.getVoices();
+      }
+    }
+    if ('speechSynthesis' in window) {
+      loadVoices();
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+      }
+    }
+    function speakText(text) {
+      loadVoices();
+      if (!('speechSynthesis' in window) || !voiceEnabled) return;
+      try {
+        window.speechSynthesis.cancel();
+        if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.0 * playbackSpeed;
+
+        const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
+        let selectedVoice = null;
+        if (chosenAccent === "uk") {
+          selectedVoice = voices.find(v => v.lang.includes("GB") || v.lang.includes("en-GB") || v.name.includes("UK") || v.name.includes("British"));
+        } else if (chosenAccent === "us") {
+          selectedVoice = voices.find(v => v.lang.includes("US") || v.lang.includes("en-US") || v.name.includes("US") || v.name.includes("American"));
+        } else if (chosenAccent === "au") {
+          selectedVoice = voices.find(v => v.lang.includes("AU") || v.lang.includes("en-AU") || v.name.includes("Australian"));
+        } else if (chosenAccent === "in") {
+          selectedVoice = voices.find(v => v.lang.includes("IN") || v.lang.includes("en-IN") || v.name.includes("India"));
+        }
+
+        if (!selectedVoice) selectedVoice = voices.find(v => v.lang.startsWith("en"));
+        if (selectedVoice) utterance.voice = selectedVoice;
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {}
+    }
+
+    /* Custom Cursor Tracking */
+    function showLabel(text) { cursorLabel.textContent = text; cursorLabel.classList.add('on'); }
+    function hideLabel() { cursorLabel.classList.remove('on'); }
+    function setFocus(el) { focusedElement = el; focusRing.classList.add('on'); }
+    function clearFocus() { focusedElement = null; focusRing.classList.remove('on'); }
+    function updateFocusRing(dt) {
+      if (!focusedElement) return;
+      const r = focusedElement.getBoundingClientRect();
+      const pad = 4;
+      const tx = r.left - pad, ty = r.top - pad, tw = r.width + pad * 2, th = r.height + pad * 2;
+      if (!ring.init) { Object.assign(ring, { x: tx, y: ty, w: tw, h: th, init: true }); }
+      const k = 1 - Math.exp(-dt * 12);
+      ring.x += (tx - ring.x) * k; ring.y += (ty - ring.y) * k;
+      ring.w += (tw - ring.w) * k; ring.h += (th - ring.h) * k;
+      focusRing.style.transform = `translate3d(${ring.x}px, ${ring.y}px, 0)`;
+      focusRing.style.width = ring.w + 'px'; focusRing.style.height = ring.h + 'px';
+    }
+
+    function setupMouseTracking() {
+      window.addEventListener('mousemove', (e) => {
+        userMouseActive = true;
+        mousePos.x = e.clientX;
+        mousePos.y = e.clientY;
+        mouse.targetX = e.clientX;
+        mouse.targetY = e.clientY;
+
+        const target = document.elementFromPoint(e.clientX, e.clientY);
+        if (target) {
+          const hoverable = target.closest('.topology-node, .cinema-act-item, .service-select-card, .level-step-card, button, select, input');
+          if (hoverable) {
+            setFocus(hoverable);
+            const label = hoverable.dataset.label || hoverable.title || hoverable.getAttribute('aria-label');
+            if (label) showLabel(label); else hideLabel();
+          } else {
+            clearFocus();
+            hideLabel();
+          }
+        }
+        clearTimeout(userMouseTimer);
+        userMouseTimer = setTimeout(() => { userMouseActive = false; }, 3000);
+      });
+
+      window.addEventListener('mousedown', (e) => {
+        audioEngine.playClick();
+        spawnRipple(e.clientX, e.clientY);
+      });
+    }
+
+    function spawnRipple(x, y) {
+      const rip = document.createElement('div');
+      rip.className = 'cursor-ripple';
+      rip.style.left = `${x}px`;
+      rip.style.top = `${y}px`;
+      document.body.appendChild(rip);
+      setTimeout(() => rip.remove(), 600);
+    }
+
+    function applyScenarioToStage() {
+      const nodes = {
+        client: document.getElementById('nodeClient'),
+        service: document.getElementById('nodeService'),
+        minio: document.getElementById('nodeMinIO'),
+        postgres: document.getElementById('nodePostgres')
+      };
+      Object.values(nodes).forEach(n => n.className = "topology-node");
+
+      const ch = CHAPTERS[currentChapterIndex];
+      nodes.client.classList.add("success");
+      nodes.service.classList.add("active");
+      nodes.minio.classList.add("success");
+      nodes.postgres.classList.add("success");
+
+      setPacketPosition(ch.packetPosition);
+    }
+
+    function setPacketPosition(pct) {
+      packetTrace.style.left = `${pct}%`;
+      packetTail.style.left = `calc(${pct}% - 32px)`;
+    }
+
+    /* =====================================================================
+       INTERACTIVE 5-LEVEL QUEST GAME LOGIC
+       ===================================================================== */
+    function setQuestLevel(lvl) {
+      if (lvl === 3) renderLevel3();
+      currentQuestLevel = lvl;
+      audioEngine.playChime(480 + lvl * 90, 0.4);
+
+      // Update step cards
+      [questStep1, questStep2, questStep3, questStep4, questStep5].forEach((card, idx) => {
+        const stepNum = idx + 1;
+        card.classList.toggle('active', stepNum === lvl);
+        card.classList.toggle('completed', stepNum < lvl);
+        card.classList.remove('failed');
+      });
+
+      qStatus1.textContent = lvl > 1 ? "Completed" : "In Progress";
+      qStatus2.textContent = lvl > 2 ? "Completed" : (lvl === 2 ? "In Progress" : "Locked");
+      qStatus3.textContent = lvl > 3 ? "Completed" : (lvl === 3 ? "In Progress" : "Locked");
+      qStatus4.textContent = lvl > 4 ? "Completed" : (lvl === 4 ? "In Progress" : "Locked");
+      qStatus5.textContent = lvl === 5 ? "Active" : "Pending";
+
+      // Show matching level view
+      [levelView1, levelView2, levelView3, levelView4, levelView5].forEach((v, idx) => {
+        v.classList.toggle('active', idx + 1 === lvl);
+      });
+
+      logEvent("info", `[QUEST PROGRESS] -> Level ${lvl} Activated.`);
+      speakLevelIntro(lvl);
+    }
+
+    const serviceSpeech = {
+      basic: "Basic Registration. You will need your National ID card. Processing takes one to two business days.",
+      premium: "Premium, Cross Border. You will need your National ID card and your passport. Processing takes three to five business days.",
+      mobility: "Mobility, Rental. You will need your driving licence. Processing takes two to three business days."
+    };
+    
+    /* =====================================================================
+       CUSTOMER IDENTITY STATE & NARRATOR ADAPTATION
+       ===================================================================== */
+    function getCustomerName() {
+      const input = document.getElementById('inputCustomerName');
+      if (input && input.value.trim()) return input.value.trim();
+      return "Layla Ahmed";
+    }
+    function getCustomerFirstName() {
+      const name = getCustomerName();
+      return name.split(/\s+/)[0] || name;
+    }
+    function getCustomerEmail() {
+      const input = document.getElementById('inputCustomerEmail');
+      if (input && input.value.trim()) return input.value.trim();
+      return "layla.ahmed@onboarding.ae";
+    }
+    function getCustomerNationalId() {
+      const input = document.getElementById('inputNationalId');
+      if (input && input.value.trim()) return input.value.trim();
+      return "784-1992-108234-1";
+    }
+    function getCustomerPartition() {
+      const input = document.getElementById('inputTenantPartition');
+      if (input && input.value.trim()) return input.value.trim();
+      return "ae-tenant-9842 (Immutable S3 Prefix)";
+    }
+
+    let lastSpokenCustomerName = "Layla Ahmed";
+    let customerNameDebounce = null;
+
+    function syncCustomerIdentity(shouldSpeak = false) {
+      const name = getCustomerName();
+      const firstName = getCustomerFirstName();
+      const isDefault = name.toLowerCase() === 'layla' || name.toLowerCase() === 'layla ahmed';
+
+      // 1. Update Level 1 subtext
+      const level1Sub = document.getElementById('level1Sub');
+      if (level1Sub) {
+        if (isDefault) {
+          level1Sub.innerHTML = `Layla is starting her onboarding journey. Authenticate customer credentials to establish a secure, cryptographically signed tenant session before uploading sensitive documents.`;
+        } else {
+          level1Sub.innerHTML = `<strong>${escapeHtml(name)}</strong> is starting the onboarding journey. Authenticate credentials to establish a secure, cryptographically signed tenant session before uploading sensitive documents.`;
+        }
+      }
+
+      // 2. Update Level 2 subtext
+      const level2Sub = document.querySelector('#levelView2 .level-header-sub');
+      if (level2Sub) {
+        level2Sub.innerHTML = `Choose the onboarding service <strong>${escapeHtml(name)}</strong> needs. Three services are live today; the rest are coming soon.`;
+      }
+
+      // 3. Update Level 3 subtext
+      const level3Sub = document.querySelector('#levelView3 .level-header-sub');
+      if (level3Sub && !level3Sub.innerHTML.includes('requires:')) {
+        level3Sub.innerHTML = `<strong>${escapeHtml(name)}</strong> has provided verified identity documents. Click <strong>Scan Document</strong> to initiate inspection and byte-level streaming.`;
+      }
+
+      // 4. Update Level 5 success card text
+      const successP = document.querySelector('#cardApplicationSuccess p');
+      if (successP) {
+        successP.textContent = `${name}'s document has been verified byte-for-byte and sealed with cryptographic SHA-256 immutability into MinIO object storage.`;
+      }
+
+      // 5. Narrator speech detection on editing
+      if (name !== lastSpokenCustomerName) {
+        lastSpokenCustomerName = name;
+        logEvent("info", `Identity updated: Customer name set to [${name}].`);
+
+        if (shouldSpeak) {
+          clearTimeout(customerNameDebounce);
+          customerNameDebounce = setTimeout(() => {
+            if (isDefault) {
+              speakText("Customer name set to Layla Ahmed. Default credentials restored.");
+            } else {
+              speakText(`Customer name changed to ${name}. The onboarding agent will now address ${name}.`);
+            }
+          }, 650);
+        }
+      }
+    }
+
+    function speakLevelIntro(lvl) {
+      if (isCinemaMode) return;
+      const name = getCustomerName();
+      if (lvl === 1) {
+        if (name.toLowerCase().includes('layla')) {
+          speakText("Level 1: Tenant authentication. Layla is starting her onboarding journey. You can authenticate her session below, or edit the customer credentials directly.");
+        } else {
+          speakText(`Level 1: Tenant authentication. Onboarding session for ${name}. Authenticate customer credentials to establish a secure tenant session.`);
+        }
+      } else if (lvl === 2) {
+        speakText(`Level 2: Select a service for ${name}. Three services are live today. Basic Registration needs a National ID card and takes one to two business days. Premium or Cross Border needs a National ID card and a passport, and takes three to five business days. Mobility or Rental needs a driving licence, and takes two to three business days. Please note that other services, such as Business Registration, Travel Visa, Credit Card, Insurance, Utility Connection, Gym Membership, Library Card and Student Enrollment, are coming soon and are not available at the present time.`);
+      } else if (lvl === 3) {
+        speakText(level3Intro());
+      } else if (lvl === 4) {
+        speakText(`Level 4: Validate and confirm. The validation agent checks the fields for ${name}, and the application is marked complete, incomplete, or needs human review.`);
+      }
+    }
+
+
+
+    function logEvent(type, message) {
+      const line = document.createElement('div');
+      line.className = 'log-line';
+      const now = new Date();
+      const ts = `[${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}]`;
+      line.innerHTML = `<span class="log-ts">${ts}</span> <span class="log-msg ${type}">${message}</span>`;
+      engineLogs.appendChild(line);
+      engineLogs.scrollTop = engineLogs.scrollHeight;
+    }
+
+    /* =====================================================================
+       DISASTER & EXPLOSIONS ENGINE
+       ===================================================================== */
+    let disasterParticles = [];
+    let disasterCtx = null;
+    function initDisasterCanvas() {
+      disasterCanvas.width = window.innerWidth;
+      disasterCanvas.height = window.innerHeight;
+      disasterCtx = disasterCanvas.getContext('2d');
+      window.addEventListener('resize', () => {
+        disasterCanvas.width = window.innerWidth;
+        disasterCanvas.height = window.innerHeight;
+      });
+    }
+
+    function triggerDisasterExplosion(title, desc, detailsHtml, spokenExplanation) {
+      disasterTitle.textContent = title;
+      disasterDesc.textContent = desc;
+      disasterDetails.innerHTML = detailsHtml;
+      disasterOverlay.classList.add('active');
+
+      audioEngine.playAlarmSiren();
+      speakText(spokenExplanation);
+
+      // Fire the full-screen mega explosion & screen shockwave
+      if (typeof triggerMegaExplosion === 'function') {
+        triggerMegaExplosion();
+      }
+
+      // Spawn 90 fire / spark particles
+      disasterParticles = [];
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      for (let i = 0; i < 90; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 12 + 4;
+        disasterParticles.push({
+          x: cx, y: cy,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          radius: Math.random() * 4 + 2,
+          color: Math.random() > 0.4 ? '#ef4444' : (Math.random() > 0.5 ? '#f59e0b' : '#ffffff'),
+          alpha: 1.0,
+          decay: Math.random() * 0.02 + 0.015
+        });
+      }
+
+      function renderExplosion() {
+        if (!disasterOverlay.classList.contains('active')) return;
+        disasterCtx.clearRect(0, 0, disasterCanvas.width, disasterCanvas.height);
+        disasterParticles.forEach((p, idx) => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.15; // gravity
+          p.alpha -= p.decay;
+
+          if (p.alpha > 0) {
+            disasterCtx.save();
+            disasterCtx.globalAlpha = p.alpha;
+            disasterCtx.fillStyle = p.color;
+            disasterCtx.shadowColor = p.color;
+            disasterCtx.shadowBlur = 12;
+            disasterCtx.beginPath();
+            disasterCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            disasterCtx.fill();
+            disasterCtx.restore();
+          }
+        });
+        disasterParticles = disasterParticles.filter(p => p.alpha > 0);
+        if (disasterParticles.length > 0) {
+          requestAnimationFrame(renderExplosion);
+        }
+      }
+      renderExplosion();
+    }
+
+    function closeDisasterOverlayAndRouteToFailed(incidentType, reason) {
+      disasterOverlay.classList.remove('active');
+      setQuestLevel(5);
+      questStep5.classList.add('failed');
+      qStatus5.textContent = "Failed (Protected)";
+
+      cardApplicationSuccess.style.display = 'none';
+      cardApplicationFailed.style.display = 'flex';
+      setTimeout(() => triggerFailedCardExplosion(), 150);
+
+      const name = getCustomerName();
+      failureSummaryText.textContent = `${name}'s upload encountered a simulated failure. StorageService successfully executed an atomic rollback to protect your database.`;
+      failureBreakdownGrid.innerHTML = `
+        <div><strong>Customer Name:</strong> ${name}</div>
+        <div><strong>Incident Code:</strong> ${incidentType}</div>
+        <div><strong>Protective Action:</strong> Atomic rollback executed. MinIO purged incomplete object; PostgreSQL write blocked.</div>
+        <div><strong>Data Hygiene:</strong> 0 orphaned rows or corrupt bytes committed. Database integrity intact.</div>
+      `;
+    }
+
+    /* Ambient Warp Starfield */
+    let warpStars = [];
+    let warpSpeed = 0.5;
+    let targetWarpSpeed = 0.5;
+    function initWarpCanvas() {
+      ambientCanvas.width = window.innerWidth;
+      ambientCanvas.height = window.innerHeight;
+      const ctx = ambientCanvas.getContext('2d');
+
+      for (let i = 0; i < 180; i++) {
+        warpStars.push({
+          x: (Math.random() - 0.5) * ambientCanvas.width * 2,
+          y: (Math.random() - 0.5) * ambientCanvas.height * 2,
+          z: Math.random() * ambientCanvas.width,
+          color: Math.random() > 0.4 ? '#78ddb2' : (Math.random() > 0.5 ? '#00a651' : '#f43f5e')
+        });
+      }
+
+      function drawWarp() {
+        ctx.fillStyle = 'rgba(5, 7, 14, 0.25)';
+        ctx.fillRect(0, 0, ambientCanvas.width, ambientCanvas.height);
+
+        const cx = ambientCanvas.width / 2;
+        const cy = ambientCanvas.height / 2;
+        warpSpeed += (targetWarpSpeed - warpSpeed) * 0.05;
+
+        warpStars.forEach(s => {
+          s.z -= warpSpeed;
+          if (s.z <= 0) {
+            s.z = ambientCanvas.width;
+            s.x = (Math.random() - 0.5) * ambientCanvas.width * 2;
+            s.y = (Math.random() - 0.5) * ambientCanvas.height * 2;
+          }
+
+          const k = 250 / s.z;
+          const px = s.x * k + cx;
+          const py = s.y * k + cy;
+
+          if (px >= 0 && px < ambientCanvas.width && py >= 0 && py < ambientCanvas.height) {
+            const size = Math.max(0.8, (1 - s.z / ambientCanvas.width) * 3);
+            ctx.fillStyle = s.color;
+            ctx.shadowBlur = targetWarpSpeed > 2 ? 15 : 4;
+            ctx.shadowColor = s.color;
+            ctx.beginPath();
+            ctx.arc(px, py, size, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        });
+
+        requestAnimationFrame(drawWarp);
+      }
+      requestAnimationFrame(drawWarp);
+
+      window.addEventListener('resize', () => {
+        ambientCanvas.width = window.innerWidth;
+        ambientCanvas.height = window.innerHeight;
+      });
+    }
+
+    async function triggerWarpEffect() {
+      targetWarpSpeed = 35;
+      warpFlash.classList.add('active');
+      await new Promise(r => setTimeout(r, 450));
+      warpFlash.classList.remove('active');
+      targetWarpSpeed = 0.5;
+    }
+
+    /* =====================================================================
+       EVENT BINDINGS
+       ===================================================================== */
+    function setupEventListeners() {
+      // Intro launches
+      btnLaunchCinema.addEventListener('click', async () => {
+        audioEngine.init();
+        await triggerWarpEffect();
+        heroIntroScreen.classList.add('hidden');
+        setMode(true);
+        storyStarted = true;
+        goToChapter(0);
+        playTour();
+      });
+
+      btnLaunchQuest.addEventListener('click', async () => {
+        audioEngine.init();
+        await triggerWarpEffect();
+        heroIntroScreen.classList.add('hidden');
+        setMode(false);
+      });
+
+      // Top Tabs
+      tabCinemaMode.addEventListener('click', () => setMode(true));
+      tabQuestMode.addEventListener('click', () => setMode(false));
+
+      // Video Controls
+      playPauseBtn.addEventListener('click', togglePlay);
+      restartBtn.addEventListener('click', restartTour);
+      nextSceneBtn.addEventListener('click', () => { if (currentChapterIndex < CHAPTERS.length - 1) jumpToChapter(currentChapterIndex + 1); });
+      prevSceneBtn.addEventListener('click', () => {
+        if (currentChapterElapsed > 4 || currentChapterIndex === 0) jumpToChapter(currentChapterIndex);
+        else jumpToChapter(currentChapterIndex - 1);
+      });
+      speedSelect.addEventListener('change', (e) => { playbackSpeed = parseFloat(e.target.value); });
+
+      toggleSidebarBtn.addEventListener('click', () => {
+        cinemaContainer.classList.toggle('sidebar-hidden');
+      });
+
+      audioToggleBtn.addEventListener('click', () => {
+        voiceEnabled = !voiceEnabled;
+        audioEngine.toggleMute(!voiceEnabled);
+        if (!voiceEnabled) stopSpeech(); else if (isPlaying) resumeSpeech();
+        audioToggleBtn.classList.toggle('is-off', !voiceEnabled);
+        audioIcon.textContent = voiceEnabled ? "🔊" : "🔇";
+        audioStatusText.textContent = voiceEnabled ? "Sound: ON" : "Sound: MUTED";
+      });
+
+      // Customer Identity Inputs & Listeners
+      const inputCustomerName = document.getElementById('inputCustomerName');
+      const inputCustomerEmail = document.getElementById('inputCustomerEmail');
+      const inputNationalId = document.getElementById('inputNationalId');
+      const inputTenantPartition = document.getElementById('inputTenantPartition');
+      const btnResetCredentials = document.getElementById('btnResetCredentials');
+
+      if (inputCustomerName) {
+        inputCustomerName.addEventListener('input', () => syncCustomerIdentity(true));
+        inputCustomerName.addEventListener('change', () => syncCustomerIdentity(true));
+      }
+      if (inputCustomerEmail) {
+        inputCustomerEmail.addEventListener('change', (e) => {
+          logEvent("info", `Customer email updated: [${e.target.value}]`);
+        });
+      }
+      if (inputNationalId) {
+        inputNationalId.addEventListener('change', (e) => {
+          logEvent("info", `National ID updated: [${e.target.value}]`);
+        });
+      }
+
+      if (btnResetCredentials) {
+        btnResetCredentials.addEventListener('click', () => {
+          if (inputCustomerName) inputCustomerName.value = "Layla Ahmed";
+          if (inputCustomerEmail) inputCustomerEmail.value = "layla.ahmed@onboarding.ae";
+          if (inputNationalId) inputNationalId.value = "784-1992-108234-1";
+          if (inputTenantPartition) inputTenantPartition.value = "ae-tenant-9842 (Immutable S3 Prefix)";
+          syncCustomerIdentity(false);
+          audioEngine.playChime(650, 0.3);
+          speakText("Customer credentials reset back to Layla Ahmed.");
+          logEvent("info", "Customer credentials reset to Layla Ahmed default.");
+        });
+      }
+
+      // Quest Level 1: Log In Proceed
+      btnLoginProceed.addEventListener('click', () => {
+        const name = getCustomerName();
+        syncCustomerIdentity(false);
+        logEvent("success", `Customer credentials authenticated: [${name.toUpperCase().replace(/\s+/g, '_')}] (Session #8042-S3).`);
+        audioEngine.playChime(750, 0.4);
+        setQuestLevel(2);
+      });
+
+      // Quest Level 2: Select Service
+      document.querySelectorAll('.service-select-card').forEach(card => {
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.service-select-card').forEach(c => c.classList.remove('selected')); selectedService = null; selectedStatus = 'live'; { const sn = document.getElementById('soonNotice'); if (sn) sn.hidden = true; }
+          card.classList.add('selected');
+          selectedService = card.dataset.service; selectedStatus = card.dataset.status; selectedName = card.querySelector('.service-card-name').childNodes[0].textContent.trim();
+          document.getElementById('soonNotice').hidden = true;
+          btnNextToScan.removeAttribute('disabled');
+          speakText(selectedStatus === 'soon' ? `${selectedName} is coming soon. It is not available at the present time.` : serviceSpeech[selectedService]);
+          audioEngine.playChime(600, 0.25);
+          logEvent("info", `Service selected: [${selectedService.toUpperCase()}]`);
+        });
+      });
+
+      btnNextToScan.addEventListener('click', () => {
+        if (selectedStatus === 'soon') {
+          const n = document.getElementById('soonNotice');
+          n.textContent = `${selectedName} is coming soon and won't work right now. Please choose Basic Registration, Premium / Cross Border or Mobility / Rental.`;
+          n.hidden = false; audioEngine.playChime(300, 0.3); speakText(`Sorry, ${selectedName} is coming soon and won't work right now. Please choose one of the three available services.`);
+          return;
+        }
+        quest3Service = selectedService;
+        setQuestLevel(3);
+      });
+
+
+    // =====================================================================
+    // MEGA EXPLOSION SYSTEM (global full-screen)
+    // =====================================================================
+    const explosionCanvas = document.getElementById('explosionCanvas');
+    const explosionCtx = explosionCanvas && explosionCanvas.getContext('2d');
+    let megaParticles = [];
+    let megaDebris = [];
+    let megaExplosionRaf = null;
+
+    function triggerMegaExplosion(label) {
+      if (!explosionCanvas) return;
+      explosionCanvas.width = window.innerWidth;
+      explosionCanvas.height = window.innerHeight;
+      explosionCanvas.classList.add('active');
+
+      // White flash
+      const flash = document.createElement('div');
+      flash.className = 'flash-white';
+      document.body.appendChild(flash);
+      setTimeout(() => flash.remove(), 700);
+
+      // Shockwave rings
+      for (let r = 0; r < 3; r++) {
+        setTimeout(() => {
+          const ring = document.createElement('div');
+          ring.className = 'shockwave-ring';
+          ring.style.cssText = `left:${window.innerWidth/2}px;top:${window.innerHeight/2}px;transform:translate(-50%,-50%);`;
+          document.body.appendChild(ring);
+          setTimeout(() => ring.remove(), 1000);
+        }, r * 180);
+      }
+
+      // Screen shake
+      document.body.style.animation = 'none';
+      document.body.style.transform = 'translate(8px, -6px)';
+      setTimeout(() => { document.body.style.transform = 'translate(-8px, 6px)'; }, 60);
+      setTimeout(() => { document.body.style.transform = 'translate(5px, -4px)'; }, 120);
+      setTimeout(() => { document.body.style.transform = 'translate(-4px, 3px)'; }, 180);
+      setTimeout(() => { document.body.style.transform = 'translate(2px, -2px)'; }, 240);
+      setTimeout(() => { document.body.style.transform = 'translate(0, 0)'; }, 300);
+
+      // Spawn lots of particles
+      megaParticles = [];
+      megaDebris = [];
+      const cx = window.innerWidth / 2;
+      const cy = window.innerHeight / 2;
+      const COLORS = ['#ef4444','#f97316','#f59e0b','#fbbf24','#ffffff','#ff0022','#ff6600'];
+
+      // Fire particles — 220 of them
+      for (let i = 0; i < 220; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 22 + 4;
+        const explosionX = cx + (Math.random() - 0.5) * 200;
+        const explosionY = cy + (Math.random() - 0.5) * 200;
+        megaParticles.push({
+          x: explosionX, y: explosionY,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - Math.random() * 6,
+          radius: Math.random() * 7 + 2,
+          color: COLORS[Math.floor(Math.random() * COLORS.length)],
+          alpha: 1.0,
+          decay: Math.random() * 0.016 + 0.008,
+          trail: [],
+        });
+      }
+
+      // Debris chunks — 60 rectangles
+      for (let i = 0; i < 60; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 14 + 2;
+        megaDebris.push({
+          x: cx + (Math.random()-0.5)*150,
+          y: cy + (Math.random()-0.5)*150,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - Math.random() * 5,
+          rotation: Math.random() * Math.PI * 2,
+          rotSpeed: (Math.random() - 0.5) * 0.3,
+          w: Math.random() * 18 + 4,
+          h: Math.random() * 8 + 2,
+          color: Math.random() > 0.5 ? '#1a0a10' : '#f43f5e',
+          alpha: 1.0,
+          decay: Math.random() * 0.012 + 0.006,
+        });
+      }
+
+      // Additional explosion bursts offset from center
+      const BURST_OFFSETS = [[-180,-100],[180,-80],[-100,120],[150,100],[0,-200]];
+      BURST_OFFSETS.forEach(([ox, oy], bi) => {
+        setTimeout(() => {
+          for (let i = 0; i < 50; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 14 + 3;
+            megaParticles.push({
+              x: cx + ox, y: cy + oy,
+              vx: Math.cos(angle) * speed,
+              vy: Math.sin(angle) * speed - Math.random() * 4,
+              radius: Math.random() * 5 + 1.5,
+              color: COLORS[Math.floor(Math.random() * COLORS.length)],
+              alpha: 1.0,
+              decay: Math.random() * 0.02 + 0.01,
+              trail: [],
+            });
+          }
+        }, bi * 120 + 100);
+      });
+
+      // Audio
+      audioEngine.playAlarmSiren();
+
+      // Render loop
+      if (megaExplosionRaf) cancelAnimationFrame(megaExplosionRaf);
+
+      function renderMega() {
+        if (!explosionCanvas.classList.contains('active')) return;
+        explosionCtx.clearRect(0, 0, explosionCanvas.width, explosionCanvas.height);
+
+        // Draw fire particles
+        megaParticles.forEach(p => {
+          if (p.alpha <= 0) return;
+          p.trail.push({x: p.x, y: p.y, a: p.alpha});
+          if (p.trail.length > 6) p.trail.shift();
+
+          // Draw trail
+          p.trail.forEach((t, ti) => {
+            explosionCtx.save();
+            explosionCtx.globalAlpha = t.a * (ti / p.trail.length) * 0.4;
+            explosionCtx.fillStyle = p.color;
+            explosionCtx.shadowColor = p.color;
+            explosionCtx.shadowBlur = 6;
+            explosionCtx.beginPath();
+            explosionCtx.arc(t.x, t.y, p.radius * (ti/p.trail.length), 0, Math.PI * 2);
+            explosionCtx.fill();
+            explosionCtx.restore();
+          });
+
+          // Draw particle
+          explosionCtx.save();
+          explosionCtx.globalAlpha = p.alpha;
+          explosionCtx.fillStyle = p.color;
+          explosionCtx.shadowColor = p.color;
+          explosionCtx.shadowBlur = 20;
+          explosionCtx.beginPath();
+          explosionCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          explosionCtx.fill();
+          explosionCtx.restore();
+
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.3;
+          p.vx *= 0.98;
+          p.alpha -= p.decay;
+        });
+
+        // Draw debris
+        megaDebris.forEach(d => {
+          if (d.alpha <= 0) return;
+          explosionCtx.save();
+          explosionCtx.globalAlpha = d.alpha;
+          explosionCtx.translate(d.x, d.y);
+          explosionCtx.rotate(d.rotation);
+          explosionCtx.fillStyle = d.color;
+          explosionCtx.shadowColor = '#f43f5e';
+          explosionCtx.shadowBlur = 8;
+          explosionCtx.fillRect(-d.w/2, -d.h/2, d.w, d.h);
+          explosionCtx.restore();
+
+          d.x += d.vx; d.y += d.vy;
+          d.vy += 0.4; d.vx *= 0.97;
+          d.rotation += d.rotSpeed;
+          d.alpha -= d.decay;
+        });
+
+        megaParticles = megaParticles.filter(p => p.alpha > 0);
+        megaDebris = megaDebris.filter(d => d.alpha > 0);
+
+        if (megaParticles.length > 0 || megaDebris.length > 0) {
+          megaExplosionRaf = requestAnimationFrame(renderMega);
+        } else {
+          setTimeout(() => explosionCanvas.classList.remove('active'), 400);
+        }
+      }
+      renderMega();
+
+
+    }
+
+    // Also enhance the existing disaster overlay transition to run failedCard particles
+    function triggerFailedCardExplosion() {
+      const canvas = document.getElementById('failedExplosionCanvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const W = canvas.offsetWidth || 600;
+      const H = canvas.offsetHeight || 400;
+      canvas.width = W; canvas.height = H;
+      let particles = [];
+      const COLORS = ['#ef4444','#f97316','#f59e0b','#ff0022','#ffffff'];
+      const positions = [
+        [W*0.1, H*0.2], [W*0.9, H*0.15], [W*0.5, H*0.1],
+        [W*0.2, H*0.8], [W*0.8, H*0.75], [W*0.5, H*0.5],
+      ];
+      positions.forEach(([bx, by]) => {
+        for (let i = 0; i < 35; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = Math.random() * 8 + 2;
+          particles.push({
+            x: bx, y: by,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - Math.random() * 4,
+            r: Math.random() * 4 + 1,
+            color: COLORS[Math.floor(Math.random() * COLORS.length)],
+            alpha: 1.0,
+            decay: Math.random() * 0.025 + 0.012,
+          });
+        }
+      });
+      function renderFailed() {
+        ctx.clearRect(0, 0, W, H);
+        particles.forEach(p => {
+          if (p.alpha <= 0) return;
+          ctx.save();
+          ctx.globalAlpha = p.alpha;
+          ctx.fillStyle = p.color;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.alpha -= p.decay;
+        });
+        particles = particles.filter(p => p.alpha > 0);
+        if (particles.length > 0) requestAnimationFrame(renderFailed);
+      }
+      renderFailed();
+    }
+
+
+      // Quest Level 3: Scan Document with realistic 3.5s loader & Chaos Triggers
+      btnStartScan.addEventListener('click', () => {
+        if (isScanning) return;
+        isScanning = true;
+        btnStartScan.setAttribute('disabled', 'true');
+        laserScanLine.classList.add('scanning');
+        scanProgressWrap.classList.add('active');
+        scanProgressFill.style.width = '0%';
+        scanPercentLabel.textContent = '0%';
+        btnProceedToVerify.style.display = 'none';
+        logEvent("info", "Starting in-memory document scan (4.0 MB)...");
+
+        // Check immediate chaos triggers (Outage, Limit, Traversal)
+        if (chaosLimitEnabled) {
+          setTimeout(() => {
+            isScanning = false;
+            laserScanLine.classList.remove('scanning');
+            logEvent("error", "HTTP 413 Payload Too Large: Upload of 78.4 MB exceeds 50 MB limit!");
+            triggerDisasterExplosion(
+              "DISASTER: FILE SIZE LIMIT EXCEEDED",
+              "FastAPI Ingest Gateway rejected upload: 78.4 MB exceeds the configured 50 MB ceiling!",
+              `<div><strong>HTTP Status:</strong> 413 Payload Too Large</div>
+               <div><strong>Max Allowed:</strong> 52,428,800 bytes (50 MB)</div>
+               <div><strong>Protection:</strong> Pre-upload memory guard rejected the payload before MinIO allocation.</div>`,
+              "Critical violation. The uploaded document exceeds fifty megabytes. FastAPI rejected the stream with HTTP 413 to prevent memory exhaustion."
+            );
+          }, 400);
+          return;
+        }
+
+        if (chaosTraversalEnabled) {
+          setTimeout(() => {
+            isScanning = false;
+            laserScanLine.classList.remove('scanning');
+            logEvent("error", "StorageService._safe_key: Path traversal attempt '../../' blocked!");
+            triggerDisasterExplosion(
+              "SECURITY ALARM: PATH TRAVERSAL BLOCKED",
+              "StorageService._safe_key detected illegal directory traversal characters '../../etc/shadow'!",
+              `<div><strong>Violation:</strong> Path traversal injection attempt</div>
+               <div><strong>Filter:</strong> <code>StorageService._safe_key()</code> sanitized tenant prefix</div>
+               <div><strong>HTTP Status:</strong> 400 Bad Request</div>`,
+              "Security alarm. StorageService intercepted an illegal path traversal attack before contacting the object store."
+            );
+          }, 400);
+          return;
+        }
+
+        if (chaosOutageEnabled) {
+          setTimeout(() => {
+            isScanning = false;
+            laserScanLine.classList.remove('scanning');
+            logEvent("error", "StorageService._guard: MinIO cluster offline (ConnectionRefused)!");
+            logEvent("warn", "HTTP 503 returned with 3.0s cooldown.");
+            triggerDisasterExplosion(
+              "OUTAGE: MINIO STORAGE CLUSTER OFFLINE",
+              "MinIO object store is unreachable. The StorageService circuit breaker engaged a 3.0s cooldown!",
+              `<div><strong>Exception:</strong> urllib3.exceptions.MaxRetryError (ConnectionRefused)</div>
+               <div><strong>HTTP Status:</strong> 503 Service Unavailable</div>
+               <div><strong>Resilience:</strong> Worker process remained online without crashing; auto-reconnect armed.</div>`,
+              "Storage cluster offline. StorageService circuit-breaker intercepted the failure and returned a clean HTTP 503 without crashing the worker."
+            );
+          }, 400);
+          return;
+        }
+
+        let start = performance.now();
+        const duration = 3500; // 3.5 seconds
+
+        const scanTimer = setInterval(() => {
+          const elapsed = performance.now() - start;
+          const p = Math.min(1, elapsed / duration);
+          const percent = Math.floor(p * 100);
+
+          scanProgressFill.style.width = `${percent}%`;
+          scanPercentLabel.textContent = `${percent}%`;
+
+          // CHAOS CUTOFF AT 70% CHECK
+          if (chaosDropEnabled && percent >= 70) {
+            clearInterval(scanTimer);
+            isScanning = false;
+            laserScanLine.classList.remove('scanning');
+            const name = getCustomerName();
+            logEvent("error", `TCP Socket disconnected prematurely at 70% (2,936,012 bytes) for ${name}!`);
+            logEvent("warn", "stat_object() detected size mismatch! Immediate remove_object rollback executed.");
+            triggerDisasterExplosion(
+              "CRITICAL DISASTER: UPLOAD CUTOFF AT 70%",
+              `${name}'s connection dropped mid-stream at byte 2,936,012 of 4,194,304! Partial object purged from MinIO.`,
+              `<div><strong>Customer Name:</strong> ${name} (${getCustomerEmail()})</div>
+               <div><strong>National ID:</strong> ${getCustomerNationalId()}</div>
+               <div><strong>Root Cause:</strong> Client TCP socket severed abruptly during chunk streaming.</div>
+               <div><strong>Systems Affected:</strong> FastAPI stream severed; MinIO holds partial orphaned chunks.</div>
+               <div><strong>Integrity Action:</strong> <code>StorageService</code> detected size mismatch via <code>stat_object()</code>, immediately executed <code>remove_object()</code> atomic purge, and blocked PostgreSQL record creation!</div>
+               <div><strong>Outcome:</strong> 0 corrupt bytes committed to database. Perfect data hygiene preserved.</div>`,
+              `Critical upload failure at seventy percent! ${name}'s connection dropped mid-stream. StorageService intercepted the connection severed event, executed an immediate atomic purge in MinIO, and aborted PostgreSQL commit. Zero ghost records were created.`
+            );
+            return;
+          }
+
+          if (percent < 30) {
+            scanStatusPhase.textContent = "CHECKING FILE TYPE & SIZE...";
+          } else if (percent < 70) {
+            scanStatusPhase.textContent = "VISION MODEL READING THE IMAGE (QWEN2.5-VL:7B)...";
+            if (percent % 15 === 0) audioEngine.playScanTone(520 + percent * 3);
+          } else if (percent < 95) {
+            scanStatusPhase.textContent = "EXTRACTING STRUCTURED FIELDS...";
+          } else {
+            scanStatusPhase.textContent = "FIELDS EXTRACTED.";
+          }
+
+          if (p >= 1) {
+            clearInterval(scanTimer);
+            laserScanLine.classList.remove('scanning');
+            audioEngine.playChime(880, 0.5);
+            logEvent("success", "Scan 100% Complete: Header valid, ClamAV Clean, SHA-256 calculated.");
+            isScanning = false;
+            onDocScanned();
+          }
+        }, 35);
+      });
+
+      btnProceedToVerify.addEventListener('click', () => {
+        setQuestLevel(4);
+      });
+
+      // Quest Level 4: Confirm & Commit
+      btnConfirmCommit.addEventListener('click', () => {
+        const name = getCustomerName();
+        logEvent("info", "put_object: Transmitted 4,194,304 bytes to MinIO.");
+        logEvent("success", "stat_object: Size verified exact match (4,194,304 bytes).");
+        logEvent("success", `PostgreSQL: Metadata committed for ${name} with SHA-256 seal.`);
+        audioEngine.playChime(920, 0.6);
+        setQuestLevel(5);
+
+        cardApplicationSuccess.style.display = 'flex';
+        cardApplicationFailed.style.display = 'none';
+        const successP = document.querySelector('#cardApplicationSuccess p');
+        if (successP) {
+          successP.textContent = `${name}'s document has been verified byte-for-byte and sealed with cryptographic SHA-256 immutability into MinIO object storage.`;
+        }
+        speakText(`Mission complete! ${name}'s document has been verified byte-for-byte and sealed with cryptographic immutability into MinIO object storage.`);
+      });
+
+      btnRestartQuest.addEventListener('click', () => {
+        quest3Service = null; lastRendered3 = null;
+        setQuestLevel(1);
+        btnNextToScan.setAttribute('disabled', 'true');
+        btnStartScan.removeAttribute('disabled');
+        btnProceedToVerify.style.display = 'none';
+        scanProgressWrap.classList.remove('active');
+        document.querySelectorAll('.service-select-card').forEach(c => c.classList.remove('selected')); selectedService = null; selectedStatus = 'live'; { const sn = document.getElementById('soonNotice'); if (sn) sn.hidden = true; }
+      });
+
+      btnTryAgainQuest.addEventListener('click', () => {
+        setQuestLevel(1);
+        btnNextToScan.setAttribute('disabled', 'true');
+        btnStartScan.removeAttribute('disabled');
+        btnProceedToVerify.style.display = 'none';
+        scanProgressWrap.classList.remove('active');
+        document.querySelectorAll('.service-select-card').forEach(c => c.classList.remove('selected')); selectedService = null; selectedStatus = 'live'; { const sn = document.getElementById('soonNotice'); if (sn) sn.hidden = true; }
+        logEvent("info", "Quest reset. Ready for retry.");
+      });
+
+      btnDisasterAcknowledge.addEventListener('click', () => {
+        closeDisasterOverlayAndRouteToFailed("CHAOS_DISASTER_TRIGGERED", "The pipeline safely caught the error, purged partial fragments from MinIO, and quarantined your database.");
+      });
+
+      btnSwitchToCinemaAfterWin.addEventListener('click', () => {
+        setMode(true);
+        goToChapter(0);
+        playTour();
+      });
+
+      // Voice Accent Switchers
+      gameVoiceSelect.addEventListener('change', (e) => {
+        chosenAccent = e.target.value;
+        if (cinemaVoiceSelect) cinemaVoiceSelect.value = chosenAccent;
+        audioEngine.playChime(620, 0.3);
+        logEvent("info", `Narrator accent set to ${chosenAccent.toUpperCase()}`);
+        onAccentChanged();
+      });
+      cinemaVoiceSelect.addEventListener('change', (e) => {
+        chosenAccent = e.target.value;
+        if (gameVoiceSelect) gameVoiceSelect.value = chosenAccent;
+        audioEngine.playChime(620, 0.3);
+        logEvent("info", `Narrator accent set to ${chosenAccent.toUpperCase()}`);
+        onAccentChanged();
+      });
+
+      // Chaos Injection Toggles
+      cChaosDrop.addEventListener('click', () => {
+        chaosDropEnabled = !chaosDropEnabled;
+        cChaosDrop.classList.toggle('armed', chaosDropEnabled);
+        cChaosDrop.querySelector('span:last-child').textContent = chaosDropEnabled ? "ARMED" : "OFF";
+        logEvent("warn", `Chaos Drop at 70%: ${chaosDropEnabled ? 'ARMED' : 'DISARMED'}`);
+      });
+
+      cChaosLimit.addEventListener('click', () => {
+        chaosLimitEnabled = !chaosLimitEnabled;
+        cChaosLimit.classList.toggle('armed', chaosLimitEnabled);
+        cChaosLimit.querySelector('span:last-child').textContent = chaosLimitEnabled ? "ARMED" : "OFF";
+        docSizeDisplay.textContent = chaosLimitEnabled ? "SIZE: 78,412,890 BYTES (> 50 MB)" : "SIZE: 4,194,304 BYTES";
+        logEvent("warn", `Chaos Limit > 50 MB: ${chaosLimitEnabled ? 'ARMED' : 'DISARMED'}`);
+      });
+
+      cChaosTraversal.addEventListener('click', () => {
+        chaosTraversalEnabled = !chaosTraversalEnabled;
+        cChaosTraversal.classList.toggle('armed', chaosTraversalEnabled);
+        cChaosTraversal.querySelector('span:last-child').textContent = chaosTraversalEnabled ? "ARMED" : "OFF";
+        logEvent("warn", `Chaos Path Traversal: ${chaosTraversalEnabled ? 'ARMED' : 'DISARMED'}`);
+      });
+
+      cChaosOutage.addEventListener('click', () => {
+        chaosOutageEnabled = !chaosOutageEnabled;
+        cChaosOutage.classList.toggle('armed', chaosOutageEnabled);
+        cChaosOutage.querySelector('span:last-child').textContent = chaosOutageEnabled ? "ARMED" : "OFF";
+        logEvent("warn", `Chaos Outage Simulation: ${chaosOutageEnabled ? 'ARMED' : 'DISARMED'}`);
+      });
+
+      btnDisarmAllChaos.addEventListener('click', () => {
+        chaosDropEnabled = false;
+        chaosLimitEnabled = false;
+        chaosTraversalEnabled = false;
+        chaosOutageEnabled = false;
+        [cChaosDrop, cChaosLimit, cChaosTraversal, cChaosOutage].forEach(b => {
+          b.classList.remove('armed');
+          b.querySelector('span:last-child').textContent = "OFF";
+        });
+        docSizeDisplay.textContent = "SIZE: 4,194,304 BYTES";
+        logEvent("info", "All chaos injections disarmed.");
+        audioEngine.playChime(600, 0.2);
+      });
+
+      // Jump to chapters via video nodes or quick pills
+      document.querySelectorAll('.topology-node, .module-quick-pill').forEach(el => {
+        el.addEventListener('click', () => {
+          const act = parseInt(el.dataset.act || 0);
+          jumpToChapter(act);
+          playTour();
+          audioEngine.playChime(720, 0.3);
+          logEvent("info", `Navigated to module in Act ${act + 1}`);
+        });
+      });
+
+      progressBarContainer.addEventListener('click', (e) => {
+        const rect = progressBarContainer.getBoundingClientRect();
+        const target = ((e.clientX - rect.left) / rect.width) * totalTourDuration;
+        let acc = 0, idx = CHAPTERS.length - 1;
+        for (let i = 0; i < CHAPTERS.length; i++) {
+          if (acc + CHAPTERS[i].duration >= target) { idx = i; break; }
+          acc += CHAPTERS[i].duration;
+        }
+        jumpToChapter(idx);
+      });
+
+      fullscreenBtn.addEventListener('click', () => {
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(err => console.error(err));
+        else document.exitFullscreen();
+      });
+
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'Space' && !['INPUT', 'SELECT', 'BUTTON'].includes(e.target.tagName)) {
+          e.preventDefault();
+          togglePlay();
+        }
+      });
+    }
+
+    window.addEventListener('DOMContentLoaded', initApp);
+  
+
+
+    /* ===== Level 3: required documents per service ===== */
+    const SERVICE_DOCS = {
+      basic:    { name: 'Basic Registration',     docs: [{ n: 'National ID Card', f: 'NATIONAL_ID_SCAN.PDF' }] },
+      premium:  { name: 'Premium / Cross Border', docs: [{ n: 'National ID Card', f: 'NATIONAL_ID_SCAN.PDF' }, { n: 'Passport', f: 'PASSPORT_SCAN.PDF' }] },
+      mobility: { name: 'Mobility / Rental',      docs: [{ n: 'Driving Licence', f: 'DRIVING_LICENCE_SCAN.PDF' }] }
+    };
+    function level3Docs() { return (SERVICE_DOCS[quest3Service] || SERVICE_DOCS.basic).docs; }
+    function level3Intro() {
+      const d = level3Docs(), svc = (SERVICE_DOCS[quest3Service] || SERVICE_DOCS.basic).name;
+      const name = getCustomerName();
+      return d.length > 1
+        ? `Level 3: Upload documents for ${name}. ${svc} needs two: your ${d[0].n} and your ${d[1].n}. Submit each one in its own block.`
+        : `Level 3: Upload document for ${name}. ${svc} needs only your ${d[0].n}. Press upload and scan.`;
+    }
+    function renderLevel3() {
+      if (lastRendered3 === quest3Service && lastRendered3 !== null) return;
+      lastRendered3 = quest3Service;
+      const docs = level3Docs(), svc = (SERVICE_DOCS[quest3Service] || SERVICE_DOCS.basic).name;
+      slotDone = docs.map(() => false); activeSlot = 0;
+      document.querySelector('#levelView3 .level-header-sub').innerHTML = `<strong>${svc}</strong> requires: ${docs.map(d => d.n).join(' + ')}. Submit ${docs.length > 1 ? 'each document in its own block' : 'the document'} below.`;
+      const box = document.getElementById('docSlots');
+      box.style.gridTemplateColumns = `repeat(${docs.length}, 1fr)`;
+      box.innerHTML = docs.map((d, i) => `<button type="button" class="doc-slot" data-i="${i}"><span class="slot-label">DOCUMENT ${i + 1} OF ${docs.length}</span><strong>${d.n}</strong><span class="slot-state"></span></button>`).join('');
+      box.querySelectorAll('.doc-slot').forEach(b => b.addEventListener('click', () => {
+        const i = +b.dataset.i; if (isScanning || slotDone[i]) return; activeSlot = i; paintSlots();
+      }));
+      btnProceedToVerify.style.display = 'none'; btnStartScan.removeAttribute('disabled');
+      scanProgressFill.style.width = '0%'; scanPercentLabel.textContent = '0%';
+      paintSlots();
+    }
+    function paintSlots() {
+      const docs = level3Docs();
+      document.querySelectorAll('#docSlots .doc-slot').forEach((b, i) => {
+        b.classList.toggle('done', !!slotDone[i]); b.classList.toggle('active', i === activeSlot && !slotDone[i]);
+        b.querySelector('.slot-state').textContent = slotDone[i] ? 'Uploaded and extracted' : (i === activeSlot ? 'Ready to scan' : 'Awaiting upload');
+      });
+      document.querySelector('#levelView3 .doc-chip').textContent = docs[activeSlot].f;
+      btnStartScan.querySelector('span').textContent = `🔬 Upload & Scan ${docs[activeSlot].n}`;
+    }
+    function onDocScanned() {
+      const docs = level3Docs(); slotDone[activeSlot] = true;
+      const next = slotDone.indexOf(false);
+      if (next === -1) {
+        paintSlots(); btnProceedToVerify.style.display = 'inline-flex';
+        speakText(docs.length > 1 ? 'Both documents received and extracted. Proceed to validation, where the ID and passport are cross-checked.' : `${docs[0].n} received and extracted. Proceed to validation.`);
+      } else {
+        activeSlot = next; paintSlots();
+        scanProgressFill.style.width = '0%'; scanPercentLabel.textContent = '0%';
+        btnStartScan.removeAttribute('disabled');
+        speakText(`${docs[next - 1 >= 0 ? next - 1 : 0].n} extracted. Next, please submit your ${docs[next].n}.`);
+      }
+    }
+    /* ===== Speech control (instant mute / restart) ===== */
+    let speakToken = 0, speakTimer = null;
+    function stopSpeech() {
+      speakToken++; clearTimeout(speakTimer);
+      try { if (window.speechSynthesis) { window.speechSynthesis.cancel(); } } catch (e) {}
+    }
+    function speakText(text) {
+      stopSpeech();
+      if (!('speechSynthesis' in window) || !voiceEnabled) return;
+      loadVoices();
+      const my = speakToken;
+      speakTimer = setTimeout(() => {
+        if (my !== speakToken || !voiceEnabled) return;
+        try {
+          const u = new SpeechSynthesisUtterance(text);
+          u.rate = 1.0 * playbackSpeed;
+          const voices = cachedVoices.length ? cachedVoices : window.speechSynthesis.getVoices();
+          const pick = pickVoice(voices); const v = pick.voice;
+          if (chosenAccent !== 'auto') u.lang = ACCENT_LANG[chosenAccent];
+          if (v) u.voice = v;
+          window.speechSynthesis.speak(u);
+        } catch (e) {}
+      }, 60);
+    }
+    function resumeSpeech() {
+      if (!voiceEnabled) return;
+      const ch = CHAPTERS[currentChapterIndex];
+      if (currentChapterElapsed < SPEECH_START || !wordEls.length) return;
+      const total = Math.max(1, ch.duration - SPEECH_START - 2);
+      const frac = Math.min(1, Math.max(0, (currentChapterElapsed - SPEECH_START) / total));
+      const words = ch.speech.split(/\s+/);
+      const rest = words.slice(Math.min(words.length - 1, Math.floor(frac * words.length))).join(' ');
+      speakText(rest);
+    }
+
+    const ACCENT_LANG = { uk: 'en-GB', us: 'en-US', au: 'en-AU', in: 'en-IN' };
+    const ACCENT_HINT = { uk: /british|\buk\b|united kingdom|england|hazel|george|libby|sonia|ryan/i, us: /american|\bus\b|united states|zira|david|aria|jenny|guy/i, au: /austral|catherine|natasha|william/i, in: /india|heera|ravi|neerja|prabhat/i };
+    function pickVoice(voices) {
+      const en = voices.filter(x => /^en/i.test(x.lang.replace('_', '-')));
+      if (chosenAccent === 'auto') return { voice: en[0] || voices[0], exact: true };
+      const want = ACCENT_LANG[chosenAccent].toLowerCase();
+      let v = en.find(x => x.lang.replace('_', '-').toLowerCase() === want) || en.find(x => ACCENT_HINT[chosenAccent].test(x.name));
+      return { voice: v || en[0] || voices[0], exact: !!v };
+    }
+    function showVoiceToast(msg) {
+      let t = document.getElementById('voiceToast');
+      if (!t) { t = document.createElement('div'); t.id = 'voiceToast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+      t.textContent = msg; t.classList.add('show');
+      clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 3500);
+    }
+    function onAccentChanged() {
+      loadVoices();
+      const voices = cachedVoices.length ? cachedVoices : (window.speechSynthesis ? window.speechSynthesis.getVoices() : []);
+      if (chosenAccent !== 'auto' && voices.length && !pickVoice(voices).exact) {
+        showVoiceToast('No ' + ACCENT_LANG[chosenAccent] + ' voice is installed on this device, so the default voice is used.');
+      }
+      stopSpeech();
+      if (isCinemaMode) { if (isPlaying) resumeSpeech(); }
+      else speakText('Narrator accent changed.');
+    }
+    /* ===== Autoplay narration + scroll-to-advance (added) ===== */
+    (function () {
+      const active = () => navigator.userActivation && navigator.userActivation.hasBeenActive;
+      const hint = document.createElement('div');
+      hint.textContent = 'Tap anywhere to turn the narration on';
+      hint.style.cssText = 'position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:99999;padding:12px 22px;border-radius:99px;background:linear-gradient(135deg,#00a651,#f43f5e);color:#fff;font:600 14px system-ui,sans-serif;letter-spacing:.04em';
+      const evts = ['pointerdown', 'keydown', 'touchend'];
+      function unlock() {
+        evts.forEach(e => window.removeEventListener(e, unlock, true));
+        hint.remove();
+        try { audioEngine.init(); if (audioEngine.ctx && audioEngine.ctx.state === 'suspended') audioEngine.ctx.resume(); } catch (e) {}
+        if (isPlaying && voiceEnabled) playTour();
+      }
+      let lock = 0;
+      cinemaContainer.addEventListener('wheel', ev => {
+        if (!isCinemaMode || ev.target.closest('.cinema-sidebar') || Math.abs(ev.deltaY) < 24) return;
+        const now = Date.now(); if (now - lock < 1100) return; lock = now;
+        const next = currentChapterIndex + (ev.deltaY > 0 ? 1 : -1);
+        if (next >= 0 && next < CHAPTERS.length) jumpToChapter(next);
+      }, { passive: true });
+    })();
+
+    /* ===== Loader 0-100, then the intro page waits for the user ===== */
+    (function () {
+      const L = document.getElementById('loader'); if (!L) return;
+      const num = document.getElementById('ldNum'), bar = document.getElementById('ldBar'), lab = document.getElementById('ldLabel');
+      const steps = [[0, 'Starting up'], [30, 'Loading the service catalogue'], [60, 'Warming up the vision model'], [90, 'Preparing the walkthrough']];
+      const DUR = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 600 : 2800;
+      let ready = document.readyState === 'complete';
+      window.addEventListener('load', () => { ready = true; });
+      const t0 = performance.now();
+      function step(t) {
+        const p = Math.min(1, (t - t0) / DUR);
+        let v = Math.round((p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2) * 100);
+        if (!ready && v > 92) v = 92;
+        num.textContent = v; bar.style.width = v + '%';
+        lab.textContent = steps.filter(x => v >= x[0]).pop()[1];
+        if (v >= 100) {
+          lab.textContent = 'Ready';
+          setTimeout(() => { L.classList.add('done'); setTimeout(() => L.remove(), 700);
+            const b = document.getElementById('btnLaunchCinema'); if (b) b.focus({ preventScroll: true }); }, 350);
+          return;
+        }
+        requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    })();
+</script>
+</body>
+</html>
