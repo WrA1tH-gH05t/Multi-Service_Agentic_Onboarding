@@ -1,5 +1,30 @@
 # CHANGELOG — Multi-Service Agentic Onboarding System
 
+## [v2.1.0] — 2026-11-10 (Enterprise Storage Hardening, Standardized S3 Naming & Health Probes)
+
+### Major Changes
+- **Standardized MinIO S3 Object Naming (`<name>_<idnumber>_<date>.<ext>`)**:
+  - Replaced cluttered/nested directory structures (`docs/<uuid>_<raw_filename>` and `wizard/<user>/<session>/<sha>_<filename>`) with a clean, flat, audit-ready naming standard: `<name>_<idnumber>_<date>.<ext>` (e.g. `layla_ahmed_784199012345671_20261110.pdf`, `layla_ahmed_n98765432_20261110.jpg`).
+  - Pre-flight vision extraction automatically resolves applicant full names and national ID/passport numbers before streaming to object storage.
+  - Added centralized key generator `format_object_name()` in `services/storage.py` used by both `app/routes/documents.py` and `app/routes/wizard.py`.
+- **True MinIO Server-Side Encryption (SSE)**:
+  - Added native cryptographic server-side encryption via `minio.sse.SseS3` and `minio.sse.SseKMS` passed directly to `put_object(..., sse=...)`.
+- **Dual Health & Telemetry Probes**:
+  - Added Kubernetes / Docker readiness probe at `/health/ready` (and root `/ready`) returning HTTP 200 when MinIO & PostgreSQL are responsive, and HTTP 503 if degraded.
+  - Added `/api/v1/metrics/storage` telemetry endpoint exposing Prometheus-style operation counters, latency percentiles, and transferred byte totals.
+
+### Added
+- **Bucket Reorganization Utility**: Added `scripts/reorganize_minio_bucket.py` CLI utility and `StorageService.reorganize_clustered_objects()` to migrate existing cluttered bucket files to the new `name_idnumber_date.ext` format and synchronize the database.
+- **Enterprise Storage Hardening Suite**: Added `TestH13_EnterpriseStorageAndProbes` in `tests/test_hardening.py` covering key generation, sanitation, fallbacks, SSE providers, metadata normalization, and bucket reorganization (84 total tests passing).
+
+### Fixed
+- **Storage Metrics Double-Counting**: Added `StorageMetricsCollector.record_bytes()` to decouple transferred byte totals from operation counts, ensuring latency averages and request counts are strictly accurate.
+- **SHA-256 Metadata Normalization**: Added case-insensitive normalization for S3/MinIO `x-amz-meta-` header prefixes on object download verification to prevent silent checksum bypasses.
+- **Document Route Syntax Bug**: Fixed a syntax typo in `app/routes/documents.py` (`"selected_service": None,*`) that prevented module import.
+- **Removed Duplicate Code**: Purged legacy duplicated code block at the bottom of `migrate_from_filesystem` in `services/storage.py`.
+
+---
+
 ## [v2.0.0] — 2026-01-XX (Vision AI Upgrade)
 
 ### Major Changes

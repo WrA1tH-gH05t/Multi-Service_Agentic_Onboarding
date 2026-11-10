@@ -479,6 +479,32 @@ async def health():
     }
 
 
+@app.get("/ready", include_in_schema=False)
+async def ready():
+    """Root-level Kubernetes readiness probe with HTTP 200/503 status code semantics."""
+    storage = app_state.get("storage")
+    storage_ready = False
+    storage_details = {}
+    if storage and hasattr(storage, "readiness_probe"):
+        try:
+            storage_ready, storage_details = storage.readiness_probe()
+        except Exception as e:
+            storage_details = {"ready": False, "reason": str(e)}
+    else:
+        storage_ready = bool(storage and storage.is_connected)
+        storage_details = {"ready": storage_ready}
+
+    refresh_ready()
+    is_ready = bool(app_state["ready"] and storage_ready)
+    return JSONResponse(
+        status_code=200 if is_ready else 503,
+        content={
+            "ready": is_ready,
+            "storage": storage_details,
+        },
+    )
+
+
 # Serve React frontend. Resolve to project root (parent of app/)
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATIC_DIR = os.path.join(PROJECT_ROOT, "app", "static")

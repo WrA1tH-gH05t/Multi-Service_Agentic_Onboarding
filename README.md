@@ -202,7 +202,7 @@ task 1/
 - `services/embedding.py` — Embedding service removed (vision model embeds internally)
 - `services/classifier.py` — Document classification via vision prompts
 - `services/confidence.py` — OCR confidence scoring removed
-- `services/storage.py` — SeaweedFS not implemented
+- `services/storage.py` — Hardened MinIO Object Store with SSE, SHA-256 verification & standardized naming
 
 ## 🎓 How It Works (v2.0 — Vision AI Flow)
 
@@ -253,13 +253,15 @@ The agent will recognize these and clearly state they are not yet available:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/v1/documents/upload` | POST | Upload a document (saved to filesystem) |
+| `/api/v1/documents/upload` | POST | Upload a document to MinIO (`<name>_<idnumber>_<date>.<ext>`) |
 | `/api/v1/documents/extract` | POST | Extract fields from image (returns JSON, no save) |
 | `/api/v1/documents` | GET | List all uploaded documents |
-| `/api/v1/documents/{id}/delete` | POST | Delete a document |
+| `/api/v1/documents/{id}/delete` | POST | Delete a document from database and MinIO |
 | `/api/v1/chat/message` | POST | Chat with the AI assistant |
 | `/api/v1/golden-dataset/*` | GET/POST | Golden dataset operations (search, validate, compare) |
-| `/api/v1/health` | GET | System health check |
+| `/api/v1/health` | GET | System component health check |
+| `/api/v1/health/ready` | GET | Kubernetes/Docker readiness probe (200 / 503) |
+| `/api/v1/metrics/storage` | GET | In-memory MinIO telemetry & operation metrics |
 | `/docs` | GET | Interactive API documentation |
 
 > **Key change**: `/api/v1/documents/extract` is the primary extraction endpoint. It uses the vision model to process images and return structured JSON.

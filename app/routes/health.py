@@ -34,6 +34,7 @@ Response Shape:
 import logging
 from typing import Optional
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
@@ -84,7 +85,6 @@ async def health():
         except Exception:
             db_status = "unavailable"
 
-    from fastapi.responses import JSONResponse
     return JSONResponse(content={
         "status": "healthy" if state["ready"] else "degraded",
         "services": {
@@ -97,3 +97,52 @@ async def health():
             "database": db_status,
         }
     })
+
+
+@router.get("/health/ready")
+async def readiness():
+    """Kubernetes / Docker readiness probe checking live MinIO and relational database responsiveness.
+
+    Returns HTTP 200 when all core components are actively ready to serve traffic;
+    returns HTTP 503 if object storage or database connection is degraded.
+    """
+    state = get_state()
+    storage_ready = False
+    storage_details = {}
+
+    if state.get("storage") and hasattr(state["storage"], "readiness_probe"):
+        try:
+            storage_ready, storage_details = state["storage"].readiness_probe()
+        except Exception as e:
+            storage_details = {"ready": False, "reason": str(e)}
+    else:
+        storage_ready = bool(state.get("storage") and state["storage"].is_connected)
+        storage_details = {"ready": storage_ready}
+
+    is_ready = bool(state.get("ready") and storage_ready)
+    status_code = 200 if is_ready else 503
+
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "ready": is_ready,
+            "overall_status": "healthy" if state.get("ready") else "degraded",
+            "storage": storage_details,
+        },
+    )
+
+
+@router.get("/metrics/storage")
+async def storage_metrics():
+    """Telemetry and operation metrics for the MinIO object storage subsystem.
+
+    Exposes Prometheus-style in-memory counters, latency percentiles, and transferred byte totals.
+    """
+    state = get_state()
+    storage = state.get("storage")
+    if storage and hasattr(storage, "get_telemetry"):
+        return JSONResponse(content=storage.get_telemetry())
+    return JSONResponse(
+        status_code=503,
+        content={"error": "storage service uninitialized or telemetry collector unavailable"},
+    )

@@ -9,6 +9,7 @@ import io
 from datetime import datetime, timedelta
 from typing import Optional
 from services.file_validation import validate_file_content
+from services.storage import format_object_name
 from fastapi import APIRouter, File, UploadFile, HTTPException, Query
 from fastapi.responses import JSONResponse, Response, FileResponse
 
@@ -56,7 +57,7 @@ def _get_session(session_id: str) -> dict:
     if session_id not in _chat_sessions:
         _chat_sessions[session_id] = {
             "step": "welcome",
-            "selected_service": None,*
+            "selected_service": None,
             "applicant_name": None,
             "application_id": None,
             "uploaded_documents": [],
@@ -206,20 +207,6 @@ async def upload_document(
             logger.warning(f"Document validation failed: {e}. Continuing with extraction anyway.")
             validation_result = None
 
-    # Upload to MinIO (Phase 3: atomic — write to temp first)
-    storage = state["storage"]
-    if storage:
-        try:
-            # Upload straight to storage (the object store is the only place the file is kept)
-            storage.upload_file(
-                file_data=content,
-                object_name=object_name,
-                content_type=content_type,
-                metadata={"application_id": application_id or "", "user_id": user_id or ""},
-            )
-        except Exception as e:
-            logger.error(f"MinIO upload failed: {e}")
-            raise HTTPException(status_code=503, detail="File storage is temporarily unavailable. Please try again in a moment.")
     # Determine document type from filename
     filename_lower = file.filename.lower() if file.filename else ""
     if "passport" in filename_lower:
@@ -234,32 +221,97 @@ async def upload_document(
     extraction_confidence = 0.0
 
     try:
-        generation = state["generation"]
-        schema = GenerationService.PASSPORT_SCHEMA if document_type == "passport" else GenerationService.NATIONAL_ID_SCHEMA
-        raw_json = await generation._extract_fields_from_image(
-            content, schema, document_type=document_type
-        )
+        generation = state.get("generation")
+        if generation and hasattr(generation, "_extract_fields_from_image"):
+            schema = GenerationService.PASSPORT_SCHEMA if document_type == "passport" else GenerationService.NATIONAL_ID_SCHEMA
+            raw_json = await generation._extract_fields_from_image(
+                content, schema, document_type=document_type
+            )
 
-        # Parse the JSON response
-        parsed = json.loads(raw_json)
-        # Only keep fields that are in the schema (or metadata fields)
-        extracted_fields = {k: str(v).strip() if v else "" for k, v in parsed.items()
-                          if not k.startswith("_") or k in ("_total_pages", "_front_page", "_back_page", "_note")}
-        # Validate: reject if schema says "ERROR" or similar
-        if "ERROR" in str(parsed) or "error" in str(parsed).lower():
-            extracted_fields = {"_error": "Extraction returned error"}
+            # Parse the JSON response
+            parsed = json.loads(raw_json)
+            # Only keep fields that are in the schema (or metadata fields)
+            extracted_fields = {k: str(v).strip() if v else "" for k, v in parsed.items()
+                              if not k.startswith("_") or k in ("_total_pages", "_front_page", "_back_page", "_note")}
+            # Validate: reject if schema says "ERROR" or similar
+            if "ERROR" in str(parsed) or "error" in str(parsed).lower():
+                extracted_fields = {"_error": "Extraction returned error"}
 
-        # Calculate confidence based on how many required fields are filled
-        required = len(schema)
-        filled = sum(1 for k, v in extracted_fields.items() if k not in ("_total_pages", "_front_page", "_back_page", "_note") and v)
-        extraction_confidence = filled / required if required > 0 else 0.0
+            # Calculate confidence based on how many required fields are filled
+            required = len(schema)
+            filled = sum(1 for k, v in extracted_fields.items() if k not in ("_total_pages", "_front_page", "_back_page", "_note") and v)
+            extraction_confidence = filled / required if required > 0 else 0.0
 
-        logger.info(f"Extraction successful for {filename}: {len(extracted_fields)} fields, confidence={extraction_confidence:.2f}")
+            logger.info(f"Extraction successful for {filename}: {len(extracted_fields)} fields, confidence={extraction_confidence:.2f}")
 
     except Exception as e:
         logger.warning(f"Vision extraction failed: {e}. File saved without extraction.")
         extracted_fields = {"_error": str(e)[:200]}
         extraction_confidence = 0.0
+
+    # Determine applicant name and ID number for MinIO object formatting
+    auth = state.get("auth")
+    user_account = None
+    if token and auth:
+        try:
+            user_account = auth.validate_token(token)
+        except Exception:
+            pass
+
+    app_info = _application_store.get(application_id, {}) if application_id else {}
+    applicant_name = (
+        extracted_fields.get("full_name")
+        or extracted_fields.get("name")
+        or app_info.get("applicant_name")
+        or (user_account.username if user_account else None)
+        or (user_account.email.split("@")[0] if user_account and user_account.email else None)
+        or (str(user_id) if user_id else "applicant")
+    )
+
+    id_number = (
+        extracted_fields.get("national_id_number")
+        or extracted_fields.get("passport_number")
+        or extracted_fields.get("id_number")
+        or extracted_fields.get("document_number")
+        or application_id
+        or (str(user_id) if user_id else file_id)
+    )
+
+    # Standardize MinIO key to 'name_idnumber_date.ext'
+    storage = state.get("storage")
+    if storage and hasattr(storage, "format_object_name"):
+        object_name = storage.format_object_name(
+            name=applicant_name,
+            id_number=id_number,
+            filename=filename,
+            doc_type=document_type,
+        )
+    else:
+        object_name = format_object_name(
+            name=applicant_name,
+            id_number=id_number,
+            filename=filename,
+            doc_type=document_type,
+        )
+
+    # Upload to MinIO (Phase 3: atomic — write to temp first)
+    if storage:
+        try:
+            storage.upload_file(
+                file_data=content,
+                object_name=object_name,
+                content_type=content_type,
+                metadata={
+                    "application_id": str(application_id or ""),
+                    "user_id": str(user_id or ""),
+                    "applicant_name": str(applicant_name or ""),
+                    "id_number": str(id_number or ""),
+                    "doc_type": str(document_type),
+                },
+            )
+        except Exception as e:
+            logger.error(f"MinIO upload failed: {e}")
+            raise HTTPException(status_code=503, detail="File storage is temporarily unavailable. Please try again in a moment.")
 
     # Persist to database if available
     doc_id = None
@@ -767,3 +819,4 @@ async def get_collection_session(
         "success": True,
         "session": session
     })
+

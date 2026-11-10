@@ -899,3 +899,172 @@ class TestH12_TokenLifecycle:
         auth.logout(token)
         assert auth.validate_token(token) is None
 
+
+class TestH13_EnterpriseStorageAndProbes:
+    """H13: Enterprise Storage Hardening, Metrics Integrity, SSE, and Dual Health Probes."""
+
+    def test_metrics_no_double_counting(self):
+        from services.storage import StorageMetricsCollector
+
+        collector = StorageMetricsCollector()
+        collector.record_op("upload", duration_sec=0.05)
+        collector.record_bytes("upload", bytes_count=1024)
+
+        snap = collector.get_metrics_snapshot()
+        assert snap["operations_count"]["upload"] == 1, "upload operation must be counted exactly once"
+        assert snap["bytes_transferred"]["uploaded_bytes"] == 1024
+        assert snap["latency_average_ms"]["upload_ms"] == 50.0
+
+    def test_sse_provider_instantiation(self):
+        from services.storage import StorageService
+        from minio import sse
+
+        with patch.object(StorageService, "connect", return_value=True):
+            svc_plain = StorageService({"enable_sse": False})
+            assert svc_plain._get_sse_provider() is None
+
+            svc_s3 = StorageService({"enable_sse": True})
+            prov_s3 = svc_s3._get_sse_provider()
+            assert prov_s3 is not None
+            assert isinstance(prov_s3, sse.SseS3)
+
+            svc_kms = StorageService({"enable_sse": True, "kms_key_id": "arn:kms:ae-hub:123"})
+            prov_kms = svc_kms._get_sse_provider()
+            assert prov_kms is not None
+            assert isinstance(prov_kms, sse.SseKMS)
+
+    def test_sha256_metadata_normalization(self):
+        from services.storage import StorageService, StorageIntegrityError
+
+        with patch.object(StorageService, "connect", return_value=True):
+            svc = StorageService({})
+            svc.client = MagicMock()
+            svc._connected = True
+            svc._connected = True
+
+        payload = b"Sample Verified Moro Hub Passport Content"
+        correct_sha = hashlib.sha256(payload).hexdigest()
+
+        # Mock S3 returning lowercased x-amz-meta- prefixed metadata
+        mock_response = MagicMock()
+        mock_response.read.return_value = payload
+        svc.client.get_object.return_value = mock_response
+
+        mock_stat = MagicMock()
+        mock_stat.size = len(payload)
+        mock_stat.etag = "mock-etag"
+        mock_stat.content_type = "application/pdf"
+        mock_stat.last_modified = None
+        mock_stat.metadata = {"x-amz-meta-sha256": correct_sha}
+        svc.client.stat_object.return_value = mock_stat
+
+        # Must succeed with matching hash
+        downloaded = svc.download_file("test/passport.pdf", verify_sha256=True)
+        assert downloaded == payload
+
+        # Must raise StorageIntegrityError when hash mismatches
+        mock_stat.metadata = {"x-amz-meta-sha256": "0" * 64}
+        with pytest.raises(StorageIntegrityError):
+            svc.download_file("test/passport.pdf", verify_sha256=True)
+
+    def test_readiness_probe_and_telemetry(self):
+        from services.storage import StorageService
+
+        with patch.object(StorageService, "connect", return_value=True):
+            svc = StorageService({})
+            svc.client = MagicMock()
+            svc._connected = True
+            svc.client.bucket_exists.return_value = True
+
+        ready, details = svc.readiness_probe()
+        assert ready is True
+        assert details["ready"] is True
+        assert details["bucket"] == svc.bucket_name
+        assert "ping_ms" in details
+
+        telemetry = svc.get_telemetry()
+        assert "status" in telemetry
+        assert "metrics" in telemetry
+        assert telemetry["status"]["connected"] is True
+
+    def test_format_object_name_name_idnumber_date(self):
+        from services.storage import format_object_name, StorageService
+
+        # 1. Standard National ID upload
+        key1 = format_object_name(
+            name="Layla Ahmed",
+            id_number="784-1990-1234567-1",
+            date_val="20261110",
+            filename="my_scanned_id.pdf",
+        )
+        assert key1 == "layla_ahmed_784199012345671_20261110.pdf"
+
+        # 2. Standard Passport upload
+        key2 = format_object_name(
+            name="Layla Ahmed",
+            id_number="N 98765432",
+            date_val="20261110",
+            filename="passport_bio.jpg",
+        )
+        assert key2 == "layla_ahmed_n98765432_20261110.jpg"
+
+        # 3. Via StorageService method
+        with patch.object(StorageService, "connect", return_value=True):
+            svc = StorageService({})
+            key3 = svc.format_object_name(
+                name="Mohammed Al-Qasimi",
+                id_number="APP-9842",
+                date_val="20261110",
+                filename="license.png",
+            )
+            assert key3 == "mohammed_al_qasimi_app9842_20261110.png"
+
+    def test_format_object_name_sanitation_and_fallbacks(self):
+        from services.storage import format_object_name
+        from datetime import datetime, timezone
+
+        # Empty name and id with doc_type fallback
+        today_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+        key = format_object_name(name="", id_number="", doc_type="national_id", filename="")
+        assert key == f"applicant_national_id_{today_str}.pdf"
+
+        # Special characters and directory traversal attack sanitation
+        dirty_key = format_object_name(
+            name="../../Dr. John O'Connor Jr.!!!",
+            id_number="EID# 123-456",
+            date_val="2026-11-10",
+            filename="contract.pdf",
+        )
+        assert dirty_key == "dr_john_o_connor_jr_eid123456_20261110.pdf"
+        assert "/" not in dirty_key
+        assert ".." not in dirty_key
+
+    def test_reorganize_clustered_objects_migration(self):
+        from services.storage import StorageService
+
+        with patch.object(StorageService, "connect", return_value=True):
+            svc = StorageService({})
+            svc.client = MagicMock()
+            svc._connected = True
+
+            # Mock existing cluttered files
+            svc.list_files = MagicMock(return_value=[
+                {"object_name": "docs/8a7b6c5d_WhatsApp Image 2024.pdf", "size": 100},
+                {"object_name": "wizard/user_1/session_99/national_id_doc.pdf", "size": 200},
+                {"object_name": "layla_ahmed_784199012345671_20261110.pdf", "size": 300},  # Already formatted
+            ])
+            svc.get_object_info = MagicMock(side_effect=[
+                {"normalized_metadata": {"applicant_name": "layla_ahmed", "id_number": "7841990"}},
+                {"normalized_metadata": {"applicant_name": "mohammed", "id_number": "n12345"}},
+                {"normalized_metadata": {}},
+            ])
+            svc.download_file = MagicMock(return_value=b"dummy file data")
+            svc.upload_file = MagicMock(return_value={"size": 100})
+            svc.delete_file = MagicMock(return_value=True)
+
+            res = svc.reorganize_clustered_objects()
+            assert len(res["migrated"]) == 2
+            assert len(res["skipped"]) == 1
+            assert res["migrated"][0]["new_key"].startswith("layla_ahmed_7841990_")
+            assert res["migrated"][1]["new_key"].startswith("mohammed_n12345_")
+

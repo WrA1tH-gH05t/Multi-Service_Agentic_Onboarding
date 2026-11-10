@@ -667,11 +667,45 @@ async def upload_wizard_document(
     # 6. Accepted (or escalated): NOW store the file
     safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", file.filename or "document.pdf")[:80]
     safe_user = re.sub(r"[^A-Za-z0-9_-]", "_", str(user_id))
-    object_name = f"wizard/{safe_user}/{session_id}/{doc_type}_{sha256[:12]}_{safe_name}"
+
+    id_num = (
+        extracted_fields.get("national_id_number")
+        or extracted_fields.get("passport_number")
+        or extracted_fields.get("id_number")
+        or extracted_fields.get("document_number")
+        or extracted_fields.get("license_number")
+        or session.application_id
+        or f"{doc_type}_{safe_user}"
+    )
+    applicant = session.applicant_name or extracted_fields.get("name") or extracted_fields.get("full_name") or safe_user
+
+    if hasattr(storage, "format_object_name"):
+        object_name = storage.format_object_name(
+            name=applicant,
+            id_number=id_num,
+            filename=file.filename or safe_name,
+            doc_type=doc_type,
+        )
+    else:
+        from services.storage import format_object_name
+        object_name = format_object_name(
+            name=applicant,
+            id_number=id_num,
+            filename=file.filename or safe_name,
+            doc_type=doc_type,
+        )
+
     try:
         await asyncio.to_thread(
             storage.upload_file, content, object_name, "application/pdf",
-            {"user_id": str(user_id), "session_id": session_id, "doc_type": doc_type, "sha256": sha256},
+            {
+                "user_id": str(user_id),
+                "session_id": session_id,
+                "doc_type": doc_type,
+                "sha256": sha256,
+                "applicant_name": str(applicant),
+                "id_number": str(id_num),
+            },
         )
     except StorageUnavailable:
         raise HTTPException(status_code=503, detail="File storage is temporarily unavailable. Please try again in a moment.")
