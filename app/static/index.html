@@ -1416,18 +1416,101 @@
             );
         }
 
-        function SuccessResult({ name, service, refId, status, processingTime }) {
+        function SuccessResult({ name, service, refId, status, displayStatus, processingTime, submittedAt, onTrackClick }) {
+            const isReview = status === 'needs_human_review';
             return (
-                <div className="submission-result">
-                    <div className="submission-icon">✅</div>
-                    <div style={{ fontSize: '18px', fontWeight: 700, color: '#ccc', marginBottom: '8px' }}>Application Submitted</div>
-                    <div className="submission-ref">{refId || 'Generating...'}</div>
-                    <div className="submission-detail"><strong>Name:</strong> {name}</div>
-                    <div className="submission-detail"><strong>Service:</strong> {service}</div>
-                    <div className="submission-detail"><strong>Status:</strong> {String(status || '').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</div>
-                    <div className="submission-detail"><strong>Estimated processing time:</strong> {processingTime}</div>
-                    <div style={{ fontSize: '12px', color: '#888', marginTop: '12px' }}>
-                        We will notify you here as soon as there is an update.
+                <div className="submission-result" style={{
+                    background: '#16191f',
+                    border: '1px solid #2d3748',
+                    borderRadius: '12px',
+                    padding: '24px',
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                    marginTop: '12px'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                        <div style={{
+                            width: '44px',
+                            height: '44px',
+                            borderRadius: '50%',
+                            background: isReview ? '#78350f' : '#064e3b',
+                            color: isReview ? '#f59e0b' : '#10b981',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '20px'
+                        }}>
+                            {isReview ? '⏳' : '✓'}
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '18px', fontWeight: 700, color: '#f3f4f6' }}>
+                                Application Received & Lodged
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#9ca3af' }}>
+                                Reference Dossier: <strong style={{ color: '#60a5fa', letterSpacing: '0.5px' }}>{refId || 'Generating...'}</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Progress tracker */}
+                    <div style={{
+                        background: '#0d1117',
+                        borderRadius: '8px',
+                        padding: '12px 16px',
+                        marginBottom: '16px',
+                        border: '1px solid #1f2937'
+                    }}>
+                        <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#6b7280', fontWeight: 600, marginBottom: '8px' }}>
+                            Intake Lifecycle Progress
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                            <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <i className="fas fa-check-circle"></i> Review Confirmed
+                            </span>
+                            <span style={{ color: '#4b5563' }}>➔</span>
+                            <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <i className="fas fa-check-circle"></i> Authenticity Verified
+                            </span>
+                            <span style={{ color: '#4b5563' }}>➔</span>
+                            <span style={{ color: isReview ? '#f59e0b' : '#60a5fa', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <i className={`fas ${isReview ? 'fa-user-check' : 'fa-spinner fa-spin'}`}></i>
+                                {displayStatus || (isReview ? 'Compliance Review' : 'Processing Registry')}
+                            </span>
+                        </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', fontSize: '13px', marginBottom: '16px' }}>
+                        <div style={{ background: '#111827', padding: '10px 12px', borderRadius: '6px' }}>
+                            <span style={{ color: '#9ca3af', fontSize: '11px', display: 'block' }}>Applicant</span>
+                            <strong style={{ color: '#e5e7eb' }}>{name}</strong>
+                        </div>
+                        <div style={{ background: '#111827', padding: '10px 12px', borderRadius: '6px' }}>
+                            <span style={{ color: '#9ca3af', fontSize: '11px', display: 'block' }}>Enrolled Service</span>
+                            <strong style={{ color: '#e5e7eb' }}>{service}</strong>
+                        </div>
+                        <div style={{ background: '#111827', padding: '10px 12px', borderRadius: '6px' }}>
+                            <span style={{ color: '#9ca3af', fontSize: '11px', display: 'block' }}>Target SLA Timeline</span>
+                            <strong style={{ color: '#38bdf8' }}>{processingTime}</strong>
+                        </div>
+                        <div style={{ background: '#111827', padding: '10px 12px', borderRadius: '6px' }}>
+                            <span style={{ color: '#9ca3af', fontSize: '11px', display: 'block' }}>Lodged At</span>
+                            <span style={{ color: '#e5e7eb' }}>{submittedAt || 'Just now'}</span>
+                        </div>
+                    </div>
+
+                    <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '16px', lineHeight: '1.5' }}>
+                        {isReview 
+                            ? 'ℹ️ Your application has been scheduled for a secondary compliance officer review to verify identity attributes. You do not need to resubmit documents unless requested.'
+                            : 'ℹ️ Your application packet has been registered in the system and is being processed in accordance with the service SLA.'}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <button
+                            onClick={onTrackClick}
+                            className="btn btn-primary"
+                            style={{ fontSize: '12px', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                            <i className="fas fa-list-alt"></i> View in Applications Dashboard
+                        </button>
                     </div>
                 </div>
             );
@@ -1508,6 +1591,15 @@
                                 const m = mask(k, v);
                                 const sensitive = m !== String(v);
                                 const isEditing = editingField === key;
+                                const dt = (d.docType || '').toLowerCase();
+                                const lockedKeys = {
+                                    national_id: ['issue_date', 'expiry_date', 'national_id_number', 'id_number', 'card_number'],
+                                    driving_license: ['license_no', 'license_number', 'issue_date', 'expiry_date', 'traffic_code_no', 'traffic_code', 'licensing_authority'],
+                                    passport: ['passport_number', 'country_code', 'type', 'date_of_issue', 'date_of_expiry', 'issue_date', 'expiry_date']
+                                };
+                                const isDocLocked = (dt.includes('passport') && lockedKeys.passport.includes(k.toLowerCase())) ||
+                                                    ((dt.includes('driving') || dt.includes('license')) && lockedKeys.driving_license.includes(k.toLowerCase())) ||
+                                                    (lockedKeys.national_id.includes(k.toLowerCase()));
                                 const fieldLabel = (() => {
                                     const fn = k.toLowerCase();
                                     if (fn === 'license_no' || fn === 'license_number') return 'License No (Primary Key)';
@@ -1543,13 +1635,17 @@
                                             </React.Fragment>
                                         ) : (
                                             <React.Fragment>
-                                                <span style={{ wordBreak: 'break-word', flex: 1, cursor: 'pointer' }} onClick={() => startEdit(key, k, v)}>
+                                                <span style={{ wordBreak: 'break-word', flex: 1, cursor: isDocLocked ? 'default' : 'pointer' }} onClick={() => !isDocLocked && startEdit(key, k, v)}>
                                                     {shown[key] ? String(v) : m}
                                                 </span>
                                                 <button className="btn btn-ghost" onClick={() => toggle(key)} style={{ padding: '0 6px', fontSize: '11px' }}>
                                                     {shown[key] ? 'Hide' : 'Show'}
                                                 </button>
-                                                <button className="btn btn-ghost" onClick={() => startEdit(key, k, v)} style={{ padding: '0 6px', fontSize: '11px' }} title="Edit this field">✏️</button>
+                                                {isDocLocked ? (
+                                                    <span style={{ fontSize: '11px', color: '#888', padding: '0 4px', fontStyle: 'italic' }} title="Verified field — non-editable">🔒 Verified</span>
+                                                ) : (
+                                                    <button className="btn btn-ghost" onClick={() => startEdit(key, k, v)} style={{ padding: '0 6px', fontSize: '11px' }} title="Edit this field">✏️</button>
+                                                )}
                                             </React.Fragment>
                                         )}
                                     </div>
@@ -1592,14 +1688,21 @@
             const [showAuth, setShowAuth] = useState(false);
             const [user, setUser] = useState(null);
             const [authMode, setAuthMode] = useState('login');
-            const [authData, setAuthData] = useState({ username: '', password: '', name: '', email: '' });
+            const [authData, setAuthData] = useState({ username: '', password: '', name: '', email: '', full_name: '', birthday: '', gender: '' });
             const [authError, setAuthError] = useState('');
             const [services, setServices] = useState([]);
             const [documents, setDocuments] = useState([]);
             const [applications, setApplications] = useState([]);
             const [showDocumentsPage, setShowDocumentsPage] = useState(false);
+            const [viewingDoc, setViewingDoc] = useState(null); // { url, filename, docId }
             const [showApplicationsPage, setShowApplicationsPage] = useState(false);
             const [showServicesPage, setShowServicesPage] = useState(false);
+            const [showAccountPage, setShowAccountPage] = useState(false);
+            const [accountTab, setAccountTab] = useState('details'); // details | documents | applications
+            const [profileForm, setProfileForm] = useState({ full_name: '', birthday: '', gender: '', username: '', email: '', password: '' });
+            const [profileInitial, setProfileInitial] = useState({ full_name: '', birthday: '', gender: '' });
+            const [profileSaving, setProfileSaving] = useState(false);
+            const [profileMsg, setProfileMsg] = useState('');
             const [showApplicationFlow, setShowApplicationFlow] = useState(false);
             // In-chat application wizard state
             const [wizardStep, setWizardStep] = useState(null); // null | name | upload | review | submitting | success
@@ -1684,6 +1787,7 @@
                             setUser({ token, username: verifiedUsername });
                             loadDocuments();
                             loadApplications();
+                            loadUserProfile();
                         } else {
                             // Token invalid on server — clear it
                             localStorage.removeItem('token');
@@ -1694,6 +1798,7 @@
                         setUser({ token, username });
                         loadDocuments();
                         loadApplications();
+                        loadUserProfile();
                     }
                 }
             };
@@ -1707,6 +1812,97 @@
                 } catch (e) {
                     setSystemHealthy(false);
                     setOllamaHealthy(false);
+                }
+            };
+
+            const loadUserProfile = async () => {
+                try {
+                    const token = getToken();
+                    if (!token) return;
+                    const res = await fetch(`${API_BASE}/auth/me?token=${encodeURIComponent(token)}`);
+                    const data = await res.json();
+                    if (data.success && data.user) {
+                        const u = data.user;
+                        setProfileForm({
+                            full_name: u.full_name || '',
+                            birthday: u.birthday || '',
+                            gender: u.gender || '',
+                            username: u.username || '',
+                            email: u.email || '',
+                            password: ''
+                        });
+                        setProfileInitial({
+                            full_name: u.full_name || '',
+                            birthday: u.birthday || '',
+                            gender: u.gender || ''
+                        });
+                        if (u.full_name) {
+                            localStorage.setItem('full_name', u.full_name);
+                        }
+                        if (u.username) {
+                            localStorage.setItem('username', u.username);
+                            setUser(prev => prev ? { ...prev, username: u.username } : { token, username: u.username });
+                        }
+                    }
+                } catch (e) {
+                    console.error('Failed to load profile:', e);
+                }
+            };
+
+            const handleSaveProfile = async (e) => {
+                if (e) e.preventDefault();
+                setProfileSaving(true);
+                setProfileMsg('');
+                try {
+                    const token = getToken();
+                    const payload = {};
+                    if (!profileInitial.full_name && profileForm.full_name) payload.full_name = profileForm.full_name;
+                    if (!profileInitial.birthday && profileForm.birthday) payload.birthday = profileForm.birthday;
+                    if (!profileInitial.gender && profileForm.gender) payload.gender = profileForm.gender;
+                    if (profileForm.username) payload.username = profileForm.username;
+                    if (profileForm.email) payload.email = profileForm.email;
+                    if (profileForm.password) payload.password = profileForm.password;
+
+                    const res = await fetch(`${API_BASE}/auth/profile?token=${encodeURIComponent(token)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        setProfileMsg('Profile updated successfully!');
+                        const updatedUser = data.user || {};
+                        if (updatedUser.full_name) {
+                            localStorage.setItem('full_name', updatedUser.full_name);
+                            setWizardName(updatedUser.full_name);
+                        }
+                        if (updatedUser.username) {
+                            localStorage.setItem('username', updatedUser.username);
+                            setUser(prev => prev ? { ...prev, username: updatedUser.username } : { token, username: updatedUser.username });
+                        }
+                        setProfileInitial({
+                            full_name: updatedUser.full_name || profileInitial.full_name,
+                            birthday: updatedUser.birthday || profileInitial.birthday,
+                            gender: updatedUser.gender || profileInitial.gender
+                        });
+                        setProfileForm(prev => ({
+                            ...prev,
+                            full_name: updatedUser.full_name || prev.full_name,
+                            birthday: updatedUser.birthday || prev.birthday,
+                            gender: updatedUser.gender || prev.gender,
+                            username: updatedUser.username || prev.username,
+                            email: updatedUser.email || prev.email,
+                            password: ''
+                        }));
+                        loadDocuments();
+                        loadApplications();
+                    } else {
+                        setProfileMsg(data.detail || data.message || 'Failed to update profile');
+                    }
+                } catch (err) {
+                    setProfileMsg('Error updating profile: ' + err.message);
+                } finally {
+                    setProfileSaving(false);
                 }
             };
 
@@ -1781,7 +1977,15 @@
                     const emailVal = (authData.email || '').trim() || (authData.username.includes('@') ? authData.username.trim() : `${authData.username.trim()}@example.com`);
                     const body = authMode === 'login'
                         ? { username: authData.username.trim(), password: authData.password }
-                        : { username: authData.username.trim(), password: authData.password, email: emailVal, name: authData.name || authData.username.trim() };
+                        : { 
+                            username: authData.username.trim(), 
+                            password: authData.password, 
+                            email: emailVal, 
+                            name: authData.full_name || authData.name || authData.username.trim(),
+                            full_name: authData.full_name || authData.name || authData.username.trim(),
+                            birthday: authData.birthday,
+                            gender: authData.gender
+                        };
 
                     const res = await fetch(`${API_BASE}${endpoint}`, {
                         method: 'POST',
@@ -1793,10 +1997,14 @@
 
                     if (data.success && (authMode === 'login' || authMode === 'register')) {
                         const token = data.data?.token;
-                        const username = data.data?.email || data.data?.username || authData.username;
+                        const username = data.data?.username || authData.username;
+                        const displayName = data.data?.full_name || username;
                         if (token) {
                             localStorage.setItem('token', token);
                             localStorage.setItem('username', username);
+                            if (data.data?.full_name) {
+                                localStorage.setItem('full_name', data.data.full_name);
+                            }
                             setUser({ token, username });
                         }
                         setShowAuth(false);
@@ -1805,19 +2013,25 @@
                         setShowDocumentsPage(false);
                         setShowApplicationsPage(false);
                         setShowServicesPage(false);
+                        setShowAccountPage(false);
 
                         const pending = pendingApplyRef.current;
+                        const pendingApps = data.data?.pending_applications || [];
                         if (pending) {
                             pendingApplyRef.current = null;
-                            addMessage('assistant', `Welcome ${username}! Let us pick up your application.`);
+                            addMessage('assistant', `Welcome ${displayName}! Let us pick up your application.`);
                             setTimeout(() => resumePendingApply(pending), 0);
+                        } else if (pendingApps.length > 0) {
+                            const latestApp = pendingApps[0];
+                            addMessage('assistant', `Welcome ${displayName}! You have an incomplete application for ${latestApp.service_id.replace(/_/g, ' ')}. Would you like to resume it?`, null, { type: 'wizard_offer', serviceId: latestApp.service_id });
                         } else {
                             addMessage('assistant', authMode === 'register' 
-                                ? `Welcome ${username}! Your account has been created successfully and you are now signed in.` 
-                                : `Welcome back, ${username}!`);
+                                ? `Welcome ${displayName}! Your account has been created successfully and you are now signed in.` 
+                                : `Welcome back, ${displayName}!`);
                         }
                         loadDocuments();
                         loadApplications();
+                        loadUserProfile();
                     } else {
                         let errText = 'Authentication failed';
                         if (typeof data.detail === 'string') {
@@ -1969,15 +2183,6 @@
                     let responseText = data.response || 'No response';
                     let matchedService = data.matched_service;
 
-                    if (data.sources && data.sources.length > 0) {
-                        const sourceNames = data.sources.map(s => s.filename).join(', ');
-                        responseText += `\n\n📚 Sources: ${sourceNames}`;
-                    }
-
-                    if (data.confidence !== undefined) {
-                        responseText += `\n\n🎯 Confidence: ${(data.confidence * 100).toFixed(0)}%`;
-                    }
-
                     addMessage('assistant', responseText, matchedService);
 
                     // Offer to start an application when the user wants to apply or is asking about services,
@@ -2119,15 +2324,52 @@
                 addMessage('assistant', 'Which service would you like to apply for?', null, { type: 'wizard_services' });
             };
 
-            const beginService = (svc) => {
+            const beginService = async (svc) => {
                 if (svc.status && svc.status !== 'available') {
                     addMessage('assistant', `${svc.name} is not open for applications yet.`);
                     return;
                 }
                 dismissOffers();
                 clearWizardState();
-                setWizardName('');
                 setWizardService(svc);
+
+                // Auto-create wizard session using authenticated user's name
+                setLoading(true);
+                try {
+                    const token = getToken();
+                    const res = await fetch(`${API_BASE}/wizard/create?token=${encodeURIComponent(token)}&service_id=${encodeURIComponent(svc.id)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (res.status === 409 || (data.detail && data.detail.includes('already active'))) {
+                        addMessage('assistant', `⚠️ ${data.detail || 'An application for this service already exists under your name. Please delete or cancel your existing application before creating a new one.'}`);
+                        return;
+                    }
+                    if (res.ok && data.success) {
+                        const wizardSessionId = data.data.session_id;
+                        const applicantName = data.data.applicant_name || localStorage.getItem('full_name') || localStorage.getItem('username') || '';
+                        setWizardName(applicantName);
+                        setWizardAppId(wizardSessionId);
+                        setWizardStep('upload');
+
+                        const totalDocs = (svc.documents_required || []).length;
+                        const firstDocLabel = totalDocs > 0 ? prettyDoc(svc.documents_required[0]) : 'your document';
+                        const docSummary = totalDocs > 1
+                            ? `This service requires ${totalDocs} documents — we will go one step at a time, starting with your ${firstDocLabel}.`
+                            : `You will need to provide your ${firstDocLabel}.`;
+
+                        addMessage('assistant', `Let us start your ${svc.name} application for ${applicantName}. ${docSummary} Step 1 of ${totalDocs || 1}: please upload your ${firstDocLabel} using the card below.`, null, { type: 'wizard_upload' });
+                        return;
+                    }
+                } catch (e) {
+                    console.error("Could not auto-start wizard:", e);
+                } finally {
+                    setLoading(false);
+                }
+
+                // Fallback: if session creation failed, ask for name
+                setWizardName('');
                 setWizardStep('name');
                 const totalDocs = (svc.documents_required || []).length;
                 const firstDocLabel = totalDocs > 0 ? prettyDoc(svc.documents_required[0]) : 'your document';
@@ -2355,17 +2597,22 @@
                         return;
                     }
                     const refId = data.data?.reference_id;
-                    const procTime = data.data?.processing_time || '2-3 business days';
+                    const procTime = data.data?.processing_time || '1–2 business days';
+                    const dispStatus = data.data?.display_status || (data.data?.status === 'needs_human_review' ? 'Under Review (Compliance)' : 'Submitted (Processing)');
+                    const subAt = data.data?.submitted_at;
                     setWizardStep('success');
-                    addMessage('assistant', 'Your application has been successfully submitted!', null, {
+                    addMessage('assistant', `Your application has been received and registered under Reference ${refId}. It is now in the processing registry.`, null, {
                         type: 'wizard_success',
                         name: wizardName,
                         service: wizardService?.name || '',
                         refId: refId,
                         status: data.data?.status || 'Submitted',
-                        processingTime: procTime
+                        displayStatus: dispStatus,
+                        processingTime: procTime,
+                        submittedAt: subAt
                     });
                     loadDocuments();
+                    loadApplications();
                 } catch (e) {
                     setWizardStep('review');
                     addMessage('assistant', `Submission failed: ${e.message}. You can try Confirm again.`, null, { type: 'wizard_review' });
@@ -2477,8 +2724,22 @@
                         disabled={wizardStep !== 'review'} onConfirm={wizardSubmitReview} onReplace={wizardReplaceDoc} onRestart={wizardRestart} onEdit={wizardEditField} onCancel={wizardCancel} />;
                 }
                 if (msg.type === 'wizard_success') {
-                    return <SuccessResult name={msg.name} service={msg.service} refId={msg.refId}
-                        status={msg.status} processingTime={msg.processingTime} />;
+                    return <SuccessResult
+                        name={msg.name}
+                        service={msg.service}
+                        refId={msg.refId}
+                        status={msg.status}
+                        displayStatus={msg.displayStatus}
+                        processingTime={msg.processingTime}
+                        submittedAt={msg.submittedAt}
+                        onTrackClick={() => {
+                            setShowAccountPage(true);
+                            setAccountTab('applications');
+                            setShowServicesPage(false);
+                            setShowApplicationFlow(false);
+                            loadApplications();
+                        }}
+                    />;
                 }
                 return null;
             };
@@ -2662,16 +2923,21 @@
 
                                                     {/* View & Download buttons */}
                                                     {docId && (
-                                                        <a
-                                                            href={viewUrl}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
+                                                        <button
+                                                            onClick={() => {
+                                                                const urlToUse = doc.minio_url || viewUrl;
+                                                                setViewingDoc({
+                                                                    url: urlToUse,
+                                                                    filename: doc.filename || doc.name || 'Document',
+                                                                    docId: docId
+                                                                });
+                                                            }}
                                                             className="btn btn-secondary"
-                                                            style={{ fontSize: '12px', padding: '6px 10px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                                                            title="View original document"
+                                                            style={{ fontSize: '12px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}
+                                                            title="View original document in site"
                                                         >
                                                             <i className="fas fa-eye"></i> View
-                                                        </a>
+                                                        </button>
                                                     )}
                                                     {docId && (
                                                         <a
@@ -2848,6 +3114,476 @@
                                         </div>
                                     );
                                 })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+
+            const renderAccountPage = () => (
+                <div style={{ flex: 1, overflow: 'auto', background: '#0a0a0a' }}>
+                    <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid #1f1f1f', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <i className="fas fa-user-shield" style={{ color: '#84BD00' }}></i> Account & Profile
+                            </div>
+                            <div style={{ fontSize: '13px', color: '#888', marginTop: '4px' }}>
+                                Manage your personal identity credentials, submitted documents, and application history
+                            </div>
+                        </div>
+                        <button className="btn btn-secondary" onClick={() => setShowAccountPage(false)}>
+                            ← Back to Chat
+                        </button>
+                    </div>
+
+                    {/* Sub-tabs within Account */}
+                    <div style={{ display: 'flex', gap: '8px', padding: '16px 24px', borderBottom: '1px solid #1a1a1a', background: '#111' }}>
+                        <button
+                            className="btn"
+                            style={{
+                                background: accountTab === 'details' ? '#84BD00' : '#1f1f1f',
+                                color: accountTab === 'details' ? '#121314' : '#e4e4e4',
+                                fontWeight: '600',
+                                fontSize: '13px'
+                            }}
+                            onClick={() => { setAccountTab('details'); loadUserProfile(); }}
+                        >
+                            <i className="fas fa-id-card" style={{ marginRight: '6px' }}></i> Profile Details
+                        </button>
+                        <button
+                            className="btn"
+                            style={{
+                                background: accountTab === 'documents' ? '#84BD00' : '#1f1f1f',
+                                color: accountTab === 'documents' ? '#121314' : '#e4e4e4',
+                                fontWeight: '600',
+                                fontSize: '13px'
+                            }}
+                            onClick={() => { setAccountTab('documents'); loadDocuments(); }}
+                        >
+                            <i className="fas fa-folder" style={{ marginRight: '6px' }}></i> Documents ({documents.length})
+                        </button>
+                        <button
+                            className="btn"
+                            style={{
+                                background: accountTab === 'applications' ? '#84BD00' : '#1f1f1f',
+                                color: accountTab === 'applications' ? '#121314' : '#e4e4e4',
+                                fontWeight: '600',
+                                fontSize: '13px'
+                            }}
+                            onClick={() => { setAccountTab('applications'); loadApplications(); }}
+                        >
+                            <i className="fas fa-file-invoice" style={{ marginRight: '6px' }}></i> Past Applications ({applications.length})
+                        </button>
+                    </div>
+
+                    <div style={{ padding: '24px' }}>
+                        {accountTab === 'details' && (
+                            <div style={{ maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                                <div style={{ background: '#161616', border: '1px solid #282828', borderRadius: '12px', padding: '24px' }}>
+                                    <div style={{ fontSize: '16px', fontWeight: '600', color: '#fff', marginBottom: '8px' }}>
+                                        Identity Profile
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: '#888', marginBottom: '20px' }}>
+                                        {profileInitial.full_name 
+                                            ? "🔒 Identity verified. Legal name, date of birth, and gender cannot be edited once recorded."
+                                            : "Enter your legal identity details. Once submitted, these details are permanently locked to your account."}
+                                    </div>
+
+                                    {profileMsg && (
+                                        <div style={{
+                                            padding: '10px 14px',
+                                            borderRadius: '8px',
+                                            marginBottom: '16px',
+                                            fontSize: '13px',
+                                            background: profileMsg.includes('success') ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                            color: profileMsg.includes('success') ? '#22c55e' : '#ef4444',
+                                            border: `1px solid ${profileMsg.includes('success') ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+                                        }}>
+                                            {profileMsg}
+                                        </div>
+                                    )}
+
+                                    <form onSubmit={handleSaveProfile}>
+                                        <div className="form-group" style={{ marginBottom: '16px' }}>
+                                            <label style={{ fontSize: '12px', color: '#aaa', display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                                <span>Full Legal Name</span>
+                                                {profileInitial.full_name && <span style={{ color: '#22c55e', fontSize: '11px' }}>🔒 Locked</span>}
+                                            </label>
+                                            <input
+                                                className="form-input"
+                                                value={profileForm.full_name}
+                                                onChange={e => setProfileForm({ ...profileForm, full_name: e.target.value })}
+                                                placeholder="e.g. Arvind Kaushik Satish Kumar"
+                                                disabled={!!profileInitial.full_name}
+                                                style={profileInitial.full_name ? { opacity: 0.65, cursor: 'not-allowed', background: '#1c1c1c' } : {}}
+                                                required
+                                            />
+                                        </div>
+
+                                        <div className="form-group" style={{ marginBottom: '16px' }}>
+                                            <label style={{ fontSize: '12px', color: '#aaa', display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                                <span>Date of Birth</span>
+                                                {profileInitial.birthday && <span style={{ color: '#22c55e', fontSize: '11px' }}>🔒 Locked</span>}
+                                            </label>
+                                            <input
+                                                className="form-input"
+                                                type="date"
+                                                value={profileForm.birthday}
+                                                onChange={e => setProfileForm({ ...profileForm, birthday: e.target.value })}
+                                                disabled={!!profileInitial.birthday}
+                                                style={profileInitial.birthday ? { opacity: 0.65, cursor: 'not-allowed', background: '#1c1c1c' } : {}}
+                                            />
+                                        </div>
+
+                                        <div className="form-group" style={{ marginBottom: '20px' }}>
+                                            <label style={{ fontSize: '12px', color: '#aaa', display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                                <span>Gender</span>
+                                                {profileInitial.gender && <span style={{ color: '#22c55e', fontSize: '11px' }}>🔒 Locked</span>}
+                                            </label>
+                                            <select
+                                                className="form-input"
+                                                value={profileForm.gender}
+                                                onChange={e => setProfileForm({ ...profileForm, gender: e.target.value })}
+                                                disabled={!!profileInitial.gender}
+                                                style={profileInitial.gender ? { opacity: 0.65, cursor: 'not-allowed', background: '#1c1c1c' } : {}}
+                                            >
+                                                <option value="">Select Gender</option>
+                                                <option value="Male">Male</option>
+                                                <option value="Female">Female</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+
+                                        <div style={{ borderTop: '1px solid #282828', paddingTop: '16px', marginTop: '20px', marginBottom: '16px' }}>
+                                            <div style={{ fontSize: '14px', fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
+                                                Account Settings
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: '#888', marginBottom: '16px' }}>
+                                                You can update your username, email address, or set a new password anytime.
+                                            </div>
+
+                                            <div className="form-group" style={{ marginBottom: '14px' }}>
+                                                <label style={{ fontSize: '12px', color: '#aaa', display: 'block', marginBottom: '6px' }}>
+                                                    Username
+                                                </label>
+                                                <input
+                                                    className="form-input"
+                                                    value={profileForm.username}
+                                                    onChange={e => setProfileForm({ ...profileForm, username: e.target.value })}
+                                                    placeholder="Enter username"
+                                                />
+                                            </div>
+
+                                            <div className="form-group" style={{ marginBottom: '14px' }}>
+                                                <label style={{ fontSize: '12px', color: '#aaa', display: 'block', marginBottom: '6px' }}>
+                                                    Email Address
+                                                </label>
+                                                <input
+                                                    className="form-input"
+                                                    type="email"
+                                                    value={profileForm.email}
+                                                    onChange={e => setProfileForm({ ...profileForm, email: e.target.value })}
+                                                    placeholder="Enter email address"
+                                                />
+                                            </div>
+
+                                            <div className="form-group" style={{ marginBottom: '14px' }}>
+                                                <label style={{ fontSize: '12px', color: '#aaa', display: 'block', marginBottom: '6px' }}>
+                                                    New Password (leave blank to keep current)
+                                                </label>
+                                                <input
+                                                    className="form-input"
+                                                    type="password"
+                                                    value={profileForm.password}
+                                                    onChange={e => setProfileForm({ ...profileForm, password: e.target.value })}
+                                                    placeholder="Enter new password (optional)"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="submit"
+                                            className="btn btn-primary"
+                                            disabled={profileSaving}
+                                            style={{ width: '100%', padding: '10px' }}
+                                        >
+                                            {profileSaving ? 'Saving Changes...' : 'Save Changes'}
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+
+                        {accountTab === 'documents' && (
+                            <div>
+                                <div style={{ marginBottom: '16px', color: '#888', fontSize: '13px' }}>
+                                    All documents stored securely in MinIO storage linked to your account:
+                                </div>
+                                {documents.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '60px 20px', color: '#666' }}>
+                                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📄</div>
+                                        <div style={{ fontSize: '18px', marginBottom: '8px' }}>No documents yet</div>
+                                        <div style={{ fontSize: '14px', color: '#888' }}>
+                                            Upload your first document using the paperclip icon in the chat input
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'grid', gap: '16px' }}>
+                                        {documents.map((doc, idx) => {
+                                            const docType = getDocType(doc);
+                                            const labels = getDocLabels(docType);
+                                            const extracted = doc.extracted_fields || doc.extractedFields || {};
+                                            const fields = Object.entries(extracted).filter(([k]) => !k.startsWith('_'));
+                                            
+                                            const rawDate = doc.upload_date || doc.date || doc.uploaded_at;
+                                            let formattedDate = 'Unknown date';
+                                            if (rawDate) {
+                                                try {
+                                                    const d = new Date(rawDate);
+                                                    formattedDate = isNaN(d.getTime()) ? rawDate : d.toLocaleString();
+                                                } catch (e) {
+                                                    formattedDate = rawDate;
+                                                }
+                                            }
+                                            const serviceDisplayName = doc.service_name || (doc.service_id ? doc.service_id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Basic Registration');
+                                            const docTypeDisplay = docType.includes('licen') ? '🚗 Driving License' : docType === 'passport' ? '🛂 Passport' : '🆔 National ID';
+                                            const token = getToken();
+                                            const docId = doc.id || doc.document_id;
+                                            const viewUrl = `${API_BASE}/documents/${encodeURIComponent(docId)}/view?token=${encodeURIComponent(token)}`;
+                                            const downloadUrl = `${API_BASE}/documents/${encodeURIComponent(docId)}/download?token=${encodeURIComponent(token)}`;
+                                            
+                                            return (
+                                                <div key={idx} style={{
+                                                    padding: '20px',
+                                                    background: '#1a1a1a',
+                                                    border: '1px solid #2a2a2a',
+                                                    borderRadius: '12px',
+                                                }}>
+                                                    {/* Header */}
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #2a2a2a', flexWrap: 'wrap', gap: '12px' }}>
+                                                        <div>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                                                                <span style={{ fontSize: '15px', fontWeight: '600', color: '#f3f4f6' }}>
+                                                                    {doc.filename || doc.name || 'Unknown file'}
+                                                                </span>
+                                                                <span style={{
+                                                                    padding: '2px 8px',
+                                                                    background: '#1e3a5f',
+                                                                    color: '#60a5fa',
+                                                                    border: '1px solid #2563eb55',
+                                                                    borderRadius: '6px',
+                                                                    fontSize: '11px',
+                                                                    fontWeight: '500',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '4px'
+                                                                }}>
+                                                                    <i className="fas fa-briefcase" style={{ fontSize: '10px' }}></i> {serviceDisplayName}
+                                                                </span>
+                                                            </div>
+                                                            <div style={{ fontSize: '12px', color: '#888', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                                <span><i className="far fa-clock" style={{ marginRight: '4px' }}></i>{formattedDate}</span>
+                                                                <span>·</span>
+                                                                <span>{formatFileSize(doc.file_size || doc.size || 0)}</span>
+                                                                <span>·</span>
+                                                                <span>{docTypeDisplay}</span>
+                                                            </div>
+                                                        </div>
+                                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                            {doc.extraction_confidence !== undefined && (
+                                                                <span style={{ fontSize: '12px', color: doc.extraction_confidence > 0.7 ? '#22c55e' : doc.extraction_confidence > 0.4 ? '#eab308' : '#ef4444' }}>
+                                                                    {(doc.extraction_confidence * 100).toFixed(0)}% confidence
+                                                                </span>
+                                                            )}
+                                                            <span style={{ fontSize: '12px', color: '#22c55e', marginRight: '4px' }}>
+                                                                ✓ Processed
+                                                            </span>
+
+                                                            {/* View & Download buttons */}
+                                                            {docId && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const urlToUse = doc.minio_url || viewUrl;
+                                                                        setViewingDoc({
+                                                                            url: urlToUse,
+                                                                            filename: doc.filename || doc.name || 'Document',
+                                                                            docId: docId
+                                                                        });
+                                                                    }}
+                                                                    className="btn btn-secondary"
+                                                                    style={{ fontSize: '12px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}
+                                                                    title="View original document in site"
+                                                                >
+                                                                    <i className="fas fa-eye"></i> View
+                                                                </button>
+                                                            )}
+                                                            {docId && (
+                                                                <a
+                                                                    href={downloadUrl}
+                                                                    download
+                                                                    className="btn btn-primary"
+                                                                    style={{ fontSize: '12px', padding: '6px 10px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                                                    title="Download original document"
+                                                                >
+                                                                    <i className="fas fa-download"></i> Download
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* Extracted Fields Table */}
+                                                    {fields.length > 0 ? (
+                                                        <div>
+                                                            <div style={{ fontSize: '12px', color: '#888', marginBottom: '8px', fontWeight: '600' }}>
+                                                                EXTRACTED DATA ({fields.length} fields)
+                                                            </div>
+                                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px' }}>
+                                                                {fields.map(([key, value]) => (
+                                                                    <div key={key} style={{
+                                                                        padding: '8px 12px',
+                                                                        background: '#141414',
+                                                                        border: '1px solid #2a2a2a',
+                                                                        borderRadius: '6px',
+                                                                        fontSize: '12px',
+                                                                    }}>
+                                                                        <div style={{ color: '#888', marginBottom: '2px', fontSize: '11px' }}>
+                                                                            {labels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                                        </div>
+                                                                        <div style={{ color: '#e4e4e4', wordBreak: 'break-word', fontWeight: '500' }}>
+                                                                            {formatFieldValue(key, value, doc.service_id)}
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <div style={{ fontSize: '12px', color: '#666', fontStyle: 'italic', padding: '8px 0' }}>
+                                                            No data extracted yet.
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {accountTab === 'applications' && (
+                            <div>
+                                <div style={{ marginBottom: '16px', color: '#888', fontSize: '13px' }}>
+                                    Your previous service onboarding applications:
+                                </div>
+                                {applications.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '60px 20px', color: '#666' }}>
+                                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
+                                        <div style={{ fontSize: '18px', marginBottom: '8px' }}>No applications submitted yet</div>
+                                        <div style={{ fontSize: '14px', color: '#888', marginBottom: '16px' }}>
+                                            Your completed service onboarding applications will be securely stored and listed here.
+                                        </div>
+                                        <button className="btn btn-primary" onClick={() => {
+                                            setShowAccountPage(false);
+                                            handleStartApplication();
+                                        }}>
+                                            Start an Application
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: 'grid', gap: '16px' }}>
+                                        {applications.map((app, idx) => {
+                                            const serviceLabel = app.service_name || (app.service_type || app.service_id || 'Application').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                                            const appStatus = (app.status || 'PENDING').toUpperCase();
+                                            const isComplete = appStatus === 'COMPLETE' || appStatus === 'COMPLETED' || appStatus === 'SUBMITTED' || appStatus === 'PASS';
+                                            const isReview = appStatus.includes('REVIEW');
+                                            const badgeBg = isComplete ? 'rgba(34, 197, 94, 0.15)' : isReview ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+                                            const badgeColor = isComplete ? '#22c55e' : isReview ? '#f59e0b' : '#ef4444';
+                                            const badgeBorder = isComplete ? 'rgba(34, 197, 94, 0.35)' : isReview ? 'rgba(245, 158, 11, 0.35)' : 'rgba(239, 68, 68, 0.35)';
+
+                                            return (
+                                                <div key={app.id || app.application_id || idx} style={{
+                                                    padding: '22px',
+                                                    background: 'linear-gradient(135deg, rgba(26,26,26,0.85) 0%, rgba(20,20,20,0.95) 100%)',
+                                                    border: '1px solid rgba(255,255,255,0.08)',
+                                                    borderRadius: '16px',
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    gap: '14px',
+                                                    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                                                    backdropFilter: 'blur(10px)',
+                                                    transition: 'transform 0.2s, border-color 0.2s'
+                                                }}>
+                                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                                                        <div>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                                <span style={{ fontSize: '20px' }}>{getServiceIcon(app.service_id || app.service_type)}</span>
+                                                                <div style={{ fontSize: '18px', fontWeight: '700', color: '#f5f5f5', letterSpacing: '0.01em' }}>
+                                                                    {serviceLabel}
+                                                                </div>
+                                                            </div>
+                                                            {app.applicant_name && (
+                                                                <div style={{ fontSize: '13px', color: '#84BD00', marginTop: '4px', fontWeight: '500' }}>
+                                                                    <i className="fas fa-user" style={{ marginRight: '6px', opacity: 0.8 }}></i>
+                                                                    Applicant: {app.applicant_name}
+                                                                </div>
+                                                            )}
+                                                            <div style={{ fontSize: '12px', color: '#777', marginTop: '6px' }}>
+                                                                Ref: <span style={{ color: '#aaa', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>{app.id || app.application_id}</span> • Submitted: {app.created_at || app.submitted_at ? new Date(app.created_at || app.submitted_at).toLocaleString() : 'Recent'}
+                                                            </div>
+                                                        </div>
+                                                        <span style={{
+                                                            padding: '6px 14px',
+                                                            borderRadius: '20px',
+                                                            fontSize: '11px',
+                                                            fontWeight: '700',
+                                                            letterSpacing: '0.05em',
+                                                            background: badgeBg,
+                                                            color: badgeColor,
+                                                            border: `1px solid ${badgeBorder}`,
+                                                            boxShadow: `0 0 12px ${badgeBg}`
+                                                        }}>
+                                                            {appStatus.replace(/_/g, ' ')}
+                                                        </span>
+                                                    </div>
+
+                                                    {app.metadata && Object.keys(app.metadata).length > 0 && (
+                                                        <div style={{ background: 'rgba(0,0,0,0.35)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                            <div style={{ fontSize: '11px', color: '#888', fontWeight: '600', marginBottom: '8px', letterSpacing: '0.05em' }}>DETAILS</div>
+                                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', fontSize: '12px' }}>
+                                                                {Object.entries(app.metadata).map(([k, v]) => (
+                                                                    <div key={k}>
+                                                                        <span style={{ color: '#888' }}>{k.replace(/_/g, ' ')}: </span>
+                                                                        <span style={{ color: '#e4e4e4', fontWeight: '500' }}>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                                        <button
+                                                            className="btn btn-ghost"
+                                                            style={{
+                                                                color: '#ef4444',
+                                                                borderColor: 'rgba(239, 68, 68, 0.3)',
+                                                                background: 'rgba(239, 68, 68, 0.08)',
+                                                                fontSize: '12px',
+                                                                padding: '6px 14px',
+                                                                borderRadius: '8px',
+                                                                cursor: 'pointer',
+                                                                display: 'inline-flex',
+                                                                alignItems: 'center',
+                                                                gap: '6px',
+                                                            }}
+                                                            onClick={() => handleCancelApplication(app.id || app.application_id)}
+                                                        >
+                                                            <i className="fas fa-times-circle"></i> Cancel Application
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -3106,15 +3842,42 @@
                             </div>
 
                             {authMode === 'register' && (
-                                <div className="form-group">
-                                    <label>Full Name (optional)</label>
-                                    <input
-                                        className="form-input"
-                                        value={authData.name}
-                                        onChange={e => setAuthData({...authData, name: e.target.value})}
-                                        placeholder="Enter your name"
-                                    />
-                                </div>
+                                <React.Fragment>
+                                    <div className="form-group">
+                                        <label>Full Legal Name *</label>
+                                        <input
+                                            className="form-input"
+                                            value={authData.full_name}
+                                            onChange={e => setAuthData({...authData, full_name: e.target.value, name: e.target.value})}
+                                            placeholder="Enter your full legal name"
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Date of Birth *</label>
+                                        <input
+                                            className="form-input"
+                                            type="date"
+                                            value={authData.birthday}
+                                            onChange={e => setAuthData({...authData, birthday: e.target.value})}
+                                            required
+                                        />
+                                    </div>
+                                    <div className="form-group">
+                                        <label>Gender *</label>
+                                        <select
+                                            className="form-input"
+                                            value={authData.gender}
+                                            onChange={e => setAuthData({...authData, gender: e.target.value})}
+                                            required
+                                        >
+                                            <option value="">Select Gender</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                </React.Fragment>
                             )}
 
                     {authError && (
@@ -3213,19 +3976,17 @@
 
                             <div className="sidebar-section">
                                 <div className="sidebar-section-title">Navigation</div>
-                                <div className={`sidebar-item ${!showServicesPage && !showDocumentsPage && !showApplicationsPage && !showApplicationFlow ? 'active' : ''}`} onClick={() => { setShowDocumentsPage(false); setShowServicesPage(false); setShowApplicationsPage(false); setShowApplicationFlow(false); setMessages([]); if (window.innerWidth <= 768) setSidebarOpen(false); }}>
+                                <div className={`sidebar-item ${!showServicesPage && !showAccountPage && !showApplicationFlow ? 'active' : ''}`} onClick={() => { setShowServicesPage(false); setShowAccountPage(false); setShowApplicationFlow(false); if (window.innerWidth <= 768) setSidebarOpen(false); }}>
                                     <i className="fas fa-comment"></i> Chat
                                 </div>
-                                <div className={`sidebar-item ${showServicesPage ? 'active' : ''}`} onClick={() => { setShowServicesPage(true); setShowDocumentsPage(false); setShowApplicationsPage(false); setShowApplicationFlow(false); if (window.innerWidth <= 768) setSidebarOpen(false); }}>
+                                <div className={`sidebar-item ${showServicesPage ? 'active' : ''}`} onClick={() => { setShowServicesPage(true); setShowAccountPage(false); setShowApplicationFlow(false); if (window.innerWidth <= 768) setSidebarOpen(false); }}>
                                     <i className="fas fa-cogs"></i> Services
                                 </div>
-                                <div className={`sidebar-item ${showDocumentsPage ? 'active' : ''}`} onClick={() => { setShowDocumentsPage(true); setShowServicesPage(false); setShowApplicationsPage(false); setShowApplicationFlow(false); loadDocuments(); if (window.innerWidth <= 768) setSidebarOpen(false); }}>
-                                    <i className="fas fa-folder"></i> Documents
-                                    <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#666' }}>{documents.length}</span>
-                                </div>
-                                <div className={`sidebar-item ${showApplicationsPage ? 'active' : ''}`} onClick={() => { setShowApplicationsPage(true); setShowDocumentsPage(false); setShowServicesPage(false); setShowApplicationFlow(false); loadApplications(); if (window.innerWidth <= 768) setSidebarOpen(false); }}>
-                                    <i className="fas fa-file-invoice"></i> Applications
-                                    <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#666' }}>{applications.length}</span>
+                                <div className={`sidebar-item ${showAccountPage ? 'active' : ''}`} onClick={() => { setShowAccountPage(true); setShowServicesPage(false); setShowApplicationFlow(false); loadUserProfile(); loadDocuments(); loadApplications(); if (window.innerWidth <= 768) setSidebarOpen(false); }}>
+                                    <i className="fas fa-user-circle"></i> Account
+                                    <span style={{ marginLeft: 'auto', fontSize: '11px', background: '#252525', padding: '2px 8px', borderRadius: '10px', color: '#888' }}>
+                                        {documents.length + applications.length}
+                                    </span>
                                 </div>
                             </div>
 
@@ -3248,10 +4009,8 @@
                         {/* Content area */}
                         {showServicesPage ? (
                             renderServicesPage()
-                        ) : showDocumentsPage ? (
-                            renderDocumentsPage()
-                        ) : showApplicationsPage ? (
-                            renderApplicationsPage()
+                        ) : showAccountPage || showDocumentsPage || showApplicationsPage ? (
+                            renderAccountPage()
                         ) : (
                             <div className="chat-area">
                             <div className="chat-messages">
@@ -3350,6 +4109,109 @@
                             </div>
                         </div>
                         )}
+                    </div>
+
+                    {/* In-website Document Viewer Modal */}
+                    {viewingDoc && (
+                        <div style={{
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            background: 'rgba(0, 0, 0, 0.85)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            zIndex: 9999,
+                            padding: '16px'
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                background: '#1e1e1e',
+                                padding: '12px 20px',
+                                borderRadius: '8px 8px 0 0',
+                                borderBottom: '1px solid #333'
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ fontSize: '18px' }}>📄</span>
+                                    <span style={{ fontWeight: '600', color: '#fff', fontSize: '15px' }}>{viewingDoc.filename}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <a
+                                        href={viewingDoc.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="btn btn-secondary"
+                                        style={{ fontSize: '12px', padding: '6px 12px', textDecoration: 'none', color: '#fff' }}
+                                    >
+                                        <i className="fas fa-external-link-alt" style={{ marginRight: '6px' }}></i> Open in new tab
+                                    </a>
+                                    <button
+                                        onClick={() => setViewingDoc(null)}
+                                        className="btn btn-ghost"
+                                        style={{ fontSize: '18px', padding: '4px 10px', color: '#aaa', cursor: 'pointer' }}
+                                        title="Close viewer"
+                                    >
+                                        ✕
+                                    </button>
+                                </div>
+                            </div>
+                            <div style={{
+                                flex: 1,
+                                background: '#121212',
+                                borderRadius: '0 0 8px 8px',
+                                overflow: 'hidden',
+                                display: 'flex',
+                                justifyContent: 'center',
+                                alignItems: 'center'
+                            }}>
+                                <iframe
+                                    src={viewingDoc.url}
+                                    style={{
+                                        width: '100%',
+                                        height: '100%',
+                                        border: 'none',
+                                        background: '#fff'
+                                    }}
+                                    title="Document Preview"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Bottom-right sticky version badge */}
+                    <div style={{
+                        position: 'fixed',
+                        bottom: '12px',
+                        right: '16px',
+                        zIndex: 9999,
+                        background: 'rgba(18, 18, 18, 0.82)',
+                        backdropFilter: 'blur(8px)',
+                        WebkitBackdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(132, 189, 0, 0.35)',
+                        borderRadius: '20px',
+                        padding: '4px 12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontSize: '11px',
+                        fontFamily: 'monospace',
+                        color: '#a3a3a3',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.45)',
+                        pointerEvents: 'none',
+                        letterSpacing: '0.04em'
+                    }}>
+                        <span style={{
+                            width: '6px',
+                            height: '6px',
+                            borderRadius: '50%',
+                            background: '#84BD00',
+                            display: 'inline-block',
+                            boxShadow: '0 0 6px #84BD00'
+                        }}></span>
+                        <span>v2.2.0</span>
                     </div>
                 </div>
             );

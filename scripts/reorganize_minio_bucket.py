@@ -1,5 +1,5 @@
 """
-MinIO Bucket Reorganization Utility for Moro Hub Task 1.
+MinIO Bucket Reorganization Utility for DocIntake Platform Task 1.
 
 Reorganizes cluttered, nested, or legacy file uploads into the clean, standardized:
     <name>_<idnumber>_<date>.<ext>
@@ -22,7 +22,7 @@ logger = logging.getLogger("reorganize_minio")
 
 def main():
     print("=" * 65)
-    print("  Moro Hub Task 1 — MinIO Clean Bucket Reorganizer")
+    print("  DocIntake Platform Task 1 — MinIO Clean Bucket Reorganizer")
     print("  Target Format: <name>_<idnumber>_<date>.<ext>")
     print("=" * 65)
 

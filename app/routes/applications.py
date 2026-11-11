@@ -4,7 +4,7 @@ Application management routes — create, list, retrieve, and cancel onboarding 
 Role in Project:
     This module is the primary REST interface for managing the lifecycle of a user's
     onboarding application. An 'application' is the central business entity: it links a
-    user to a Moro Hub service, tracks required documents, holds a CollectionAgent session
+    user to a DocIntake Platform service, tracks required documents, holds a CollectionAgent session
     reference, and stores the final validation outcome.
 
 Cross-File Interconnections:
@@ -74,7 +74,7 @@ async def create_application(
         - `services.repository.Repository.create_application` — persists to PostgreSQL.
 
     Args:
-        service_id: Identifier of the Moro Hub service being applied for.
+        service_id: Identifier of the DocIntake Platform service being applied for.
         applicant_name: Full legal name of the applicant.
         token: Optional JWT bearer token issued by AuthService.
 

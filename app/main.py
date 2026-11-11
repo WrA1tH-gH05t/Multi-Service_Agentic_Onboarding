@@ -524,4 +524,7 @@ async def serve_frontend():
     Returns:
         FileResponse: The compiled frontend HTML entry document.
     """
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    return FileResponse(
+        os.path.join(STATIC_DIR, "index.html"),
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate"}
+    )

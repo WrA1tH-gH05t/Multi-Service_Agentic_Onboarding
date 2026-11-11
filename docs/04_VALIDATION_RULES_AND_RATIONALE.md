@@ -1,6 +1,6 @@
 # Document 4: Validation Agent Business Rules & Decision Justifications
 
-**Project:** Moro Hub Multi-Service Document Intake & Verification System  
+**Project:** DocIntake Platform Multi-Service Document Intake & Verification System  
 **Version:** 2.1 (Multi-Layered Security, Integrity & Cross-Validation)  
 **Author:** AI Engineering & Architecture Team  
 **Scope:** Business Rule Engine, Execution Gates, Inclusion & Exclusion Justifications
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-The **Validation Agent** acts as the automated gatekeeper of the Moro Hub document intake system. Its mission is to protect backend systems, prevent onboarding fraud, maintain legal compliance, and guarantee high data quality **before** any application reaches permanent storage or operational back-offices.
+The **Validation Agent** acts as the automated gatekeeper of the DocIntake Platform document intake system. Its mission is to protect backend systems, prevent onboarding fraud, maintain legal compliance, and guarantee high data quality **before** any application reaches permanent storage or operational back-offices.
 
 To avoid bloated validation logic that introduces false positives and frustrates legitimate users, the rules are organized into a **Strict Four-Tier Execution Ladder**:
 

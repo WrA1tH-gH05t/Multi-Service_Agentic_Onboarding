@@ -1,6 +1,6 @@
 # Document 3: Vision Extraction Pipeline & Golden Dataset Verification
 
-**Project:** Moro Hub Multi-Service Document Intake & Verification System  
+**Project:** DocIntake Platform Multi-Service Document Intake & Verification System  
 **Version:** 2.1 (Full 11-Field Driving License & Multilingual ID Pipeline)  
 **Author:** AI Engineering & Architecture Team  
 **Scope:** Multimodal Extraction Engine, Prompt Engineering, Canonicalization, Golden Dataset Benchmarking
@@ -11,7 +11,7 @@
 
 Document extraction across identity cards, passports, and driving licenses presents formidable challenges: non-standard tabular geometries, micro-print fonts, multi-script layouts (Arabic and Latin), photographic background watermarks, and subtle visual icons (e.g., condition stamps or eyeglasses icons).
 
-The Moro Hub platform utilizes **Qwen2.5-VL Multimodal Vision AI** coupled with a **Two-Pass Multi-Page Image Rasterizer** and a **Robust Canonicalization Normalizer**. Extraction accuracy is benchmarked and verified against a curated **Golden Dataset** representing varied national identity formats (MIDV-500, MIDV-2019, UAE Driving Licenses, and Schengen Passports).
+The DocIntake Platform platform utilizes **Qwen2.5-VL Multimodal Vision AI** coupled with a **Two-Pass Multi-Page Image Rasterizer** and a **Robust Canonicalization Normalizer**. Extraction accuracy is benchmarked and verified against a curated **Golden Dataset** representing varied national identity formats (MIDV-500, MIDV-2019, UAE Driving Licenses, and Schengen Passports).
 
 ---
 
@@ -80,7 +80,7 @@ put("glasses_requirement", "glasses_requirement", "glasses", "vision_condition",
 
 ## 2. Verification Against the Golden Dataset
 
-To establish statistical confidence and prevent regressions, all changes to prompts, vision models, or canonicalization dictionaries are validated against the **Moro Hub Golden Dataset**.
+To establish statistical confidence and prevent regressions, all changes to prompts, vision models, or canonicalization dictionaries are validated against the **DocIntake Platform Golden Dataset**.
 
 ### 2.1 Golden Dataset Composition
 The benchmark suite consists of **150+ annotated identity documents** spanning four primary categories:

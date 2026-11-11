@@ -98,21 +98,10 @@ class PersistentUserStore:
         with open(self.filepath, "w") as f:
             json.dump(data, f, indent=2)
     
-    def add_user(self, user_id: str, username: str, email: str, hashed_password: str, created_at=None):
-        """Add a new user with username and email and write changes immediately to disk.
-
-        Args:
-            user_id: Unique generated user ID string.
-            username: User login name.
-            email: User's contact email.
-            hashed_password: Salted SHA-256 hash.
-            created_at (Optional[datetime]): Account creation timestamp.
-
-        Interconnections:
-            - Called by `services.auth.AuthService.register_user()`.
-        """
+    def add_user(self, user_id: str, username: str, email: str, hashed_password: str, created_at=None, full_name=None, birthday=None, gender=None):
+        """Add a new user with username and email and write changes immediately to disk."""
         self._users[user_id] = UserAccountDict(
-            user_id, email, hashed_password, created_at, username=username
+            user_id, email, hashed_password, created_at, username=username, full_name=full_name, birthday=birthday, gender=gender
         )
         self._user_by_name[username] = user_id
         self._user_by_email[email] = user_id
@@ -224,25 +213,17 @@ class UserAccountDict:
         last_login (Optional[datetime]): Timestamp of last successful authentication.
         is_active (bool): Whether the account is active or disabled.
         sessions (List[str]): List of active session tokens belonging to the user.
+        full_name (Optional[str]): Legal full name.
+        birthday (Optional[str]): Date of birth.
+        gender (Optional[str]): Gender.
 
     Interconnections:
         - Returned by `PersistentUserStore` to `services.auth.AuthService`.
         - Compatible with `UserAccount` attributes expected by callers.
     """
 
-    def __init__(self, user_id, email, hashed_password, created_at=None, username=None, last_login=None, is_active=True, sessions=None):
-        """Initialize UserAccountDict instance.
-
-        Args:
-            user_id: Unique user identifier.
-            email: User email.
-            hashed_password: Salted password hash.
-            created_at (Optional[datetime]): Account creation time.
-            username (Optional[str]): User handle.
-            last_login (Optional[datetime]): Timestamp of last login.
-            is_active (bool): Account enabled state.
-            sessions (Optional[List[str]]): List of active session tokens.
-        """
+    def __init__(self, user_id, email, hashed_password, created_at=None, username=None, last_login=None, is_active=True, sessions=None, full_name=None, birthday=None, gender=None, **kwargs):
+        """Initialize UserAccountDict instance."""
         self.user_id = user_id
         self.email = email
         self.hashed_password = hashed_password
@@ -251,6 +232,9 @@ class UserAccountDict:
         self.last_login = last_login
         self.is_active = is_active
         self.sessions = sessions or []
+        self.full_name = full_name or kwargs.get("name") or self.username
+        self.birthday = birthday
+        self.gender = gender
     
     def to_dict(self) -> dict:
         """Serialize user account data into JSON-compatible dictionary.
@@ -267,4 +251,7 @@ class UserAccountDict:
             "last_login": self.last_login.isoformat() if self.last_login else None,
             "is_active": self.is_active,
             "sessions": self.sessions,
+            "full_name": self.full_name,
+            "birthday": self.birthday,
+            "gender": self.gender,
         }

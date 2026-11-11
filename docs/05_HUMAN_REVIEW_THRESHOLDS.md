@@ -1,6 +1,6 @@
 # Document 5: Human Review Confidence Thresholds & Automated Escalation Policy
 
-**Project:** Moro Hub Multi-Service Document Intake & Verification System  
+**Project:** DocIntake Platform Multi-Service Document Intake & Verification System  
 **Version:** 2.1 (Calibrated Decision Boundaries: <50%, 51–79%, ≥80%)  
 **Author:** AI Engineering & Architecture Team  
 **Scope:** Mathematical Scoring Formulae, Routing Thresholds, Fallback Workflows, Operational Rationale
@@ -11,7 +11,7 @@
 
 A core operational challenge in automated document intake is balancing **Straight-Through Processing (STP) efficiency** against **risk mitigation**. Overly aggressive automation risks accepting corrupted, unreadable, or fraudulent records. Conversely, overly cautious routing routes clean applications to manual review, increasing back-office costs and missing service SLAs.
 
-The Moro Hub platform addresses this with a calibrated **Three-Tier Confidence Scoring and Routing Policy**:
+The DocIntake Platform platform addresses this with a calibrated **Three-Tier Confidence Scoring and Routing Policy**:
 
 ```
       0% ─────────────────── 50% ─────────────────── 80% ─────────────────── 100%

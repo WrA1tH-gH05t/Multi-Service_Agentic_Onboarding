@@ -664,8 +664,8 @@ class ValidationAgent:
 
         Supported Date Formats:
         -----------------------
-        - Day-level: %Y-%m-%d, %d/%m/%Y, %d.%m.%Y, %d %b %Y, %d %B %Y, %Y/%m/%d
-        - Month-level: %m/%Y, %B %Y, %b %Y (valid through the last day of the given month)
+        - Day-level: %Y-%m-%d, %d/%m/%Y, %d.%m.%Y, %d-%m-%Y, %d %b %Y, %d %B %Y, %Y/%m/%d, %d-%b-%Y, %d-%B-%Y, %Y.%m.%d
+        - Month-level: %m/%Y, %B %Y, %b %Y, %m-%Y, %Y-%m (valid through the last day of the given month)
 
         Args:
             expiry_date (str): Raw or extracted expiry date string.
@@ -684,7 +684,11 @@ class ValidationAgent:
         expiry_date = expiry_date.strip()
 
         # Try multiple date formats
-        for fmt in ["%Y-%m-%d", "%d/%m/%Y", "%d.%m.%Y", "%d %b %Y", "%d %B %Y", "%Y/%m/%d"]:
+        for fmt in [
+            "%Y-%m-%d", "%d/%m/%Y", "%d.%m.%Y", "%d-%m-%Y",
+            "%d %b %Y", "%d %B %Y", "%Y/%m/%d", "%d-%b-%Y",
+            "%d-%B-%Y", "%Y.%m.%d", "%d %b, %Y", "%b %d, %Y"
+        ]:
             try:
                 expiry = datetime.strptime(expiry_date, fmt)
                 return expiry.date() > date.today()
@@ -692,7 +696,7 @@ class ValidationAgent:
                 continue
 
         # Handle month-year formats (valid through last day of that month)
-        for fmt in ["%m/%Y", "%B %Y", "%b %Y"]:
+        for fmt in ["%m/%Y", "%B %Y", "%b %Y", "%m-%Y", "%Y-%m"]:
             try:
                 dt = datetime.strptime(expiry_date, fmt)
                 # Last day of the month
@@ -762,9 +766,16 @@ class ValidationAgent:
                         continue
 
                     if field == "name":
-                        # A6: Set-based comparison (case/accents/punctuation/order insensitive)
-                        if self._names_match(str(val1), str(val2)):
+                        # A6: Set-based & phonetic/token comparison (case/accents/punctuation/order insensitive)
+                        is_match, is_partial = self._names_match_detailed(str(val1), str(val2))
+                        if is_match:
                             report.add_pass(f"cross_check.{field} ({documents[i].get('doc_type', '')} vs {documents[j].get('doc_type', '')})")
+                        elif is_partial:
+                            # Substantial match / subset / patronymic variation -> Route to human review instead of immediate critical fail
+                            report.add_review(
+                                f"cross_check.{field} ({documents[i].get('doc_type', '')} vs {documents[j].get('doc_type', '')}): {self._mask_name(str(val1))} vs {self._mask_name(str(val2))}",
+                                severity="medium"
+                            )
                         else:
                             report.add_issue(ValidationIssue(
                                 field=f"cross_check.{field}",
@@ -887,56 +898,63 @@ class ValidationAgent:
     # -------------------------------------------------------------------------- #
 
     @staticmethod
-    def _names_match(name1: str, name2: str) -> bool:
+    def _names_match_detailed(name1: str, name2: str) -> Tuple[bool, bool]:
         """
-        Set-based name comparison — case-, accent-, punctuation-, and order-insensitive.
-
-        Handles Complex Identity Variations:
-        ------------------------------------
-        - Case variations: "JOHN DOE" vs "john doe"
-        - Accented characters: "José García" vs "jose garcia", "Müller" vs "Muller"
-        - Reordered names: "Doe John" vs "John Doe"
-        - Punctuation / Hyphens: "Mary-Jane" vs "Mary Jane"
-        - Single-word vs joined variants: "O'Connor" vs "OConnor"
-
-        Args:
-            name1 (str): First name string.
-            name2 (str): Second name string.
-
-        Returns:
-            bool: True if names match semantically under normalized token or concatenated comparison.
+        Set-based name comparison with detailed partial/subset variation analysis.
+        Returns: (is_full_match, is_partial_match)
         """
         import unicodedata
+        import re
 
-        def normalize(name: str) -> set:
-            # Remove accents/diacritics
+        def normalize_tokens(name: str) -> List[str]:
             name = unicodedata.normalize('NFKD', name)
             name = ''.join(c for c in name if not unicodedata.combining(c))
-            # Replace punctuation with spaces (so "Mary-Jane" → "Mary Jane")
             name = ''.join(c if c.isalnum() or c.isspace() else ' ' for c in name)
-            name = ' '.join(name.lower().split())
-            return set(name.split()) if name else set()
+            tokens = [t.lower() for t in name.split() if t.strip()]
+            # Strip common honorifics / patronymic prefixes in GCC/international identity docs
+            cleaned = []
+            for t in tokens:
+                if t in ("mr", "mrs", "ms", "dr", "al", "bin", "bint", "ibn"):
+                    continue
+                cleaned.append(t)
+            return cleaned or tokens
 
         def normalize_concat(name: str) -> str:
-            """Concatenated form — removes all non-alphanumeric chars.
-            Handles single-word vs multi-word variants: O'Connor vs OConnor."""
             name = unicodedata.normalize('NFKD', name)
             name = ''.join(c for c in name if not unicodedata.combining(c))
             name = ''.join(c for c in name if c.isalnum())
             return name.lower()
 
-        n1_set = normalize(name1)
-        n2_set = normalize(name2)
-        if n1_set and n1_set == n2_set:
-            return True
+        tok1 = normalize_tokens(name1)
+        tok2 = normalize_tokens(name2)
+        set1, set2 = set(tok1), set(tok2)
 
-        # Fallback: concatenated comparison for single-word vs multi-word
-        n1_concat = normalize_concat(name1)
-        n2_concat = normalize_concat(name2)
-        if n1_concat and n1_concat == n2_concat:
-            return True
+        if set1 and set1 == set2:
+            return True, False
 
-        return False
+        # Concatenated equality (e.g. O'Connor vs OConnor)
+        c1, c2 = normalize_concat(name1), normalize_concat(name2)
+        if c1 and c1 == c2:
+            return True, False
+
+        # Name subset check: e.g. Passport contains [Given, Middle, Surname] while ID contains [Given, Surname]
+        if set1 and set2 and (set1.issubset(set2) or set2.issubset(set1)):
+            return False, True
+
+        # High token overlap check (>= 66% common tokens)
+        intersection = set1.intersection(set2)
+        if len(intersection) >= 2 and (len(intersection) / max(len(set1), len(set2)) >= 0.60):
+            return False, True
+
+        return False, False
+
+    @staticmethod
+    def _names_match(name1: str, name2: str) -> bool:
+        """
+        Set-based name comparison — case-, accent-, punctuation-, and order-insensitive.
+        """
+        match, _ = ValidationAgent._names_match_detailed(name1, name2)
+        return match
 
     @staticmethod
     def _normalize_date(date_str: str) -> Optional[str]:
@@ -945,7 +963,7 @@ class ValidationAgent:
 
         Supported Input Formats:
         ------------------------
-        %Y-%m-%d, %d/%m/%Y, %d.%m.%Y, %d %b %Y, %d %B %Y, %Y/%m/%d
+        %Y-%m-%d, %d/%m/%Y, %d.%m.%Y, %d-%m-%Y, %d %b %Y, %d %B %Y, %Y/%m/%d, %d-%b-%Y, %d-%B-%Y, %Y.%m.%d
 
         Args:
             date_str (str): Raw extracted date string.
@@ -960,7 +978,11 @@ class ValidationAgent:
 
         date_str = date_str.strip()
 
-        for fmt in ["%Y-%m-%d", "%d/%m/%Y", "%d.%m.%Y", "%d %b %Y", "%d %B %Y", "%Y/%m/%d"]:
+        for fmt in [
+            "%Y-%m-%d", "%d/%m/%Y", "%d.%m.%Y", "%d-%m-%Y",
+            "%d %b %Y", "%d %B %Y", "%Y/%m/%d", "%d-%b-%Y",
+            "%d-%B-%Y", "%Y.%m.%d", "%d %b, %Y", "%b %d, %Y"
+        ]:
             try:
                 dt = datetime.strptime(date_str, fmt)
                 return dt.strftime("%Y-%m-%d")

@@ -155,7 +155,7 @@ def validate_applicant_name_match(applicant_name: str, doc_name: str, doc_type: 
     Interconnections:
         - Invoked by `agents.validation_agent.ValidationAgent` during cross-document and
           identity consistency checks.
-        - Enforces Moro Hub strict identity governance rules preventing impersonation or
+        - Enforces DocIntake Platform strict identity governance rules preventing impersonation or
           uploading someone else's ID documents for an application.
 
     Args:

@@ -1,5 +1,5 @@
 """
-Chat message route — the main conversational AI endpoint for the Moro Hub onboarding system.
+Chat message route — the main conversational AI endpoint for the DocIntake Platform onboarding system.
 
 Role in Project:
     This is the central HTTP endpoint that receives every user chat message and routes it
@@ -145,8 +145,6 @@ async def chat(req: ChatMessage):
                     pass
             return ChatResponse(
                 response=SAFE_INJECTION_REPLY,
-                sources=[],
-                confidence=1.0,
                 intent="blocked_injection",
                 matched_service=None,
             )
@@ -280,9 +278,8 @@ async def chat(req: ChatMessage):
             "1. If a user asks about applying, signing up, or registering, be encouraging and offer to help them start ONLY if the service is available. "
             "If the service is coming soon or unavailable, state clearly that it is not open for applications yet and do NOT offer or ask to start an application. "
             "If they have NOT named a service, say something like: \"Sure! I'd be happy to help you get started. Which service are you interested in?\" "
-            "If they HAVE named an available service (it appears in the context above), never ask which service; say something like: "
-            "\"Great choice! {service.name} is a great option. Would you like me to help you start your application?\" "
-            "IMPORTANT: Never jump straight to asking for documents. Always ask the user if they want to apply FIRST, even if they seem interested. "
+            "If they HAVE named an available service (it appears in the context above), confirm the choice and required documents cleanly. Note: The system will automatically provide an interactive button for them to begin, so you DO NOT need to ask 'Would you like to start your application?' at the end. "
+            "IMPORTANT: Never jump straight to asking for documents. Always be conversational. "
             "Don't be robotic.\n"
             "2. If a user asks a greeting (hi, hello, hey), greet them warmly. "
             "Example: \"Hi there! How can I help you today?\" or \"Good to see you! What can I do for you?\"\n"
@@ -293,6 +290,15 @@ async def chat(req: ChatMessage):
             "7. Keep responses under 3-4 sentences for natural flow."
         )
 
+        # Retrieve recent chat history if available
+        chat_history = []
+        if db and session_id:
+            try:
+                raw_messages = db.get_chat_session_messages(session_id)
+                chat_history = [{"role": m.get("role"), "content": m.get("content")} for m in raw_messages if m.get("content")]
+            except Exception as e:
+                logger.warning(f"Could not load chat history: {e}")
+
         # Generate response using vision model (text mode — no image needed)
         reply = None
         if state["generation"]:
@@ -300,17 +306,38 @@ async def chat(req: ChatMessage):
                 reply = await state["generation"].generate_response(
                     req.query,
                     context=context if context else "",
-                    system=system_prompt
+                    system=system_prompt,
+                    chat_history=chat_history
                 )
             except Exception as e:
                 logger.error(f"Generation failed: {e}")
                 traceback.print_exc()
 
-        if not reply:
-            # Fallback to catalog FAQ
+        # Pre-check for known unavailable services requested by user (e.g. driving license)
+        unavailable_service_name = None
+        if not service and is_apply:
+            unavailable_map = {
+                "driving license": "Driving License",
+                "driving licence": "Driving License",
+                "driver license": "Driving License",
+                "driver's license": "Driving License",
+                "driver's licence": "Driving License",
+                "trade license": "Trade License",
+                "business license": "Business License",
+                "passport renewal": "Passport Renewal",
+                "visa renewal": "Visa Renewal",
+            }
+            for pattern, name in unavailable_map.items():
+                if pattern in q:
+                    unavailable_service_name = name
+                    break
+
+        if unavailable_service_name:
+            reply = f"The {unavailable_service_name} service is currently not available. Please check back later!"
+        elif not reply:
             if service:
                 if status.value == "coming_soon":
-                    reply = f"{service.name} is currently coming soon. We don't have details yet, but please check back later."
+                    reply = f"{service.name} is currently coming soon and not open for applications yet. Please check back later!"
                 else:
                     faq_answer, _ = catalog.answer_faq(req.query)
                     reply = faq_answer
@@ -322,7 +349,10 @@ async def chat(req: ChatMessage):
         intent = None
         matched_service = None
 
-        if service:
+        if unavailable_service_name:
+            intent = "faq"
+            matched_service = None
+        elif service:
             matched_service = service.service_id
             if status.value == "coming_soon":
                 intent = "faq"
@@ -340,21 +370,6 @@ async def chat(req: ChatMessage):
         if intent == "apply" and service and reply and re.search(r"which (service|one)|what service", reply, re.I):
             reply = f"Great choice! Let's get you started with {service.name}."
 
-        # Calculate confidence
-        confidence = 0.0
-        if service and status.value == "available":
-            confidence = 0.85
-        elif service and status.value == "coming_soon":
-            confidence = 0.7
-        else:
-            confidence = 0.4
-
-        # Build sources list
-        sources = []
-        if policy_context:
-            sources.append({"type": "policy", "document": "ROUTING_POLICIES.md"})
-            sources.append({"type": "policy", "document": "FAQ_ANSWER_POLICIES.md"})
-
         # Phase 3: Persist assistant message to database
         if db and session_id:
             try:
@@ -365,25 +380,27 @@ async def chat(req: ChatMessage):
                     content=reply,
                     intent=intent,
                     matched_service=matched_service,
-                    confidence=confidence,
                 )
             except Exception as e:
                 logger.warning(f"Failed to persist assistant message: {e}")
 
-        # Phase 3: Auth gate for application intent
+        # Phase 3: Auth gate for application intent ONLY for available services
         if intent == "apply" and not user_id:
+            # If a service was matched and is coming soon, do not gate behind login
+            if service and status.value == "coming_soon":
+                return ChatResponse(
+                    response=f"{service.name} is currently coming soon and not open for applications yet. Please check back later!",
+                    intent="faq",
+                    matched_service=matched_service
+                )
             return ChatResponse(
                 response="To apply for a service, please sign in or sign up first. You can continue asking general questions without signing in.",
-                sources=sources,
-                confidence=confidence,
                 intent=intent,
                 matched_service=matched_service
             )
 
         return ChatResponse(
             response=reply,
-            sources=sources,
-            confidence=confidence,
             intent=intent,
             matched_service=matched_service
         )

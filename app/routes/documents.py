@@ -249,7 +249,7 @@ async def upload_document(
         extracted_fields = {"_error": str(e)[:200]}
         extraction_confidence = 0.0
 
-    # Determine applicant name and ID number for MinIO object formatting
+    # Determine username and ID number for MinIO object formatting (<username>_<idnumber>_<date>.<ext>)
     auth = state.get("auth")
     user_account = None
     if token and auth:
@@ -260,12 +260,13 @@ async def upload_document(
 
     app_info = _application_store.get(application_id, {}) if application_id else {}
     applicant_name = (
-        extracted_fields.get("full_name")
+        (user_account.username if user_account else None)
+        or (user_account.email.split("@")[0] if user_account and user_account.email else None)
+        or (str(user_id) if user_id else None)
+        or extracted_fields.get("full_name")
         or extracted_fields.get("name")
         or app_info.get("applicant_name")
-        or (user_account.username if user_account else None)
-        or (user_account.email.split("@")[0] if user_account and user_account.email else None)
-        or (str(user_id) if user_id else "applicant")
+        or "applicant"
     )
 
     id_number = (
@@ -296,6 +297,26 @@ async def upload_document(
 
     # Upload to MinIO (Phase 3: atomic — write to temp first)
     if storage:
+        # Avoid key collisions on same-day re-uploads of the same document
+        if hasattr(storage, "file_exists") and storage.file_exists(object_name):
+            salt_token = hashlib.sha256(content).hexdigest()[:6]
+            if storage and hasattr(storage, "format_object_name"):
+                object_name = storage.format_object_name(
+                    name=applicant_name,
+                    id_number=id_number,
+                    filename=filename,
+                    doc_type=document_type,
+                    suffix=f"v_{salt_token}",
+                )
+            else:
+                object_name = format_object_name(
+                    name=applicant_name,
+                    id_number=id_number,
+                    filename=filename,
+                    doc_type=document_type,
+                    suffix=f"v_{salt_token}",
+                )
+
         try:
             storage.upload_file(
                 file_data=content,
@@ -433,6 +454,15 @@ async def list_documents(token: Optional[str] = Query(None, alias="token")):
                     if not service_id:
                         service_id = "basic_registration"
 
+                    # Try generating presigned URL if object_name is present
+                    minio_url = None
+                    storage = state.get("storage")
+                    if d.object_name and storage:
+                        try:
+                            minio_url = storage.generate_presigned_url(d.object_name, expires=timedelta(minutes=30))
+                        except Exception:
+                            pass
+
                     docs.append({
                         "id": d.document_id,
                         "filename": d.filename,
@@ -444,6 +474,7 @@ async def list_documents(token: Optional[str] = Query(None, alias="token")):
                         "document_type": d.document_type,
                         "service_id": service_id,
                         "service_name": service_name,
+                        "minio_url": minio_url,
                         "extracted_fields": {k: v for k, v in d.extracted_fields.items() if not k.startswith("_")} if isinstance(d.extracted_fields, dict) else {},
                         "extraction_confidence": d.extraction_confidence or 0.0,
                     })
@@ -489,6 +520,39 @@ async def delete_document(document_id: str, token: Optional[str] = Query(None, a
         logger.error("Failed to delete document row", exc_info=True)
         raise HTTPException(status_code=503, detail="I couldn't delete that document. Please try again.")
     return {"success": True, "message": "Document deleted"}
+
+
+# --- View Document (Inline preview using MinIO/storage) ---
+@router.get("/documents/{document_id}/view")
+async def view_document(document_id: str, token: Optional[str] = Query(None, alias="token")):
+    """View one of the caller's own documents inline with presigned URL or inline stream."""
+    state = get_state()
+    user_id = _require_user_id(state, token)
+    doc = _owned_document(state, document_id, user_id)
+    storage = state.get("storage")
+    if not doc.get("object_name") or not storage:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Try generating a direct MinIO presigned URL
+    minio_url = None
+    try:
+        minio_url = storage.generate_presigned_url(doc["object_name"], expires=timedelta(minutes=30))
+    except Exception as e:
+        logger.warning(f"Could not generate presigned URL: {e}")
+
+    # If stream requested or fallback, also allow direct inline streaming
+    try:
+        data = storage.download_file(doc["object_name"])
+        safe = "".join(c if c.isalnum() or c in "._-" else "_" for c in (doc.get("filename") or "document.pdf"))[:80]
+        content_type = doc.get("content_type") or "application/pdf"
+        headers = {
+            "Content-Disposition": f'inline; filename="{safe}"',
+            "X-Minio-Presigned-Url": minio_url or ""
+        }
+        return Response(content=data, media_type=content_type, headers=headers)
+    except Exception:
+        logger.error("Failed to view document from storage", exc_info=True)
+        raise HTTPException(status_code=503, detail="I couldn't fetch that document for preview. Please try again.")
 
 
 # --- Download Document ---

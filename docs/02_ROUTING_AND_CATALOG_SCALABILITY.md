@@ -1,6 +1,6 @@
 # Document 2: Catalog-Driven Routing Approach & Full-Catalog Scalability
 
-**Project:** Moro Hub Multi-Service Document Intake & Verification System  
+**Project:** DocIntake Platform Multi-Service Document Intake & Verification System  
 **Version:** 2.1 (Dynamic Catalog & Service-Agnostic Wizard)  
 **Author:** AI Engineering & Architecture Team  
 **Scope:** Routing Architecture, Dynamic Service Scaling, Zero-Hardcoding Principles
@@ -11,7 +11,7 @@
 
 Enterprise document onboarding systems frequently collapse into unmaintainable codebases when route handlers and frontend views contain hardcoded procedural logic for specific services (e.g., `if (service == "mobility") { extract_driver_license(); }`). 
 
-The Moro Hub system adopts a **Declarative Catalog-Driven Routing Architecture**. The onboarding wizard, document requirements evaluator, schema selector, and validation workflows are completely generic. All service constraints, required credentials, alternatives, and routing rules are defined as data specifications in the Service Catalog. 
+The DocIntake Platform system adopts a **Declarative Catalog-Driven Routing Architecture**. The onboarding wizard, document requirements evaluator, schema selector, and validation workflows are completely generic. All service constraints, required credentials, alternatives, and routing rules are defined as data specifications in the Service Catalog. 
 
 This design allows the platform to scale from 3 initial services to 15+ catalog services without modifying backend route logic or frontend UI components.
 
@@ -87,7 +87,7 @@ def _kind(doc_type: str) -> str:
         return "national_id"
     if "licen" in d or "driving" in d:
         return "driving_license"
-    if "utility" in d or "bill" in d or "dewa" in d:
+    if "utility" in d or "bill" in d or "utility" in d:
         return "utility_bill"
     return "other"
 ```
@@ -101,7 +101,7 @@ This single helper decouples business service routing from structural document e
 
 ## 3. Scaling to the Full Service Catalog
 
-The Moro Hub catalog contains current active services and planned future expansions:
+The DocIntake Platform catalog contains current active services and planned future expansions:
 
 | Service ID | Service Name | Status | Required Credentials | Processing SLA |
 |---|---|---|---|---|

@@ -151,6 +151,9 @@ class UserRegistrationRequest(BaseModel):
         password (str): Plaintext password for new account.
         email (Optional[str]): Optional user email address; defaults to username if omitted.
         name (str): Display or full name of the user.
+        full_name (Optional[str]): Full legal name of the user.
+        birthday (Optional[str]): Date of birth (YYYY-MM-DD or DD/MM/YYYY).
+        gender (Optional[str]): Gender of the user (e.g. Male, Female, Other).
 
     Interconnections:
         - Consumed by `app/routes/auth.py:register` and `app/routes/auth.py:signup`.
@@ -160,6 +163,9 @@ class UserRegistrationRequest(BaseModel):
     password: str
     email: Optional[str] = ""
     name: str = ""
+    full_name: Optional[str] = None
+    birthday: Optional[str] = None
+    gender: Optional[str] = None
 
 
 class FAQRequest(BaseModel):
@@ -299,8 +305,6 @@ class ChatResponse(BaseModel):
 
     Attributes:
         response (str): The assistant's conversational response.
-        sources (List[Dict[str, Any]]): Policy documents or catalog items used for grounding.
-        confidence (float): Confidence score of intent classification and answer generation.
         intent (Optional[str]): Detected conversational intent (e.g. 'apply', 'faq', 'blocked_injection').
         matched_service (Optional[str]): Identified service identifier if service intent is present.
 
@@ -309,8 +313,6 @@ class ChatResponse(BaseModel):
         - Drives client frontend navigation (e.g., redirecting to wizard when intent is 'apply').
     """
     response: str
-    sources: List[Dict[str, Any]]
-    confidence: float
     intent: Optional[str] = None
     matched_service: Optional[str] = None
 

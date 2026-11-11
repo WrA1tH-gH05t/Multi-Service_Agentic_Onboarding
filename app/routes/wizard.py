@@ -321,11 +321,65 @@ def _failure_count(session, doc_type: str, reason: str) -> int:
 def _new_session(service_id: str, token: Optional[str]):
     state = get_state()
     user_id = _require_user(state, token)
+    db = state.get("database")
+
+    # Auto-populate applicant_name from authenticated user profile if available
+    auth = state.get("auth")
+    user = auth.validate_token(token) if (auth and token) else None
+    user_full_name = None
+    if user:
+        user_full_name = getattr(user, "full_name", None) or getattr(user, "username", None)
+
+    # Check if there is already an existing completed or under-review application for this service
+    if db:
+        try:
+            with db.session_scope() as sess:
+                from services.database import Application
+                from sqlalchemy import func
+                
+                # Check by user_id OR by applicant name
+                query = sess.query(Application).filter(
+                    Application.service_id == service_id,
+                    Application.status.in_(["complete", "needs_human_review", "processing"])
+                )
+                if user_full_name:
+                    query = query.filter(
+                        (Application.user_id == user_id) | 
+                        (func.lower(func.trim(Application.applicant_name)) == user_full_name.strip().lower())
+                    )
+                else:
+                    query = query.filter(Application.user_id == user_id)
+
+                existing_app = query.first()
+                if existing_app:
+                    svc_title = service_id.replace("_", " ").title()
+                    raise HTTPException(
+                        status_code=409,
+                        detail=f"An application for {svc_title} is already active under this name ({existing_app.applicant_name}). Please cancel or delete your existing application before creating a new one."
+                    )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.warning(f"Could not check existing service applications: {e}")
+
     mgr = _wizard_mgr(state)
     session = mgr.create_session(user_id=user_id, service_id=service_id)
+    
+    if user and user_full_name:
+        session.applicant_name = user_full_name
+        # If the initial step was 'name', advance to 'id_upload' directly
+        from services.wizard import WizardStep
+        if session.current_step == WizardStep.NAME:
+            session.current_step = WizardStep.ID_UPLOAD
+
     return {
         "success": True,
-        "data": {"session_id": session.session_id, "step": session.current_step.value, "service_id": service_id},
+        "data": {
+            "session_id": session.session_id,
+            "step": session.current_step.value,
+            "service_id": service_id,
+            "applicant_name": session.applicant_name
+        },
         "message": "Wizard session created",
     }
 
@@ -668,6 +722,17 @@ async def upload_wizard_document(
     safe_name = re.sub(r"[^A-Za-z0-9._-]", "_", file.filename or "document.pdf")[:80]
     safe_user = re.sub(r"[^A-Za-z0-9_-]", "_", str(user_id))
 
+    # Resolve username for MinIO object key (<username>_<idnumber>_<date>.<ext>)
+    user_handle = safe_user
+    auth = state.get("auth")
+    if auth:
+        try:
+            curr_u = auth._store.get_user_by_id(user_id)
+            if curr_u and getattr(curr_u, "username", None):
+                user_handle = curr_u.username
+        except Exception:
+            pass
+
     id_num = (
         extracted_fields.get("national_id_number")
         or extracted_fields.get("passport_number")
@@ -677,7 +742,7 @@ async def upload_wizard_document(
         or session.application_id
         or f"{doc_type}_{safe_user}"
     )
-    applicant = session.applicant_name or extracted_fields.get("name") or extracted_fields.get("full_name") or safe_user
+    applicant = user_handle or session.applicant_name or extracted_fields.get("name") or extracted_fields.get("full_name") or safe_user
 
     if hasattr(storage, "format_object_name"):
         object_name = storage.format_object_name(
@@ -694,6 +759,27 @@ async def upload_wizard_document(
             filename=file.filename or safe_name,
             doc_type=doc_type,
         )
+
+    # Prevent key collisions on same-day re-uploads in wizard session
+    if storage and hasattr(storage, "file_exists") and storage.file_exists(object_name):
+        salt_token = sha256[:6]
+        if hasattr(storage, "format_object_name"):
+            object_name = storage.format_object_name(
+                name=applicant,
+                id_number=id_num,
+                filename=file.filename or safe_name,
+                doc_type=doc_type,
+                suffix=f"v_{salt_token}",
+            )
+        else:
+            from services.storage import format_object_name
+            object_name = format_object_name(
+                name=applicant,
+                id_number=id_num,
+                filename=file.filename or safe_name,
+                doc_type=doc_type,
+                suffix=f"v_{salt_token}",
+            )
 
     try:
         await asyncio.to_thread(
@@ -937,12 +1023,21 @@ async def get_wizard_review(session_id: str, token: Optional[str] = Query(None, 
             "issue_place": review_fields.get("issue_place", ""),
         }
 
+    non_editable_fields = []
+    if _kind(primary_doc_type) == "passport":
+        non_editable_fields = ["passport_number", "country_code", "type", "date_of_issue", "date_of_expiry"]
+    elif _kind(primary_doc_type) == "driving_license":
+        non_editable_fields = ["license_no", "license_number", "issue_date", "expiry_date", "traffic_code_no", "licensing_authority"]
+    else: # national_id
+        non_editable_fields = ["issue_date", "expiry_date", "national_id_number", "id_number", "card_number"]
+
     return {
         "success": True,
         "data": {
             "session_id": session_id,
             "review_fields": display_fields,
             "review_fields_masked": {k: mask_value(k, v) for k, v in display_fields.items()},
+            "non_editable_fields": non_editable_fields,
             "all_extracted_fields": review_fields,
             "document_checks": document_checks,
             "applicant_name": session.applicant_name,
@@ -958,10 +1053,14 @@ _FIELD_MAPPING = {
     "name": "full_name", "full name": "full_name", "fullname": "full_name", "full_name": "full_name",
     "national id": "national_id_number", "national id number": "national_id_number",
     "nationalidnumber": "national_id_number", "national_id_number": "national_id_number",
+    "id_number": "national_id_number", "emirates_id_number": "national_id_number", "card_number": "card_number",
     "gender": "gender", "sex": "gender", "nationality": "nationality",
-    "expiry date": "expiry_date", "expirydate": "expiry_date", "expiry_date": "expiry_date",
+    "expiry date": "expiry_date", "expirydate": "expiry_date", "expiry_date": "expiry_date", "date_of_expiry": "expiry_date",
+    "issue date": "issue_date", "issuedate": "issue_date", "issue_date": "issue_date", "date_of_issue": "issue_date",
     "passport number": "passport_number", "passportnumber": "passport_number", "passport_no": "passport_number",
     "passport_number": "passport_number",
+    "license_no": "license_no", "license_number": "license_no", "driving_license_number": "license_no",
+    "traffic_code_no": "traffic_code_no", "traffic_code": "traffic_code_no",
     "place of birth": "place_of_birth", "place_of_birth": "place_of_birth",
 }
 
@@ -993,6 +1092,20 @@ async def edit_wizard_field(session_id: str, body: dict, token: Optional[str] = 
         raise HTTPException(status_code=400, detail="Please give a value between 1 and 120 characters.")
 
     actual_field = _FIELD_MAPPING[field_name]
+    
+    # Check non-editable fields based on document kind
+    primary_doc = (session.metadata.get("documents_required") or [session.service_id])[0]
+    kind = _kind(primary_doc)
+    locked_map = {
+        "passport": {"passport_number", "country_code", "type", "date_of_issue", "date_of_expiry", "issue_date", "expiry_date"},
+        "driving_license": {"license_no", "license_number", "issue_date", "expiry_date", "traffic_code_no", "traffic_code", "licensing_authority"},
+        "national_id": {"issue_date", "expiry_date", "national_id_number", "id_number", "emirates_id_number", "card_number"}
+    }
+    locked = locked_map.get(kind, locked_map["national_id"])
+    if actual_field in locked or field_name in locked or _FIELD_MAPPING.get(field_name) in locked:
+        target_display = actual_field.replace("_", " ").title()
+        raise HTTPException(status_code=400, detail=f"The field '{target_display}' cannot be edited directly as it is verified from official document records.")
+
     session = mgr.apply_field_edit(session_id, actual_field, new_value, user_id=user_id)
     session.metadata["confirmed"] = False
 
@@ -1118,8 +1231,15 @@ async def submit_wizard_application(session_id: str, token: Optional[str] = Quer
         status = "needs_human_review"      # escalated documents or user-edited values need a person
 
     # ── Save, and only then report success ──
-    prefix = {"basic_registration": "BR", "premium_crossborder": "PCB", "mobility_rental": "MR"}.get(session.service_id, "APP")
-    ref_id = f"{prefix}-{datetime.now(timezone.utc).strftime('%Y')}-{uuid.uuid4().hex[:8].upper()}"
+    # Service-specific prefix for realistic enterprise reference tracking
+    service_prefixes = {
+        "basic_registration": "BR",
+        "premium_crossborder": "PCB",
+        "mobility_rental": "MR"
+    }
+    prefix = service_prefixes.get(session.service_id, "APP")
+    year = datetime.now(timezone.utc).strftime("%Y")
+    ref_id = f"{prefix}-{year}-{uuid.uuid4().hex[:6].upper()}"
     app_id = session.application_id or str(uuid.uuid4())
     try:
         outcome = {"reference_id": ref_id, "wizard_session": session_id, "outcome": status}
@@ -1237,14 +1357,31 @@ async def submit_wizard_application(session_id: str, token: Optional[str] = Quer
 
 
 def _submit_response(session, app_id: str, ref_id: str, status: str):
+    # Dynamic SLA Timeline Matching based on service tier and review state
+    service_slas = {
+        "basic_registration": "1–2 business days",
+        "premium_crossborder": "3–5 business days",
+        "mobility_rental": "2–4 hours (Express Verification)",
+    }
+    base_sla = service_slas.get(session.service_id, "2–3 business days")
+    
+    if status == "needs_human_review":
+        display_status = "Under Review (Compliance Verification)"
+        sla_note = f"{base_sla} (+1 business day for compliance verification)"
+    else:
+        display_status = "Submitted (Processing Registry)"
+        sla_note = base_sla
+
     return {
         "success": True,
         "data": {
             "application_id": app_id,
             "reference_id": ref_id,
             "status": status,
+            "display_status": display_status,
             "service_id": session.service_id,
-            "processing_time": "2-3 business days" if status == "complete" else "Pending review",
+            "processing_time": sla_note,
+            "submitted_at": datetime.now(timezone.utc).strftime("%d %b %Y, %H:%M UTC")
         },
         "message": "Application submitted successfully",
     }

@@ -37,34 +37,10 @@ from services.user_store import PersistentUserStore
 
 
 class UserAccount:
-    """Represents a user account in the system.
-
-    Attributes:
-        user_id (str): Unique identifier for the user account (e.g., 'user_1234abcd').
-        email (str): Registered email address of the user.
-        username (str): Unique username used for login credentials.
-        hashed_password (str): Salted SHA-256 hash string formatted as '<hash>$<salt>'.
-        created_at (datetime): UTC timestamp when account was registered.
-        last_login (Optional[datetime]): UTC timestamp of the most recent successful login.
-        is_active (bool): Flag indicating if account is active or suspended.
-        sessions (List[str]): List of active session tokens associated with this user.
-
-    Interconnections:
-        - Created and managed by `AuthService.register_user()` and `PersistentUserStore`.
-        - Serialized via `to_dict()` for response delivery in `app.routes.auth.get_me()`.
-    """
+    """Represents a user account in the system."""
 
     def __init__(self, user_id: str, email: str, username: str, hashed_password: str,
-                 created_at: datetime = None):
-        """Initialize a new UserAccount instance.
-
-        Args:
-            user_id: Unique string identifier for the user.
-            email: User's contact email.
-            username: User's unique login handle.
-            hashed_password: Salted password hash string.
-            created_at: Optional creation timestamp (defaults to current UTC time).
-        """
+                 created_at: datetime = None, full_name: str = None, birthday: str = None, gender: str = None):
         self.user_id = user_id
         self.email = email
         self.username = username
@@ -73,15 +49,11 @@ class UserAccount:
         self.last_login: Optional[datetime] = None
         self.is_active = True
         self.sessions: List[str] = []  # Active session tokens
+        self.full_name = full_name or username
+        self.birthday = birthday
+        self.gender = gender
 
     def to_dict(self) -> dict:
-        """Convert the UserAccount object into a dictionary representation.
-
-        Returns:
-            dict: JSON-serializable dictionary containing account details.
-                  Note: Callers in `app.routes.auth` strip `hashed_password` and `sessions`
-                  before returning user data to external clients.
-        """
         return {
             "user_id": self.user_id,
             "email": self.email,
@@ -90,6 +62,9 @@ class UserAccount:
             "last_login": self.last_login.isoformat() if self.last_login else None,
             "is_active": self.is_active,
             "sessions": self.sessions,
+            "full_name": self.full_name,
+            "birthday": self.birthday,
+            "gender": self.gender,
         }
 
 
@@ -194,29 +169,8 @@ class AuthService:
         
         return (True, "")
 
-    def register_user(self, username: str, password: str, email: str = None, config=None) -> tuple[bool, str, Optional[UserAccount]]:
-        """
-        Register a new user account.
-        
-        Validates username syntax, password complexity, and checks for existing
-        usernames or emails in `PersistentUserStore`. Upon passing, creates a random salt,
-        hashes the password, constructs a `UserAccount`, and commits it to disk.
-
-        Args:
-            username: Unique username (alphanumeric + underscore only).
-            password: Strong password (8+ chars, upper, lower, number, special).
-            email: Email address (must be unique). Defaults to username if omitted.
-            config: Optional config override.
-            
-        Returns:
-            tuple[bool, str, Optional[UserAccount]]:
-                (success, message, UserAccount instance or None if failed).
-
-        Interconnections:
-            - Invoked by `app.routes.auth.register` and `app.routes.auth.signup`.
-            - Adds record into `services.user_store.PersistentUserStore`.
-            - `app.routes.auth` mirrors this newly created user into `services.database.User` SQL table.
-        """
+    def register_user(self, username: str, password: str, email: str = None, config=None, full_name: str = None, birthday: str = None, gender: str = None) -> tuple[bool, str, Optional[UserAccount]]:
+        """Register a new user account."""
         # Validate username format
         valid, msg = self.validate_username(username)
         if not valid:
@@ -244,8 +198,8 @@ class AuthService:
         if not email:
             email = username
         
-        user = UserAccount(user_id, email, username, hashed)
-        self._store.add_user(user_id, username, email, hashed)
+        user = UserAccount(user_id, email, username, hashed, full_name=full_name or username, birthday=birthday, gender=gender)
+        self._store.add_user(user_id, username, email, hashed, full_name=full_name or username, birthday=birthday, gender=gender)
         
         return (True, "User registered successfully.", user)
 

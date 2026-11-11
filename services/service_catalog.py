@@ -343,16 +343,16 @@ class ServiceCatalogue:
         q = question.lower()
 
         # Check if question is asking about a specific service
+        stop_words = {"a", "an", "the", "for", "in", "to", "of", "and", "or", "is", "it", "i", "we", "you", "my", "your", "apply", "want", "need", "application", "service", "services"}
         for svc in self._services.values():
             keywords = [
                 svc.service_id,
                 svc.name.lower(),
-                svc.description.lower(),
             ]
             for doc in svc.required_documents:
                 keywords.append(doc.lower())
 
-            matches = sum(1 for kw in keywords if kw in q or any(word in q for word in kw.split()))
+            matches = sum(1 for kw in keywords if kw in q or any(word in q for word in kw.split() if word not in stop_words))
 
             if matches >= 2:
                 answer = (

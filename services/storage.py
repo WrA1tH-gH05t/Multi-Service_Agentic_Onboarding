@@ -1,5 +1,5 @@
 """
-Enterprise-Hardened MinIO Storage Service for Moro Hub Task 1.
+Enterprise-Hardened MinIO Storage Service for DocIntake Platform Task 1.
 
 Enterprise Hardening Features Added:
 -------------------------------------
@@ -46,8 +46,8 @@ except ImportError:  # pragma: no cover
         """Placeholder so except clauses still work when minio is missing."""
         code = "MinioNotInstalled"
 
-logger = logging.getLogger("moro_hub.storage")
-audit_logger = logging.getLogger("moro_hub.storage.audit")
+logger = logging.getLogger("doc_intake.storage")
+audit_logger = logging.getLogger("doc_intake.storage.audit")
 
 _RECONNECT_COOLDOWN_SECONDS = 3.0
 _NETWORK_ERRORS = ((urllib3.exceptions.HTTPError, OSError) if _MINIO_OK else (OSError,))
@@ -244,7 +244,7 @@ class StorageService:
         if not config.get("access_key") and not os.getenv("MINIO_ACCESS_KEY"):
             logger.warning(
                 "MinIO credentials not set in config or env; using development defaults. "
-                "Ensure production credentials for Moro Hub deployment."
+                "Ensure production credentials for DocIntake Platform deployment."
             )
 
         self.bucket_name = config.get("bucket_name") or os.getenv("MINIO_BUCKET") or "onboarding-docs"
@@ -418,7 +418,7 @@ class StorageService:
         """Emit structured JSON audit log entry for enterprise SIEM integration."""
         event = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "service": "moro_hub_storage",
+            "service": "doc_intake_storage",
             "action": action,
             "object_name": object_name,
             "status": status,
@@ -643,6 +643,23 @@ class StorageService:
         except Exception as e:
             self._mark_down(e)
             return f"unavailable ({self._last_error})"
+
+    def file_exists(self, object_name: str) -> bool:
+        """Check if an object exists in the storage bucket."""
+        if not self.client:
+            return False
+        key = self._safe_key(object_name)
+        try:
+            self.client.stat_object(self.bucket_name, key)
+            return True
+        except Exception:
+            return False
+
+    def liveness_probe(self) -> Tuple[bool, str]:
+        """Kubernetes / Enterprise Liveness probe checking local client process state."""
+        if self.client is None:
+            return False, "storage_client_uninitialized"
+        return True, "storage_client_alive"
 
     def readiness_probe(self) -> Tuple[bool, Dict[str, Any]]:
         """Kubernetes / Enterprise Readiness probe checking live MinIO responsiveness."""

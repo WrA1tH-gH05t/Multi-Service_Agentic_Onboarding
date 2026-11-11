@@ -942,7 +942,7 @@ class TestH13_EnterpriseStorageAndProbes:
             svc._connected = True
             svc._connected = True
 
-        payload = b"Sample Verified Moro Hub Passport Content"
+        payload = b"Sample Verified DocIntake Platform Passport Content"
         correct_sha = hashlib.sha256(payload).hexdigest()
 
         # Mock S3 returning lowercased x-amz-meta- prefixed metadata

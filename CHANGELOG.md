@@ -1,5 +1,25 @@
 # CHANGELOG — Multi-Service Agentic Onboarding System
 
+## [v2.2.0] — 2026-11-11 (Extremity Hardening: Multi-Format Date Parsing, Name Variant Tolerances, S3 Disambiguation & Self-Healing Connections)
+
+### Major Changes
+- **S3 Key Collision Prevention on Same-Day Re-uploads**:
+  - Added object existence checking via `StorageService.file_exists()`.
+  - When a user resubmits or re-uploads a corrected document on the same calendar day, a deterministic short hash token (`v_<sha256[:6]>`) is automatically appended as a suffix in both `app/routes/documents.py` and `app/routes/wizard.py`, preventing silent overwrites and maintaining audit history.
+- **Enhanced International & Regional Date Parsing**:
+  - Expanded `_is_valid_expiry` and `_normalize_date` in `agents/validation_agent.py` to support dot-delimited formats (`%d.%m.%Y`, `%Y.%m.%d`), hyphenated formats (`%d-%m-%Y`), English textual months (`%d-%b-%Y`, `%d %b %Y`, `%d %B %Y`), comma variants (`%d %b, %Y`), and month-year notations (`%m-%Y`, `%Y-%m`).
+- **Tolerant Identity Name Cross-Checking**:
+  - Added `_names_match_detailed` in `agents/validation_agent.py` handling GCC/regional patronymics and honorifics (`Al`, `Bin`, `Bint`, `Ibn`, `Mr`, etc.).
+  - Evaluates token subsets and partial intersections ($\ge 60\%$), allowing cross-document variations (e.g. Passport with middle name vs ID with given + surname) to escalate smoothly to human review (`needs_human_review`) rather than triggering false-positive critical rejections.
+- **Robust Field Lock Enforcement**:
+  - Normalized field aliases (`emirates_id_number`, `id_number`, `card_number`, `license_no`, `license_number`, `date_of_expiry`, `date_of_issue`) in `app/routes/wizard.py` to prevent unauthorized client modifications on verified document fields.
+- **Self-Healing Lazy Database Connections**:
+  - Updated `DatabaseService.get_session()` to automatically connect if uninitialized, preventing `RuntimeError("Database not connected")` on detached tasks or workers.
+- **UI Version Indicator**:
+  - Added a persistent bottom-right version badge displaying `v2.2.0` on the web interface.
+
+---
+
 ## [v2.1.0] — 2026-11-10 (Enterprise Storage Hardening, Standardized S3 Naming & Health Probes)
 
 ### Major Changes

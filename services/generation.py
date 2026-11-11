@@ -88,7 +88,7 @@ class GenerationService:
     def __init__(self, config: dict):
         self.host = config.get("host", "localhost")
         self.port = config.get("port", 11434)
-        self.model = config.get("model", "qwen2.5vl:3b")
+        self.model = config.get("model", "qwen2.5vl:7b")
         self.base_url = f"http://{self.host}:{self.port}/api/chat"
         self.check_url = f"http://{self.host}:{self.port}/api/tags"
         self.timeout = config.get("timeout_seconds", 300)
@@ -270,6 +270,7 @@ class GenerationService:
         image_bytes: Optional[bytes] = None,
         extraction_schema: Optional[Dict[str, str]] = None,
         document_type: str = "",
+        chat_history: Optional[List[Dict[str, str]]] = None,
     ) -> str:
         """Generate a response — either from an image (field extraction) or text.
 
@@ -292,10 +293,32 @@ class GenerationService:
                 schema = self.NATIONAL_ID_SCHEMA
             return await self._extract_fields_from_image(image_bytes, schema, document_type=document_type or "")
 
-        # Text-only chat mode (same as before, but via vision model)
+        # Text-only chat mode
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
+
+        if chat_history and len(chat_history) > 0:
+            if len(chat_history) > 8:
+                summary_items = []
+                for m in chat_history[:-6]:
+                    role_str = "User" if m.get("role") == "user" else "Assistant"
+                    cnt = (m.get("content") or "").strip()
+                    if cnt:
+                        summary_items.append(f"{role_str}: {cnt[:100]}")
+                if summary_items:
+                    messages.append({
+                        "role": "system",
+                        "content": "Prior Conversation Summary:\n" + "\n".join(summary_items)
+                    })
+                recent = chat_history[-6:]
+            else:
+                recent = chat_history
+
+            for m in recent:
+                r = m.get("role")
+                if r in ("user", "assistant"):
+                    messages.append({"role": r, "content": m.get("content", "")})
 
         if context:
             messages.append({

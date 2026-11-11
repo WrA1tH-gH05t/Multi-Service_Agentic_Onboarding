@@ -244,7 +244,7 @@ async def collection_question(session_id: str, data: dict):
 
 @router.post("/collection/session/{session_id}/change-service")
 async def collection_change_service(session_id: str, data: dict):
-    """Handle switching to a different Moro Hub service mid-conversation.
+    """Handle switching to a different DocIntake Platform service mid-conversation.
 
     Delegates to `CollectionAgent.handle_service_change` which creates a new collection
     session for the new service. Also resets the wizard chat session state back to the

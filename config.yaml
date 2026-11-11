@@ -353,7 +353,7 @@ extraction_ladder:
   min_consensus_rungs: 2  # require this many rungs to agree before auto-accepting
   mrz:
     crop_region: "bottom_20pct"  # where to crop for MRZ extraction
-    re_extract_model: "qwen2.5vl:3b"  # model for MRZ re-extraction
+    re_extract_model: "qwen2.5vl:7b"  # model for MRZ re-extraction
     fallback_to_mrz_library: true  # use python-mrz if installed
   fallback_ocr:
     engines: ["pymupdf", "tesseract"]  # try in this order

@@ -1,6 +1,6 @@
 # Document 1: Tool & Framework Selection and Architectural Roles
 
-**Project:** Moro Hub Multi-Service Document Intake & Verification System  
+**Project:** DocIntake Platform Multi-Service Document Intake & Verification System  
 **Version:** 2.1 (Vision-AI & Real-Time Security Verification)  
 **Author:** AI Engineering & Architecture Team  
 **Scope:** Architecture, Core Frameworks, Rationale, and Component Roles
@@ -9,7 +9,7 @@
 
 ## Executive Summary
 
-The Moro Hub Document Intake & Onboarding Platform processes identity credentials and service requests under stringent enterprise requirements: **zero data exfiltration**, **strict latency SLAs**, **cross-service scalability**, **state persistence across restarts**, and **verifiable malware protection**.
+The DocIntake Platform Document Intake & Onboarding Platform processes identity credentials and service requests under stringent enterprise requirements: **zero data exfiltration**, **strict latency SLAs**, **cross-service scalability**, **state persistence across restarts**, and **verifiable malware protection**.
 
 Every tool and framework in the stack was selected to satisfy on-premise governance, asynchronous I/O throughput, schema safety, and deterministic execution.
 
@@ -107,7 +107,7 @@ Every tool and framework in the stack was selected to satisfy on-premise governa
 ## 3. Architecture Design Decisions & Trade-offs
 
 1. **Why Not Cloud-Native Document AI (AWS Textract / Google Document AI)?**
-   * *Trade-off:* Cloud APIs require zero GPU infrastructure but violate data sovereignty regulations for government and utility customers (Moro Hub / UAE compliance).
+   * *Trade-off:* Cloud APIs require zero GPU infrastructure but violate data sovereignty regulations for government and utility customers (DocIntake Platform / UAE compliance).
    * *Resolution:* Fully local, air-gapped deployment using Ollama and ClamAV running inside containerized infrastructure.
 2. **Why Direct Multimodal Vision over OCR + LLM Pipeline?**
    * *Trade-off:* Vision LLM inference requires more VRAM (~5.5GB for Qwen2.5-VL 7B/3B) than Tesseract OCR (~100MB).

@@ -1,4 +1,4 @@
-# Moro Hub — Algorithms (2 Slides)
+# DocIntake Platform — Algorithms (2 Slides)
 
 ---
 

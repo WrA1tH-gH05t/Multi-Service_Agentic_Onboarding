@@ -1,6 +1,6 @@
 # Multi-Service Agentic Onboarding — Project Demo
 
-This folder contains the interactive, standalone front-end walkthrough and simulation platform for the **Multi-Service Agentic Onboarding System (Moro Hub — Task 1)**.
+This folder contains the interactive, standalone front-end walkthrough and simulation platform for the **Multi-Service Agentic Onboarding System (DocIntake Platform — Task 1)**.
 
 ---
 
@@ -8,7 +8,7 @@ This folder contains the interactive, standalone front-end walkthrough and simul
 
 Open either file directly in any modern web browser (Google Chrome, Microsoft Edge, Safari, Firefox) without any web server or package installation required:
 
-- **`index.html`** or **`moro_hub_walkthrough.html`**
+- **`index.html`** or **`doc_intake_walkthrough.html`**
 - Double-click from your file explorer or open via `file://`.
 
 ---

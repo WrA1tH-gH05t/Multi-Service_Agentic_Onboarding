@@ -8,7 +8,7 @@ Role in Project:
        data and runs the full ValidationAgent pipeline — checking mandatory fields, expiry
        dates, cross-document name/DOB consistency, and optional golden dataset comparisons.
 
-    2. **FAQ Answering (`/faq`)**: Answers user questions about Moro Hub services using a
+    2. **FAQ Answering (`/faq`)**: Answers user questions about DocIntake Platform services using a
        two-tier strategy:
        a. Fast path: The ServiceCatalogService's built-in FAQ matcher returns a high-confidence
           direct answer if one exists.
@@ -134,7 +134,7 @@ async def validate_application(req: ValidationRequest):
 # --- FAQ ---
 @router.post("/faq")
 async def query_faq(req: FAQRequest):
-    """Answer a user's question about Moro Hub services using grounded, policy-anchored responses.
+    """Answer a user's question about DocIntake Platform services using grounded, policy-anchored responses.
 
     Resolution order:
         1. `ServiceCatalogService.answer_faq(question)` — deterministic lookup in the service

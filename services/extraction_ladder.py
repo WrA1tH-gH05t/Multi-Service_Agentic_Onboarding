@@ -194,7 +194,7 @@ class ExtractionLadder:
         oc = config.get("ollama", {})
         self._ollama_host = oc.get("host", "localhost")
         self._ollama_port = oc.get("port", 11434)
-        self._model = oc.get("model", "qwen2.5vl:3b")
+        self._model = oc.get("model", "qwen2.5vl:7b")
         self._embed_model = oc.get("embedding_model", "nomic-embed-text")
 
         # Docling pre-processing service (Rung 0)

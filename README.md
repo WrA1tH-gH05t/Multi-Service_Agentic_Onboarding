@@ -1,15 +1,24 @@
-|Multi-Service Agentic Onboarding System v2.0|
-|A conversational agent that guides customers through sign up, document upload, and verification across multiple services — now with **vision AI** for direct image understanding and structured field extraction.|
+|Multi-Service Agentic Onboarding System v2.2|
+|A conversational agent that guides customers through sign up, document upload, and verification across multiple services — now with **vision AI**, enterprise MinIO storage with SSE, resilient cross-document validation, and multi-format date handling.|
 |Built for fully on-premise deployment with Docker Desktop. Runs on consumer GPUs (RTX 4060 Laptop).|
 
-## 🎯 What This System Does (v2.0 — Vision AI)
+## 🎯 What This System Does (v2.2 — Vision AI & Enterprise Hardening)
 
 This system helps you:
 - **Discover services**: Ask about available services and what documents they require
 - **Apply through guided conversation**: Upload documents step-by-step with real-time feedback
-- **Vision-based field extraction**: Upload document images (PDF, PNG, JPG) → Qwen2.5-VL 3B extracts all fields directly from the image — no separate OCR pipeline needed
-- **Validate applications**: Cross-document consistency checks (e.g., name/DOB match across ID+passport)
+- **Vision-based field extraction**: Upload document images (PDF, PNG, JPG) → Qwen2.5-VL 7B extracts all fields directly from the image — no separate OCR pipeline needed
+- **Validate applications**: Cross-document consistency checks (e.g., name/DOB match across ID+passport with support for GCC patronymics and middle-name subsets)
+- **Multi-format date validation**: Parses dot-delimited, ISO, text-month, and hyphenated expiry and DOB dates
+- **S3 collision-resistant storage**: Standardized `name_idnumber_date.ext` naming with automatic collision disambiguation (`_v_<hash>`) and server-side encryption (SSE-S3 / SSE-KMS)
 - **Chat**: Interact with an AI assistant that understands your application status
+
+## 🆕 What's New in v2.2.0 (Minor Release Update)
+- **Edge-Case Date Formats**: Added validation and normalization for dot-separated dates (`DD.MM.YYYY`), textual months (`DD-Mon-YYYY`), and month-year validity.
+- **Name Variant & Patronymic Resilience**: Added intelligent subset/patronymic matching in `ValidationAgent`, routing regional variations (e.g. `Al`, `Bin`, passport middle names) to review instead of hard failures.
+- **Same-Day Re-upload Disambiguation**: MinIO uploads now detect existing keys and append version tokens (`v_<hash>`) to preserve history and prevent accidental overwrites.
+- **Self-Healing Database Sessions**: `DatabaseService` automatically initializes and connects on first session access.
+- **UI Version Indicator**: The frontend interface now displays a persistent bottom-right status tag with the active version number (`v2.2.0`).
 
 **Key change from v1**: We replaced the text-only `qwen3:0.6b` model with the multimodal `qwen2.5vl:3b` vision model. This eliminates the need for a separate OCR pipeline — documents are now processed as images directly.
 
@@ -326,7 +335,7 @@ When uploading documents or testing the onboarding intake pipeline, adhere to th
   - Driving License (`driving_license`): Front and back of official driver's license.
   - Emirates ID (`emirates_id`): Front and back national identity cards.
   - Passports (`passport`): Main biometric photo page / MRZ data page.
-  - Proof of Address / Tenancy: Ejari contracts, utility bills (DEWA/SEWA).
+  - Proof of Address / Tenancy: Ejari contracts, utility bills (utility/power).
   - Corporate Documents: Trade licenses, VAT registration certificates.
 - **Allowed File Extensions**:
   - Strictly `.pdf` (standard PDFs and scanned/raster PDF documents).

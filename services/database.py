@@ -45,6 +45,9 @@ class User(Base):
     created_at = Column(DateTime, server_default=func.now())
     is_active = Column(Boolean, default=True)
     last_login = Column(DateTime, nullable=True)
+    full_name = Column(String(255), nullable=True)
+    birthday = Column(String(50), nullable=True)
+    gender = Column(String(20), nullable=True)
 
     applications = relationship("Application", back_populates="user")
     chat_sessions = relationship("ChatSession", back_populates="user")
@@ -57,6 +60,9 @@ class User(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "is_active": self.is_active,
             "last_login": self.last_login.isoformat() if self.last_login else None,
+            "full_name": self.full_name,
+            "birthday": self.birthday,
+            "gender": self.gender,
         }
 
 
@@ -499,14 +505,25 @@ class DatabaseService:
                 logger.error(f"Schema reset failed: {type(e).__name__}: {e}")
 
         Base.metadata.create_all(self.engine)
+
+        # Ensure new schema columns exist if table was already created in an earlier migration
+        try:
+            with self.engine.connect() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS full_name VARCHAR(255);"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS birthday VARCHAR(50);"))
+                conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS gender VARCHAR(20);"))
+                conn.commit()
+        except Exception as e:
+            logger.debug(f"Column check/migration on users table: {e}")
+
         self.SessionLocal = sessionmaker(bind=self.engine)
 
         logger.info("Database tables created/verified")
 
     def get_session(self) -> Session:
-        """Get a new database session."""
-        if not self._connected:
-            raise RuntimeError("Database not connected")
+        """Get a new database session, automatically connecting if uninitialized."""
+        if not self._connected or self.SessionLocal is None:
+            self.connect()
         return self.SessionLocal()
 
     @contextmanager

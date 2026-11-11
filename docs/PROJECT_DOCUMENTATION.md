@@ -1,11 +1,11 @@
-# Moro Hub Multi-Service Document Intake & Verification System
+# DocIntake Platform Multi-Service Document Intake & Verification System
 ## Comprehensive Master Technical Documentation (v2.1)
 
 ---
 
 ### Executive Overview & Index of Technical Specifications
 
-This documentation consolidates the complete architectural, algorithmic, operational, and policy documentation for the **Moro Hub Document Intake Platform**. The system provides end-to-end customer onboarding, dynamic catalog routing, multimodal Vision AI field extraction, ClamAV antivirus stream scanning, and robust session persistence.
+This documentation consolidates the complete architectural, algorithmic, operational, and policy documentation for the **DocIntake Platform Document Intake Platform**. The system provides end-to-end customer onboarding, dynamic catalog routing, multimodal Vision AI field extraction, ClamAV antivirus stream scanning, and robust session persistence.
 
 The technical documentation is organized into five standalone modules:
 
