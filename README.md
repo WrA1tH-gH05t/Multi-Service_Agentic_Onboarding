@@ -13,7 +13,8 @@ This system helps you:
 - **S3 collision-resistant storage**: Standardized `name_idnumber_date.ext` naming with automatic collision disambiguation (`_v_<hash>`) and server-side encryption (SSE-S3 / SSE-KMS)
 - **Chat**: Interact with an AI assistant that understands your application status
 
-## 🆕 What's New in v2.2.0 (Minor Release Update)
+## 🆕 What's New in v2.2.1 (Patch Release Update)
+- **AI Vision Model Prompt Injection Guard**: Hardened document vision extraction prompts against embedded indirect prompt injections (e.g., text instructions placed inside document images attempting to override extraction schemas or alter classification fields).
 - **Edge-Case Date Formats**: Added validation and normalization for dot-separated dates (`DD.MM.YYYY`), textual months (`DD-Mon-YYYY`), and month-year validity.
 - **Name Variant & Patronymic Resilience**: Added intelligent subset/patronymic matching in `ValidationAgent`, routing regional variations (e.g. `Al`, `Bin`, passport middle names) to review instead of hard failures.
 - **Same-Day Re-upload Disambiguation**: MinIO uploads now detect existing keys and append version tokens (`v_<hash>`) to preserve history and prevent accidental overwrites.
