@@ -1,21 +1,4 @@
-"""File content detection and structural validation.
-
-Role in Project:
-    This module performs strict content-based MIME inspection and structural validation
-    for uploaded binary files (PDFs and images) BEFORE they are saved to storage or passed
-    to OCR/Vision extraction.
-
-Cross-File Interconnections:
-    - Called by `app.routes.documents.upload_document` and `app.routes.wizard.wizard_upload_document`
-      to reject corrupt files, renamed binaries (e.g. .exe masquerading as .pdf), or unsupported formats.
-    - Works with `services.storage.StorageService` ensuring only verified safe payloads are uploaded to MinIO.
-    - Complements `services.security` which inspects text fields for prompt injections.
-
-Catches:
-1. Renamed files (e.g., an EXE or text file renamed to .pdf or .jpg).
-2. Files that look fine on the outside (valid extension / header) but are broken inside.
-3. Unsupported file formats.
-"""
+"""File content detection and structural validation."""
 
 import io
 import logging
@@ -50,21 +33,7 @@ DANGEROUS_SIGNATURES = [
 
 
 def detect_file_type(content: bytes) -> Tuple[Optional[str], Optional[str]]:
-    """Detect actual MIME type and format from content magic bytes.
-    
-    Examines the initial binary header bytes to determine whether the uploaded file
-    is genuinely a PDF or recognized image format (JPEG, PNG, TIFF, BMP).
-
-    Interconnections:
-        - Used by `validate_file_content()` as the first triage step in the upload pipeline.
-        - Used by upload endpoints (`app.routes.documents`, `app.routes.wizard`) to verify client assertions.
-
-    Args:
-        content: Raw byte stream of the uploaded document.
-
-    Returns:
-        (mime_type, format_name) or (None, None) if unrecognized.
-    """
+    """Detect actual MIME type and format from content magic bytes."""
     if not content or len(content) < 4:
         return None, None
 
@@ -101,27 +70,7 @@ def validate_file_content(
     allowed_types: Optional[List[str]] = None,
     max_pages: int = 10,
 ) -> Tuple[bool, str, str, Optional[str]]:
-    """Examine file content deeply to verify it is valid and structurally intact.
-    
-    Performs a 2-stage verification:
-    1. Magic-byte detection (checks for dangerous signatures like EXEs/scripts and recognized MIME types).
-    2. Deep raster/structural verification:
-       - For PDFs: PyMuPDF opens the document, checks encryption status, page limits, and rasterizes page 0.
-       - For Images: PIL performs `verify()` and `load()` to catch truncated raster streams.
-
-    Interconnections:
-        - Called by `app.routes.documents.upload_document` and `app.routes.wizard.wizard_upload_document`
-          at the earliest boundary before storing in MinIO or passing to docling/vision models.
-        - Returns error messages rendered back to the user via FastAPI JSON responses.
-
-    Args:
-        content: Raw bytes of the uploaded file.
-        allowed_types: List of allowed MIME types (defaults to SUPPORTED_MIME_TYPES keys).
-        max_pages: Maximum allowed pages for PDF files.
-        
-    Returns:
-        Tuple of (is_valid, detected_mime, detected_format, error_message)
-    """
+    """Examine file content deeply to verify it is valid and structurally intact."""
     if not content:
         return False, "", "", "The uploaded file is empty (0 bytes)."
 

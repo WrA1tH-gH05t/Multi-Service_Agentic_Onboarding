@@ -1,20 +1,4 @@
-"""Application wizard routes.
-
-What changed (see the notes that came with this file):
-- Upload order is now: validate -> safety -> quality -> extraction -> ONLY THEN store in MinIO.
-  Before, the file was stored first, so unsafe, invalid and blurry files stayed in storage.
-- The extraction service was looked up as state["generation_service"], but main.py registers it as
-  state["generation"], so extraction never ran. Fixed.
-- update_document_checks() was called with keyword arguments the state manager did not accept,
-  which raised TypeError right after the upload was stored. The manager now accepts them.
-- Every route requires a signed-in user and only sees that user's sessions.
-- A document only counts as accepted when the mandatory fields were actually read.
-- Same problem twice for the same document: the file is kept for a human reviewer instead of
-  looping forever.
-- Submit validates ALL documents, requires confirmation, is idempotent, and fails closed when the
-  database write fails (before, the user was told "submitted" even when nothing was saved).
-- Blocking work (PDF parsing, OpenCV, MinIO) runs in a thread so it does not freeze the server.
-"""
+"""Application wizard routes."""
 
 import re
 import json
@@ -176,10 +160,7 @@ def _missing_mandatory(doc_type: str, fields: Dict[str, str]) -> List[str]:
 
 
 def _canonical(fields: Dict[str, str]) -> Dict[str, str]:
-    """Add the canonical keys the validation agent reads, keeping the originals.
-    
-    Supports multi-country layouts and multilingual fields from MIDV (German, Spanish, French, English, etc.).
-    """
+    """Add the canonical keys the validation agent reads, keeping the originals."""
     out = dict(fields)
 
     # Normalise keys: also check underscore versions of space-separated keys
@@ -490,10 +471,7 @@ async def upload_wizard_document(
     doc_type: str = Query("national_id", description="Type of document"),
     token: Optional[str] = Query(None, alias="token"),
 ):
-    """Step 2: check, read and store one document.
-
-    Order matters: nothing is written to storage until the file is safe, readable and complete.
-    """
+    """Step 2: check, read and store one document."""
     state = get_state()
     mgr = _wizard_mgr(state)
     storage = state.get("storage")
@@ -689,7 +667,7 @@ async def upload_wizard_document(
             f"Extraction confidence score is {confidence_pct}% (below 50%). "
             f"Key details could not be extracted clearly. Please upload a better, clearer document."
         )
-    elif (51 <= confidence_pct <= 79) and not all_mandatory_extracted:
+    elif (50 <= confidence_pct <= 79) and not all_mandatory_extracted:
         # Between 51% and 79%: route to human review
         escalated = True
         session.metadata["needs_human_review"] = True
@@ -907,7 +885,7 @@ def _accepted_response(state, session, doc, note: Optional[str] = None):
         f"✓ Quality score: {doc.quality_score:.0%}" if not doc.is_blurry else f"⚠ Quality issue: {doc.quality_details}",
         f"✓ Extraction confidence score: {conf_pct}% ({len(doc.extracted_fields)} fields extracted)",
     ]
-    if (51 <= conf_pct <= 79) or doc.needs_review or session.metadata.get("needs_human_review"):
+    if (50 <= conf_pct <= 79) or doc.needs_review or session.metadata.get("needs_human_review"):
         parts.append("📋 Note: Document routed for Human Review (confidence between 51% and 79%).")
     else:
         parts.append("✓ Auto-approved: High confidence score (80%+ / complete).")
@@ -933,7 +911,7 @@ def _accepted_response(state, session, doc, note: Optional[str] = None):
             "confidence_pct": conf_pct,
             "checked_fields": list(doc.extracted_fields.keys()),
             "extraction_ok": doc.extraction_success,
-            "needs_human_review": bool(doc.needs_review or session.metadata.get("needs_human_review") or (51 <= conf_pct <= 79)),
+            "needs_human_review": bool(doc.needs_review or session.metadata.get("needs_human_review") or (50 <= conf_pct <= 79)),
             "missing_documents": missing,
             "all_documents_received": not missing,
             "step": session.current_step.value,
@@ -973,8 +951,8 @@ async def get_wizard_review(session_id: str, token: Optional[str] = Query(None, 
             "confidence": doc.confidence,
             "confidence_score": doc.confidence,
             "confidence_pct": conf_pct,
-            "needs_human_review": bool(doc.needs_review or (51 <= conf_pct <= 79) or session.metadata.get("needs_human_review")),
-            "review_status": "human_review" if ((51 <= conf_pct <= 79) or doc.needs_review or session.metadata.get("needs_human_review")) else "proceed",
+            "needs_human_review": bool(doc.needs_review or (50 <= conf_pct <= 79) or session.metadata.get("needs_human_review")),
+            "review_status": "human_review" if ((50 <= conf_pct <= 79) or doc.needs_review or session.metadata.get("needs_human_review")) else "proceed",
         })
 
     if session.id_extraction:
@@ -1067,11 +1045,7 @@ _FIELD_MAPPING = {
 
 @router.post("/wizard/{session_id}/edit")
 async def edit_wizard_field(session_id: str, body: dict, token: Optional[str] = Query(None, alias="token")):
-    """Step 3: correct a field during review.
-
-    Edited fields are recorded. An application with user-edited values is sent to a human reviewer
-    at submit time, so an edit can never be used to make two documents agree.
-    """
+    """Step 3: correct a field during review."""
     state = get_state()
     user_id = _require_user(state, token)
     mgr = _wizard_mgr(state)
@@ -1484,10 +1458,7 @@ def _scan_clamav(file_content: bytes) -> Optional[Tuple[str, str, float]]:
 
 
 def _scan_pdf_malware(file_content: bytes) -> tuple:
-    """Real malware scan with ClamAV daemon + PDF active content structural inspection.
-
-    Returns: (status, details, risk_score) with status "clean" or "infected".
-    """
+    """Real malware scan with ClamAV daemon + PDF active content structural inspection."""
     # 1. Real ClamAV antivirus scan
     clam_res = _scan_clamav(file_content)
     if clam_res and clam_res[0] == "infected":
@@ -1540,11 +1511,7 @@ def _validate_pdf(file_content: bytes) -> tuple:
 
 
 def _check_image_quality(file_content: bytes, doc_type: str) -> tuple:
-    """Blur, contrast and brightness check on every page (up to MAX_QUALITY_PAGES).
-
-    Returns: (is_blurry, blurry_fields, quality_score, details). A page that cannot be checked
-    counts as a failure ("Quality check error"), never as a pass.
-    """
+    """Blur, contrast and brightness check on every page (up to MAX_QUALITY_PAGES)."""
     # Temporarily disabled due to cv2 import issues. Quality checks skipped.
     return (False, [], 1.0, "Quality check bypassed")
     try:
@@ -1608,11 +1575,7 @@ def _check_image_quality(file_content: bytes, doc_type: str) -> tuple:
 
 
 async def _extract_fields_from_document(gen_service, file_content: bytes, doc_type: str) -> tuple:
-    """Read the fields with the vision model. Returns: (fields, completeness, success).
-
-    `completeness` is the share of schema fields that were filled in. It is NOT a measure of how
-    certain the model is, so do not treat it as confidence.
-    """
+    """Read the fields with the vision model. Returns: (fields, completeness, success)."""
     try:
         kind = _kind(doc_type)
         if kind == "passport":

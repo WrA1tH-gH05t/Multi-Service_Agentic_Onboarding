@@ -1,22 +1,4 @@
-"""
-Authentication routes: login, register, logout, current user.
-
-Module Purpose & Role in the Project:
--------------------------------------
-This module exposes endpoints for user lifecycle and session management, including:
-- User login (`POST /auth/login`) with credential validation and session token issuance.
-- User registration (`POST /auth/register` and alias `POST /auth/signup`) supporting database synchronization.
-- Session invalidation (`POST /auth/logout`).
-- User profile resolution (`GET /auth/me`) validating bearer tokens and querying linked applications.
-
-Interconnections with Other Files:
------------------------------------
-- `app/schemas.py`: Imports Pydantic schemas: `AuthenticationRequest`, `TokenResponse`, `UserRegistrationRequest`.
-- `services/auth.py`: Invokes `AuthService` for cryptographic password hashing, token validation, and session stores.
-- `services/database.py`: Synchronizes user state with the relational `users` table via `User` ORM model.
-- `app/main.py`: Accesses `app_state` to obtain shared database and authentication service singletons.
-- Consumed directly by frontend authentication components (login modal, signup modal, protected route guards).
-"""
+"""Authentication routes: login, register, logout, current user."""
 
 import re
 import secrets
@@ -37,44 +19,13 @@ logger = logging.getLogger(__name__)
 
 # --- Helper to access app state ---
 def get_state():
-    """
-    Retrieve the singleton application state dictionary from the main module.
-
-    Returns:
-        dict: The shared `app_state` dictionary from `app.main`.
-
-    Interconnections:
-        - Avoids circular import cycles at module load time by importing `app_state` lazily.
-    """
+    """Retrieve the singleton application state dictionary from the main module."""
     from app.main import app_state
     return app_state
 
 @router.post("/auth/login")
 async def login(req: AuthenticationRequest):
-    """
-    Authenticate a user and return an active session token.
-
-    Detailed Behavior:
-    - Calls `state["auth"].authenticate(username, password)`.
-    - If authentication fails, raises an HTTP 401 Unauthorized exception.
-    - If successful, validates the generated token to retrieve the user record.
-    - Updates `last_login` timestamp in the database (`users` table) in a managed transaction scope.
-    - Returns structured user metadata including `user_id`, `token`, and `email`.
-
-    Parameters:
-        req (AuthenticationRequest): JSON payload containing `username` and `password`.
-
-    Returns:
-        dict: Standard JSON response containing success flag, `user_id`, `token`, and `email`.
-
-    Raises:
-        HTTPException: 401 Unauthorized if credentials do not match.
-
-    Interconnections:
-        - `services.auth.AuthService:authenticate`: Validates password hash.
-        - `services.database.User`: Updates `last_login` in the database.
-        - Frontend client: Stores returned token in browser storage for authenticated API calls.
-    """
+    """Authenticate a user and return an active session token."""
     state = get_state()
     db = state.get("database")
     success, message, token = state["auth"].authenticate(req.username, req.password)
@@ -108,29 +59,7 @@ async def login(req: AuthenticationRequest):
 
 @router.post("/auth/register")
 async def register(req: UserRegistrationRequest):
-    """
-    Register a new user account and automatically issue a session token.
-
-    Detailed Behavior:
-    - Normalizes email address (falls back to `<username>@example.com` if absent).
-    - Delegates registration to `state["auth"].register_user()`, ensuring unique username.
-    - If successful, persists user account into the relational database (`User` ORM model).
-    - Automatically authenticates the newly created user to generate a valid session token.
-    - Returns user details along with the new session token.
-
-    Parameters:
-        req (UserRegistrationRequest): JSON payload with `username`, `password`, `email`, and `name`.
-
-    Returns:
-        dict: Registration confirmation containing `user_id`, `email`, `username`, and `token`.
-
-    Raises:
-        HTTPException: 400 Bad Request if username already exists or validation fails.
-
-    Interconnections:
-        - `services.auth.AuthService:register_user`: Enforces user creation and file storage.
-        - `services.database.User`: Inserts new user record into the database.
-    """
+    """Register a new user account and automatically issue a session token."""
     state = get_state()
     db = state.get("database")
     full_name = req.full_name or req.name or req.username
@@ -190,65 +119,19 @@ async def register(req: UserRegistrationRequest):
 
 @router.post("/auth/signup")
 async def signup(req: UserRegistrationRequest):
-    """
-    Alias for register — supports both /signup and /register API paths.
-
-    Parameters:
-        req (UserRegistrationRequest): Registration request payload.
-
-    Returns:
-        dict: Result of `register(req)`.
-    """
+    """Alias for register — supports both /signup and /register API paths."""
     return await register(req)
 
 @router.post("/auth/logout")
 async def logout(token: str = Query(..., alias="token")):
-    """
-    Invalidate an active user session token.
-
-    Detailed Behavior:
-    - Calls `state["auth"].logout(token)` to remove session mapping from memory.
-    - Future API calls presenting this token will fail with HTTP 401.
-
-    Parameters:
-        token (str): Session token to invalidate (passed as query param or alias).
-
-    Returns:
-        dict: Success message acknowledging logout.
-
-    Interconnections:
-        - Calls `services.auth.AuthService:logout`.
-    """
+    """Invalidate an active user session token."""
     state = get_state()
     state["auth"].logout(token)
     return {"message": "Logged out successfully"}
 
 @router.get("/auth/me")
 async def get_me(token: str = Query(None, alias="token"), authorization: str = Query(None)):
-    """
-    Get current user profile information and linked application references.
-
-    Detailed Behavior:
-    - Accepts authentication token from either `token` query param or `Authorization: Bearer <token>`.
-    - Validates token against `AuthService`; rejects with HTTP 401 if missing or invalid.
-    - If database is available, enriches profile with linked user applications from `User.applications`.
-    - Sanitizes the user dictionary by stripping sensitive attributes (`hashed_password`, `sessions`).
-    - Returns safe user profile data to client.
-
-    Parameters:
-        token (Optional[str]): Token passed via query string.
-        authorization (Optional[str]): Authorization header string (e.g. 'Bearer <token>').
-
-    Returns:
-        dict: User dictionary with `user_id`, `username`, `email`, and `applications`.
-
-    Raises:
-        HTTPException: 401 Unauthorized if token is missing, expired, or invalid.
-
-    Interconnections:
-        - `services.auth.AuthService:validate_token`: Resolves user token.
-        - `services.database.User`: Fetches associated applications.
-    """
+    """Get current user profile information and linked application references."""
     state = get_state()
     db = state.get("database")
     # Support both query param and Authorization header
@@ -468,3 +351,75 @@ async def update_profile(body: dict, token: Optional[str] = Query(None, alias="t
         "message": "Profile updated successfully",
         "user": user_dict
     }
+
+
+@router.post("/auth/reset-password")
+async def reset_password(body: dict):
+    """Public password reset endpoint."""
+    state = get_state()
+    auth_svc = state.get("auth")
+    db = state.get("database")
+    if not auth_svc:
+        raise HTTPException(status_code=500, detail="Authentication service unavailable.")
+
+    identifier = (body.get("identifier") or body.get("username") or body.get("email") or "").strip()
+    new_password = (body.get("new_password") or body.get("password") or "").strip()
+
+    if not identifier:
+        raise HTTPException(status_code=400, detail="Username or email is required.")
+    if not new_password:
+        raise HTTPException(status_code=400, detail="New password is required.")
+
+    # Validate password requirements
+    is_valid_p, p_err = auth_svc.validate_password(new_password)
+    if not is_valid_p:
+        raise HTTPException(status_code=400, detail=p_err)
+
+    store = getattr(auth_svc, "user_store", None) or getattr(auth_svc, "_store", None)
+    if not store:
+        raise HTTPException(status_code=500, detail="User store unavailable.")
+
+    # Lookup user by username or email
+    user = store.get_user_by_name(identifier)
+    if not user:
+        user = store.get_user_by_email(identifier.lower())
+    if not user:
+        # Check database directly if not in memory
+        if db:
+            try:
+                with db.session_scope() as session:
+                    db_u = session.query(User).filter(
+                        (User.username == identifier) | (User.email == identifier.lower())
+                    ).first()
+                    if db_u:
+                        user = store.get_user_by_id(db_u.user_id)
+            except Exception as e:
+                logger.warning(f"Error querying user for reset: {e}")
+
+    if not user:
+        raise HTTPException(status_code=404, detail="No account found with that username or email.")
+
+    # Generate new hash
+    salt = secrets.token_hex(16)
+    new_hash = hashlib.sha256(f"{salt}{new_password}".encode()).hexdigest() + "$" + salt
+
+    # Update in persistent store
+    user.hashed_password = new_hash
+    store._save()
+
+    # Update in DB
+    if db:
+        try:
+            with db.session_scope() as session:
+                db_u = session.query(User).filter_by(user_id=user.user_id).first()
+                if db_u:
+                    db_u.hashed_password = new_hash
+        except Exception as e:
+            logger.warning(f"Failed to update password in DB: {e}")
+
+    logger.info(f"Password reset successfully for user: {user.username} ({user.user_id})")
+    return {
+        "success": True,
+        "message": "Password has been reset successfully. You can now sign in with your new password."
+    }
+

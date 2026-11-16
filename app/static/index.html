@@ -3,12 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DocIntake - AI Document Onboarding</title>
+    <title>DocIntake — AI Document Onboarding</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* =====================================================================
+           FONT STACKS & AI DOCUMENT ONBOARDING / WALKTHROUGH DESIGN TOKENS
+           ===================================================================== */
+        :root {
+            --bg-space: #0a100d;
+            --bg-panel: rgba(18, 24, 21, 0.92);
+            --bg-panel-solid: #101914;
+            --bg-card: rgba(23, 31, 27, 0.78);
+            --bg-card-hover: rgba(30, 39, 34, 0.92);
+            --border-hairline: rgba(184, 164, 122, 0.12);
+            --border-medium: rgba(184, 164, 122, 0.24);
+            --border-focus: #b8a47e;
+            --accent: #b8a47e;
+            --accent-glow: rgba(184, 164, 122, 0.12);
+            --accent-dark: #a08d68;
+            --brand: #2f5d4a;
+            --ease: cubic-bezier(0.2, 0, 0, 1);
+            --primary: #2f5d4a;
+            --primary-glow: rgba(47, 93, 74, 0.2);
+            --warning: #c49a4a;
+            --danger: #c9706e;
+            --danger-glow: rgba(201, 112, 110, 0.15);
+            --success: #6aa987;
+            --text-pure: #e9e7dd;
+            --text-muted: #9aa89f;
+            --text-dim: #66756b;
+            --font-editorial: 'Fraunces', 'Palatino Linotype', Georgia, serif;
+            --font-sans: 'Plus Jakarta Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -16,16 +49,25 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0a;
-            color: #e4e4e4;
+            font-family: var(--font-sans);
+            background-color: var(--bg-space);
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(47, 93, 74, 0.12) 0%, transparent 60%),
+                radial-gradient(circle at 100% 100%, rgba(184, 164, 122, 0.05) 0%, transparent 50%),
+                linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 60px 60px, 60px 60px;
+            color: var(--text-pure);
             overflow: auto;
+            min-height: 100vh;
         }
 
         #root {
             height: 100vh;
             display: flex;
             flex-direction: column;
+            position: relative;
+            z-index: 2;
         }
 
         /* Top bar */
@@ -33,99 +75,145 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 12px 20px;
-            background: #141414;
-            border-bottom: 1px solid #2a2a2a;
+            padding: 14px 28px;
+            background: rgba(16, 21, 18, 0.88);
+            border-bottom: 1px solid var(--border-hairline);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             z-index: 100;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
         }
 
         .topbar-left {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
         }
 
         .sidebar-toggle {
-            background: none;
-            border: none;
-            color: #888;
-            font-size: 18px;
+            background: rgba(184, 164, 122, 0.06);
+            border: 1px solid var(--border-hairline);
+            color: var(--text-muted);
+            font-size: 16px;
             cursor: pointer;
-            padding: 8px;
-            border-radius: 6px;
-            transition: all 0.2s;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.25s ease;
         }
 
         .sidebar-toggle:hover {
-            background: #2a2a2a;
-            color: #fff;
+            background: rgba(184, 164, 122, 0.15);
+            color: var(--accent);
+            border-color: var(--border-medium);
+            box-shadow: 0 0 15px var(--accent-glow);
         }
 
         .logo {
+            font-family: var(--font-editorial);
             font-size: 20px;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            background: linear-gradient(135deg, #ffffff 40%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-badge {
+            font-family: var(--font-mono);
+            font-size: 10px;
             font-weight: 700;
-            color: #84BD00;
+            letter-spacing: 1.5px;
+            background: rgba(184, 164, 122, 0.12);
+            color: var(--accent);
+            border: 1px solid var(--border-medium);
+            padding: 3px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
         }
 
         .topbar-time {
-            font-size: 12px;
-            color: #888;
-            font-weight: 500;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-dim);
+            letter-spacing: 0.8px;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
         }
 
         .topbar-right {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 14px;
         }
 
         .btn {
-            padding: 8px 16px;
+            font-family: var(--font-sans);
+            padding: 8px 18px;
             border-radius: 8px;
             border: none;
             cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .btn-ghost {
-            background: none;
-            color: #888;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-hairline);
+            color: var(--text-muted);
         }
 
         .btn-ghost:hover {
-            color: #fff;
-            background: #2a2a2a;
+            color: var(--text-pure);
+            background: rgba(184, 164, 122, 0.1);
+            border-color: var(--border-medium);
+            box-shadow: 0 0 12px var(--accent-glow);
         }
 
         .btn-primary {
-            background: #84BD00;
-            color: #121314;
-            font-weight: 600;
+            background: linear-gradient(135deg, var(--accent) 0%, #b8a47e 100%);
+            color: #0c120f;
+            font-weight: 700;
+            box-shadow: 0 0 20px var(--accent-glow);
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
         .btn-primary:hover {
-            background: #5f8700;
+            background: linear-gradient(135deg, #c6b592 0%, #c6b592 100%);
             transform: translateY(-1px);
+            box-shadow: 0 0 28px var(--accent-glow), 0 0 10px rgba(255,255,255,0.4);
         }
 
         .btn-secondary {
-            background: #2a2a2a;
-            color: #e4e4e4;
+            background: rgba(21, 28, 24, 0.85);
+            border: 1px solid var(--border-medium);
+            color: var(--text-pure);
         }
 
         .btn-secondary:hover {
-            background: #3a3a3a;
+            background: rgba(30, 39, 34, 0.95);
+            border-color: var(--accent);
+            box-shadow: 0 0 15px var(--accent-glow);
         }
 
         .btn-success {
-            background: #22c55e;
+            background: linear-gradient(135deg, #6aa987 0%, #4f8a6b 100%);
             color: white;
+            box-shadow: 0 0 16px rgba(106, 169, 135, 0.3);
         }
 
         .btn-success:hover {
-            background: #16a34a;
+            background: linear-gradient(135deg, #86bf9f 0%, #6aa987 100%);
+            box-shadow: 0 0 24px rgba(106, 169, 135, 0.5);
         }
 
         /* Main layout */
@@ -133,17 +221,21 @@
             display: flex;
             flex: 1;
             overflow: hidden;
+            position: relative;
         }
 
-        /* Sidebar */
+        /* Sidebar - Translucent Obsidian & Jade */
         .sidebar {
-            width: 260px;
-            background: #111111;
-            border-right: 1px solid #2a2a2a;
+            width: 280px;
+            background: rgba(15, 19, 17, 0.88);
+            border-right: 1px solid var(--border-hairline);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             display: flex;
             flex-direction: column;
-            transition: width 0.3s, opacity 0.3s;
+            transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             overflow: hidden;
+            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.4);
         }
 
         .sidebar.collapsed {
@@ -153,150 +245,180 @@
         }
 
         .sidebar-header {
-            padding: 16px;
-            border-bottom: 1px solid #2a2a2a;
+            padding: 18px 16px;
+            border-bottom: 1px solid var(--border-hairline);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
 
         .sidebar-btn {
             width: 100%;
-            padding: 12px;
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
-            border-radius: 8px;
-            color: #e4e4e4;
+            padding: 12px 14px;
+            background: rgba(23, 31, 27, 0.7);
+            border: 1px solid var(--border-hairline);
+            border-radius: 10px;
+            color: var(--text-pure);
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            transition: all 0.2s;
-            margin-bottom: 8px;
+            gap: 12px;
+            font-size: 13.5px;
+            font-weight: 500;
+            transition: all 0.25s ease;
         }
 
         .sidebar-btn:hover {
-            background: #2a2a2a;
-            border-color: #84BD00;
+            background: rgba(32, 42, 36, 0.85);
+            border-color: var(--accent);
+            box-shadow: 0 0 16px var(--accent-glow);
+            transform: translateX(2px);
         }
 
         .sidebar-section {
-            padding: 12px 16px;
+            padding: 16px 14px;
         }
 
         .sidebar-section-title {
-            font-size: 11px;
-            font-weight: 600;
-            color: #666;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 700;
+            color: var(--text-dim);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 8px;
+            letter-spacing: 1.5px;
+            margin-bottom: 10px;
+            padding-left: 6px;
         }
 
         .sidebar-item {
-            padding: 10px 12px;
-            border-radius: 6px;
+            padding: 11px 14px;
+            border-radius: 8px;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 14px;
-            color: #999;
-            transition: all 0.2s;
-            margin-bottom: 2px;
+            gap: 12px;
+            font-size: 13.5px;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+            margin-bottom: 3px;
+            border: 1px solid transparent;
         }
 
-        .sidebar-item:hover, .sidebar-item.active {
-            background: #1a1a1a;
-            color: #e4e4e4;
+        .sidebar-item:hover {
+            background: rgba(184, 164, 122, 0.06);
+            color: var(--text-pure);
+            border-color: var(--border-hairline);
+        }
+
+        .sidebar-item.active {
+            background: rgba(184, 164, 122, 0.12);
+            color: var(--accent);
+            border: 1px solid var(--border-medium);
+            box-shadow: 0 0 16px var(--accent-glow);
+            font-weight: 600;
         }
 
         .sidebar-item i {
-            width: 16px;
+            width: 18px;
             text-align: center;
+            font-size: 14px;
         }
 
         .sidebar-status {
             margin-top: auto;
             padding: 16px;
-            border-top: 1px solid #2a2a2a;
+            background: rgba(12, 16, 14, 0.7);
+            border-top: 1px solid var(--border-hairline);
         }
 
         .status-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-size: 12px;
-            color: #666;
-            margin-bottom: 6px;
+            gap: 10px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        .status-item:last-child {
+            margin-bottom: 0;
         }
 
         .status-dot {
             width: 8px;
             height: 8px;
             border-radius: 50%;
-            background: #22c55e;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
         }
 
         .status-dot.offline {
-            background: #666;
+            background: var(--text-dim);
+            box-shadow: none;
         }
 
-        /* Chat area */
+        /* Chat area - Ambient backdrop */
         .chat-area {
             flex: 1;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            background: transparent;
+            position: relative;
         }
 
         .chat-messages {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    scroll-behavior: smooth;
-    }
+            flex: 1;
+            min-height: 0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 28px 36px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            scroll-behavior: smooth;
+        }
 
-    .scroll-to-top {
-    position: fixed;
-    bottom: 80px;
-    right: 20px;
-    width: 40px;
-    height: 40px;
-    background: #84BD00;
-    border: none;
-    border-radius: 50%;
-    color: #121314;
-    font-size: 18px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.3s;
-    z-index: 50;
-    }
+        .scroll-to-top {
+            position: fixed;
+            bottom: 90px;
+            right: 28px;
+            width: 42px;
+            height: 42px;
+            background: var(--accent);
+            border: none;
+            border-radius: 50%;
+            color: #0c120f;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 50;
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
 
-    .scroll-to-top.visible {
-    opacity: 1;
-    }
+        .scroll-to-top.visible {
+            opacity: 1;
+        }
 
-    .scroll-to-top:hover {
-    background: #5f8700;
-    }
+        .scroll-to-top:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 0 30px var(--accent-glow);
+        }
 
         .message {
             display: flex;
-            gap: 12px;
-            max-width: 80%;
-            animation: fadeIn 0.3s ease-in;
+            gap: 14px;
+            max-width: 84%;
+            animation: fadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+            from { opacity: 0; transform: translateY(12px); }
             to { opacity: 1; transform: translateY(0); }
         }
 
@@ -306,42 +428,55 @@
         }
 
         .message-avatar {
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 14px;
+            font-size: 16px;
             flex-shrink: 0;
+            border: 1px solid var(--border-hairline);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         .message.assistant .message-avatar {
-            background: #84BD00;
-            color: #121314;
+            background: linear-gradient(135deg, var(--accent) 0%, #b8a47e 100%);
+            color: #0c120f;
+            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 16px var(--accent-glow);
         }
 
         .message.user .message-avatar {
-            background: #333;
+            background: rgba(30, 39, 34, 0.9);
+            color: #e2e8f0;
+            border-color: rgba(255, 255, 255, 0.08);
         }
 
         .message-content {
-            padding: 12px 16px;
-            border-radius: 12px;
-            line-height: 1.6;
+            padding: 14px 18px;
+            border-radius: 14px;
+            line-height: 1.65;
             font-size: 14px;
+            letter-spacing: 0.1px;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
         }
 
         .message.assistant .message-content {
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
+            background: var(--bg-card);
+            border: 1px solid var(--border-hairline);
+            color: var(--text-pure);
             border-top-left-radius: 4px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
         }
 
         .message.user .message-content {
-            background: #84BD00;
-            color: #121314;
+            background: linear-gradient(135deg, rgba(47, 93, 74, 0.35) 0%, rgba(184, 164, 122, 0.25) 100%);
+            border: 1px solid var(--border-medium);
+            color: #ffffff;
             border-top-right-radius: 4px;
+            box-shadow: 0 8px 25px rgba(47, 93, 74, 0.2);
         }
 
         .system-message {
@@ -350,41 +485,47 @@
             max-width: 80%;
             animation: fadeIn 0.3s ease-in;
             justify-content: center;
+            margin: 0 auto;
         }
 
         .system-message .message-content {
-            background: transparent;
-            border: 1px solid #2a2a2a;
-            color: #888;
-            font-size: 13px;
-            padding: 8px 12px;
+            background: rgba(18, 24, 21, 0.6);
+            border: 1px solid var(--border-hairline);
+            color: var(--text-dim);
+            font-family: var(--font-mono);
+            font-size: 12px;
+            padding: 8px 16px;
             text-align: center;
+            border-radius: 20px;
         }
 
         .service-badge {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            background: rgba(132, 189, 0, 0.12);
-            border: 1px solid rgba(132, 189, 0, 0.35);
-            border-radius: 6px;
+            gap: 8px;
+            padding: 5px 12px;
+            background: rgba(184, 164, 122, 0.08);
+            border: 1px solid var(--border-medium);
+            border-radius: 20px;
+            font-family: var(--font-mono);
             font-size: 11px;
-            color: #84BD00;
-            margin-top: 8px;
+            color: var(--accent);
+            margin-top: 10px;
+            letter-spacing: 0.5px;
         }
 
         .typing-indicator {
             display: flex;
-            gap: 4px;
-            padding: 12px 16px;
+            gap: 6px;
+            padding: 6px 10px;
         }
 
         .typing-dot {
-            width: 8px;
-            height: 8px;
-            background: #666;
+            width: 7px;
+            height: 7px;
+            background: var(--accent);
             border-radius: 50%;
+            box-shadow: 0 0 8px var(--accent-glow);
             animation: typing 1.4s infinite;
         }
 
@@ -392,19 +533,21 @@
         .typing-dot:nth-child(3) { animation-delay: 0.4s; }
 
         @keyframes typing {
-            0%, 60%, 100% { transform: translateY(0); }
-            30% { transform: translateY(-6px); }
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
+            30% { transform: translateY(-6px); opacity: 1; }
         }
 
         /* Input area */
         .chat-input-area {
-            padding: 20px;
-            background: #141414;
-            border-top: 1px solid #2a2a2a;
+            padding: 20px 36px 28px;
+            background: rgba(15, 19, 17, 0.88);
+            border-top: 1px solid var(--border-hairline);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
         }
 
         .input-container {
-            max-width: 800px;
+            max-width: 900px;
             margin: 0 auto;
             position: relative;
         }
@@ -412,153 +555,182 @@
         .input-wrapper {
             display: flex;
             align-items: center;
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
-            border-radius: 12px;
-            padding: 12px 16px;
-            gap: 12px;
-            transition: border-color 0.2s;
+            background: rgba(23, 31, 27, 0.85);
+            border: 1px solid var(--border-hairline);
+            border-radius: 14px;
+            padding: 12px 18px;
+            gap: 14px;
+            transition: all 0.25s ease;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4), 0 4px 20px rgba(0, 0, 0, 0.25);
         }
 
         .input-wrapper:focus-within {
-            border-color: #84BD00;
+            border-color: var(--accent);
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 24px var(--accent-glow);
+            background: rgba(27, 36, 31, 0.95);
         }
 
         .upload-btn {
             background: none;
             border: none;
-            color: #888;
+            color: var(--text-dim);
             cursor: pointer;
-            padding: 4px;
+            padding: 6px;
             font-size: 18px;
-            transition: color 0.2s;
+            transition: all 0.2s;
         }
 
         .upload-btn:hover {
-            color: #84BD00;
+            color: var(--accent);
+            transform: scale(1.1);
         }
 
         #chatInput {
             flex: 1;
             background: none;
             border: none;
-            color: #e4e4e4;
-            font-size: 15px;
+            color: var(--text-pure);
+            font-family: var(--font-sans);
+            font-size: 14.5px;
             outline: none;
             resize: none;
             min-height: 24px;
             max-height: 120px;
+            line-height: 1.5;
+        }
+
+        #chatInput::placeholder {
+            color: var(--text-dim);
         }
 
         .send-btn {
-            background: #84BD00;
+            background: linear-gradient(135deg, var(--accent) 0%, #b8a47e 100%);
             border: none;
-            color: #121314;
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
+            color: #0c120f;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: background 0.2s;
+            transition: all 0.25s ease;
+            box-shadow: 0 0 16px var(--accent-glow);
         }
 
         .send-btn:hover {
-            background: #5f8700;
+            transform: scale(1.06);
+            box-shadow: 0 0 24px var(--accent-glow);
         }
 
         .send-btn:disabled {
-            opacity: 0.4;
+            opacity: 0.3;
             cursor: not-allowed;
+            box-shadow: none;
+            transform: none;
         }
 
         .file-preview {
-            margin-top: 8px;
-            padding: 8px 12px;
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
+            margin-top: 10px;
+            padding: 8px 14px;
+            background: rgba(23, 31, 27, 0.9);
+            border: 1px solid var(--border-hairline);
             border-radius: 8px;
+            font-family: var(--font-mono);
             font-size: 12px;
-            color: #888;
+            color: var(--accent);
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
 
         .file-remove {
             cursor: pointer;
-            color: #ef4444;
+            color: var(--danger);
+            margin-left: auto;
         }
 
-        /* Auth modal */
+        /* Auth modal - Cinematic Dark Glass */
         .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(10, 13, 11, 0.85);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 1000;
-            animation: fadeIn 0.2s;
+            animation: fadeIn 0.25s;
         }
 
         .modal {
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
-            border-radius: 16px;
-            padding: 32px;
+            background: rgba(18, 24, 21, 0.96);
+            border: 1px solid var(--border-medium);
+            border-radius: 20px;
+            padding: 36px;
             width: 100%;
-            max-width: 400px;
-            animation: slideUp 0.3s ease-out;
+            max-width: 440px;
+            animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 25px 80px rgba(0, 0, 0, 0.8), 0 0 40px var(--accent-glow);
         }
 
         @keyframes slideUp {
-            from { transform: translateY(20px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
+            from { transform: translateY(24px) scale(0.98); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
         }
 
         .modal-title {
-            font-size: 24px;
-            font-weight: 700;
+            font-family: var(--font-editorial);
+            font-size: 26px;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            color: var(--text-pure);
             margin-bottom: 8px;
         }
 
         .modal-subtitle {
-            color: #888;
-            font-size: 14px;
+            color: var(--text-muted);
+            font-size: 13.5px;
             margin-bottom: 24px;
+            line-height: 1.5;
         }
 
         .form-group {
-            margin-bottom: 16px;
+            margin-bottom: 18px;
         }
 
         .form-group label {
             display: block;
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 6px;
-            color: #999;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            color: var(--text-muted);
         }
 
         .form-input {
             width: 100%;
-            padding: 10px 12px;
-            background: #141414;
-            border: 1px solid #2a2a2a;
-            border-radius: 8px;
-            color: #e4e4e4;
+            padding: 12px 14px;
+            background: rgba(13, 18, 15, 0.85);
+            border: 1px solid var(--border-hairline);
+            border-radius: 10px;
+            color: var(--text-pure);
+            font-family: var(--font-sans);
             font-size: 14px;
             outline: none;
-            transition: border-color 0.2s;
+            transition: all 0.25s ease;
         }
 
         .form-input:focus {
-            border-color: #84BD00;
+            border-color: var(--accent);
+            box-shadow: 0 0 16px var(--accent-glow);
+            background: rgba(18, 24, 21, 0.95);
         }
 
         .password-wrapper {
@@ -567,12 +739,12 @@
 
         .password-toggle {
             position: absolute;
-            right: 12px;
+            right: 14px;
             top: 50%;
             transform: translateY(-50%);
             background: none;
             border: none;
-            color: #888;
+            color: var(--text-dim);
             cursor: pointer;
             padding: 4px;
             font-size: 14px;
@@ -580,58 +752,94 @@
         }
 
         .password-toggle:hover {
-            color: #e4e4e4;
+            color: var(--accent);
         }
 
         .error-msg {
-            color: #ef4444;
+            color: var(--danger);
+            font-family: var(--font-mono);
             font-size: 12px;
-            margin-top: 6px;
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(201, 112, 110, 0.1);
+            border: 1px solid rgba(201, 112, 110, 0.3);
+            border-radius: 6px;
         }
 
+        /* Welcome Message Screen - Heroic Daiki Fujita Style */
         .welcome-message {
             text-align: center;
-            padding: 60px 20px;
-            color: #666;
+            padding: 60px 24px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .welcome-badge {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 3px;
+            color: var(--accent);
+            background: rgba(184, 164, 122, 0.08);
+            border: 1px solid var(--border-medium);
+            padding: 6px 18px;
+            border-radius: 30px;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px var(--accent-glow);
         }
 
         .welcome-icon {
             font-size: 48px;
             margin-bottom: 16px;
-            color: #84BD00;
+            filter: drop-shadow(0 0 20px var(--accent-glow));
         }
 
         .welcome-title {
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 12px;
-            color: #e4e4e4;
+            font-family: var(--font-editorial);
+            font-size: clamp(32px, 5vw, 54px);
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            background: linear-gradient(180deg, #ffffff 40%, var(--text-muted) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 14px;
+            text-shadow: 0 0 60px rgba(184, 164, 122, 0.2);
         }
 
         .welcome-text {
-            font-size: 16px;
-            margin-bottom: 32px;
+            font-family: var(--font-sans);
+            font-size: 15.5px;
+            color: var(--text-muted);
+            margin-bottom: 40px;
+            line-height: 1.6;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .feature-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            max-width: 860px;
+            gap: 20px;
+            max-width: 880px;
             margin: 0 auto;
         }
 
         .feature-card {
-            padding: 20px 16px;
-            background: rgba(26, 26, 26, 0.7);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 14px;
-            backdrop-filter: blur(12px);
+            padding: 24px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-hairline);
+            border-radius: 16px;
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
             cursor: pointer;
-            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             text-align: left;
             position: relative;
             overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
         }
 
         .feature-card::before {
@@ -641,16 +849,16 @@
             left: 0;
             right: 0;
             height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(132, 189, 0, 0.6), transparent);
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
             opacity: 0;
             transition: opacity 0.3s;
         }
 
         .feature-card:hover {
-            border-color: rgba(132, 189, 0, 0.5);
-            background: rgba(32, 35, 30, 0.85);
-            transform: translateY(-3px);
-            box-shadow: 0 8px 24px -6px rgba(132, 189, 0, 0.15);
+            border-color: var(--accent);
+            background: var(--bg-card-hover);
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 24px var(--accent-glow);
         }
 
         .feature-card:hover::before {
@@ -658,19 +866,28 @@
         }
 
         .feature-icon {
-            font-size: 26px;
-            margin-bottom: 8px;
+            font-size: 30px;
+            margin-bottom: 12px;
+            display: inline-block;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover .feature-icon {
+            transform: scale(1.15);
         }
 
         .feature-title {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 4px;
+            font-family: var(--font-editorial);
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-pure);
+            margin-bottom: 6px;
         }
 
         .feature-desc {
-            font-size: 12px;
-            color: #666;
+            font-size: 12.5px;
+            color: var(--text-muted);
+            line-height: 1.5;
         }
 
         /* Page header */
@@ -678,47 +895,55 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 24px;
+            padding: 24px 36px;
+            background: rgba(15, 19, 17, 0.6);
+            border-bottom: 1px solid var(--border-hairline);
         }
 
         .page-header h2 {
-            font-size: 20px;
-            font-weight: 600;
+            font-family: var(--font-editorial);
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--text-pure);
         }
 
-        /* Scrollbar */
+        /* Scrollbars */
         ::-webkit-scrollbar {
-            width: 6px;
+            width: 8px;
+            height: 8px;
         }
 
         ::-webkit-scrollbar-track {
-            background: transparent;
+            background: rgba(11, 15, 13, 0.5);
         }
 
         ::-webkit-scrollbar-thumb {
-            background: #2a2a2a;
-            border-radius: 3px;
+            background: rgba(184, 164, 122, 0.2);
+            border-radius: 4px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: #3a3a3a;
+            background: rgba(184, 164, 122, 0.4);
+            box-shadow: 0 0 10px var(--accent-glow);
         }
 
         /* Step indicator */
         .step-indicator {
-            background: #1a1a1a;
-            border: 1px solid #2a2a2a;
-            border-radius: 12px;
-            padding: 16px;
-            margin-top: 8px;
-            max-width: 520px;
+            background: rgba(18, 24, 21, 0.9);
+            border: 1px solid var(--border-hairline);
+            border-radius: 14px;
+            padding: 18px;
+            margin-top: 10px;
+            max-width: 540px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
         }
 
         .step-progress {
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
         }
 
         .step-node {
@@ -727,37 +952,40 @@
             gap: 6px;
             padding: 6px 12px;
             border-radius: 6px;
-            font-size: 12px;
+            font-family: var(--font-mono);
+            font-size: 11px;
             font-weight: 600;
             transition: all 0.3s;
         }
 
         .step-node.active {
-            background: rgba(132, 189, 0, 0.15);
-            color: #84BD00;
-            border: 1px solid rgba(132, 189, 0, 0.4);
+            background: rgba(184, 164, 122, 0.15);
+            color: var(--accent);
+            border: 1px solid var(--border-medium);
+            box-shadow: 0 0 14px var(--accent-glow);
         }
 
         .step-node.completed {
-            background: rgba(34, 197, 94, 0.1);
-            color: #22c55e;
-            border: 1px solid rgba(34, 197, 94, 0.3);
+            background: rgba(106, 169, 135, 0.12);
+            color: var(--success);
+            border: 1px solid rgba(106, 169, 135, 0.3);
         }
 
         .step-node.pending {
-            background: #141414;
-            color: #666;
-            border: 1px solid #2a2a2a;
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-dim);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .step-arrow {
-            color: #444;
+            color: var(--text-dim);
             font-size: 10px;
         }
 
         .step-typing {
-            font-size: 13px;
-            color: #888;
+            font-family: var(--font-mono);
+            font-size: 12.5px;
+            color: var(--text-muted);
             margin-top: 8px;
             font-style: italic;
         }
@@ -766,10 +994,11 @@
             display: inline-block;
             width: 2px;
             height: 14px;
-            background: #84BD00;
-            margin-left: 2px;
+            background: var(--accent);
+            margin-left: 3px;
             animation: blink 1s infinite;
             vertical-align: middle;
+            box-shadow: 0 0 8px var(--accent);
         }
 
         @keyframes blink {
@@ -779,69 +1008,78 @@
 
         /* Upload zone */
         .upload-zone {
-            border: 2px dashed #2a2a2a;
-            border-radius: 12px;
-            padding: 24px;
+            border: 2px dashed var(--border-medium);
+            border-radius: 14px;
+            padding: 28px;
             text-align: center;
-            transition: all 0.2s;
-            margin-top: 12px;
+            transition: all 0.25s ease;
+            margin-top: 14px;
             cursor: pointer;
+            background: rgba(18, 24, 21, 0.5);
         }
 
         .upload-zone:hover, .upload-zone.drag-over {
-            border-color: #84BD00;
-            background: rgba(132, 189, 0, 0.05);
+            border-color: var(--accent);
+            background: rgba(184, 164, 122, 0.08);
+            box-shadow: 0 0 24px var(--accent-glow);
+            transform: translateY(-2px);
         }
 
         .upload-zone-icon {
-            font-size: 32px;
-            margin-bottom: 8px;
+            font-size: 36px;
+            margin-bottom: 10px;
+            filter: drop-shadow(0 0 10px var(--accent-glow));
         }
 
         .upload-zone-text {
-            font-size: 13px;
-            color: #888;
-            margin-bottom: 4px;
+            font-size: 13.5px;
+            color: var(--text-pure);
+            margin-bottom: 6px;
         }
 
         .upload-zone-hint {
+            font-family: var(--font-mono);
             font-size: 11px;
-            color: #666;
+            color: var(--text-dim);
         }
 
         .upload-zone-browse {
-            color: #84BD00;
+            color: var(--accent);
             text-decoration: underline;
             cursor: pointer;
+            font-weight: 600;
         }
 
         /* Check results */
         .check-result {
-            background: #141414;
-            border: 1px solid #2a2a2a;
-            border-radius: 8px;
-            padding: 12px;
-            margin-top: 8px;
-            font-size: 12px;
+            background: rgba(17, 23, 20, 0.85);
+            border: 1px solid var(--border-hairline);
+            border-radius: 10px;
+            padding: 14px;
+            margin-top: 10px;
+            font-size: 12.5px;
         }
 
         .check-result.success {
-            border-color: rgba(34, 197, 94, 0.3);
+            border-color: rgba(106, 169, 135, 0.3);
+            box-shadow: 0 0 16px rgba(106, 169, 135, 0.1);
         }
 
         .check-result.warning {
-            border-color: rgba(234, 179, 8, 0.3);
+            border-color: rgba(196, 154, 74, 0.3);
+            box-shadow: 0 0 16px rgba(196, 154, 74, 0.1);
         }
 
         .check-result.error {
-            border-color: rgba(239, 68, 68, 0.3);
+            border-color: rgba(201, 112, 110, 0.3);
+            box-shadow: 0 0 16px rgba(201, 112, 110, 0.1);
         }
 
         .check-item {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-bottom: 6px;
+            gap: 10px;
+            margin-bottom: 8px;
         }
 
         .check-item:last-child {
@@ -854,63 +1092,74 @@
             text-align: center;
         }
 
-        .check-icon.pass { color: #22c55e; }
-        .check-icon.fail { color: #ef4444; }
-        .check-icon.warn { color: #eab308; }
+        .check-icon.pass { color: var(--success); text-shadow: 0 0 8px rgba(106, 169, 135, 0.5); }
+        .check-icon.fail { color: var(--danger); text-shadow: 0 0 8px var(--danger-glow); }
+        .check-icon.warn { color: var(--warning); text-shadow: 0 0 8px rgba(196, 154, 74, 0.5); }
 
         /* Inline edit */
         .field-edit-row {
             display: flex;
-            gap: 8px;
+            gap: 10px;
             align-items: center;
-            padding: 6px 0;
-            font-size: 12px;
+            padding: 7px 0;
+            font-size: 12.5px;
         }
 
         .field-edit-label {
-            color: #888;
-            min-width: 120px;
+            color: var(--text-muted);
+            min-width: 130px;
+            font-family: var(--font-mono);
+            font-size: 11px;
         }
 
         .field-edit-value {
             flex: 1;
-            background: #141414;
-            border: 1px solid #2a2a2a;
+            background: rgba(15, 19, 17, 0.9);
+            border: 1px solid var(--border-hairline);
             border-radius: 6px;
-            padding: 6px 10px;
-            color: #e4e4e4;
-            font-size: 12px;
+            padding: 6px 12px;
+            color: var(--text-pure);
+            font-family: var(--font-sans);
+            font-size: 12.5px;
             outline: none;
+            transition: all 0.2s;
         }
 
         .field-edit-value:focus {
-            border-color: #84BD00;
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
         }
 
         .field-edit-save {
-            padding: 4px 10px;
-            background: #84BD00;
-            color: #121314;
+            padding: 5px 12px;
+            background: var(--accent);
+            color: #0c120f;
             border: none;
             border-radius: 6px;
             font-size: 11px;
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 700;
+            transition: all 0.2s;
+        }
+
+        .field-edit-save:hover {
+            box-shadow: 0 0 12px var(--accent-glow);
         }
 
         .field-edit-save:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
         }
 
         .blurry-notice {
-            background: rgba(234, 179, 8, 0.1);
-            border: 1px solid rgba(234, 179, 8, 0.3);
+            background: rgba(196, 154, 74, 0.12);
+            border: 1px solid rgba(196, 154, 74, 0.35);
             border-radius: 8px;
-            padding: 12px;
-            margin-top: 8px;
+            padding: 12px 16px;
+            margin-top: 10px;
             font-size: 12px;
-            color: #eab308;
+            color: #d4b06a;
+            line-height: 1.5;
         }
 
         .blurry-notice strong {
@@ -920,38 +1169,42 @@
 
         /* Submission result */
         .submission-result {
-            background: #1a1a1a;
-            border: 2px solid #84BD00;
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 8px;
+            background: rgba(20, 26, 22, 0.9);
+            border: 1px solid var(--border-medium);
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 10px;
             text-align: center;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 30px var(--accent-glow);
         }
 
         .submission-icon {
             font-size: 48px;
             margin-bottom: 12px;
+            filter: drop-shadow(0 0 20px var(--accent-glow));
         }
 
         .submission-ref {
-            font-size: 18px;
-            font-weight: 700;
-            color: #84BD00;
-            margin: 12px 0;
-            font-family: monospace;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--accent);
+            margin: 14px 0;
+            font-family: var(--font-mono);
+            letter-spacing: 1px;
+            text-shadow: 0 0 16px var(--accent-glow);
         }
 
         .submission-detail {
             font-size: 13px;
-            color: #888;
-            margin: 6px 0;
+            color: var(--text-muted);
+            margin: 8px 0;
         }
 
         .submission-detail strong {
-            color: #e4e4e4;
+            color: var(--text-pure);
         }
 
-        /* ===== Responsive Design & Polish ===== */
+        /* Responsive */
         .sidebar-backdrop {
             display: none;
         }
@@ -968,11 +1221,11 @@
             }
 
             .topbar {
-                padding: 10px 14px;
+                padding: 10px 16px;
             }
 
             .logo {
-                font-size: 18px;
+                font-size: 17px;
             }
 
             .topbar-time {
@@ -988,7 +1241,6 @@
                 overflow: hidden;
             }
 
-            /* Responsive off-canvas sidebar */
             .sidebar {
                 position: absolute;
                 top: 0;
@@ -996,7 +1248,7 @@
                 left: 0;
                 width: 280px;
                 z-index: 500;
-                box-shadow: 4px 0 24px rgba(0, 0, 0, 0.7);
+                box-shadow: 10px 0 30px rgba(0, 0, 0, 0.8);
                 transform: translateX(0);
                 transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
             }
@@ -1012,15 +1264,15 @@
                 display: block;
                 position: absolute;
                 inset: 0;
-                background: rgba(0, 0, 0, 0.65);
-                backdrop-filter: blur(4px);
+                background: rgba(0, 0, 0, 0.75);
+                backdrop-filter: blur(6px);
                 z-index: 490;
                 animation: fadeIn 0.2s ease-in-out;
             }
 
             .chat-messages {
-                padding: 14px 12px;
-                gap: 12px;
+                padding: 16px 14px;
+                gap: 14px;
             }
 
             .message {
@@ -1028,65 +1280,146 @@
             }
 
             .chat-input-area {
-                padding: 12px;
-            }
-
-            .input-wrapper {
-                padding: 8px 12px;
+                padding: 14px 16px;
             }
 
             .welcome-message {
-                padding: 30px 12px;
+                padding: 30px 14px;
             }
 
             .welcome-title {
-                font-size: 22px;
+                font-size: 26px;
             }
 
             .welcome-text {
                 font-size: 14px;
-                margin-bottom: 20px;
+                margin-bottom: 24px;
             }
 
             .feature-grid {
                 grid-template-columns: 1fr;
-                gap: 10px;
+                gap: 12px;
             }
 
             .page-header {
-                padding: 14px 16px;
+                padding: 16px;
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 12px;
             }
 
-            .page-header .btn {
-                align-self: flex-start;
-            }
-
             .modal {
-                padding: 22px 18px;
+                padding: 24px 20px;
                 margin: 16px;
                 max-width: calc(100% - 32px);
             }
+        }
 
-            .step-indicator {
-                padding: 12px;
-            }
+        /* =====================================================================
+           REFINEMENT LAYER — muted, flat, functional
+           ===================================================================== */
+        html { scroll-behavior: smooth; }
 
-            .step-progress {
-                flex-wrap: wrap;
-                gap: 6px;
-            }
+        /* Calm background: no glows or grid */
+        body { background-image: none; background-color: var(--bg-space); }
 
-            .step-node {
-                font-size: 11px;
-                padding: 4px 8px;
-            }
+        /* Flat controls, no glow */
+        .btn, .sidebar-btn, .sidebar-item, .feature-card, .input-wrapper,
+        .upload-zone, .form-input, .send-btn, .step-node, .sidebar-toggle, .field-edit-save {
+            transition: background-color .2s var(--ease), border-color .2s var(--ease),
+                        color .2s var(--ease), box-shadow .2s var(--ease), transform .2s var(--ease), opacity .2s var(--ease);
+        }
+        .btn-primary, .send-btn, .field-edit-save {
+            background: var(--accent); color: #0c120f; border: 1px solid transparent; box-shadow: none;
+        }
+        .btn-primary:hover, .send-btn:hover, .field-edit-save:hover { background: #c6b592; transform: none; box-shadow: none; }
+        .btn-primary:active, .send-btn:active { background: var(--accent-dark); }
+        .btn-secondary:hover, .btn-ghost:hover, .sidebar-toggle:hover, .sidebar-btn:hover {
+            box-shadow: none; transform: none;
+            background: rgba(255,255,255,.05); border-color: rgba(255,255,255,.16);
+        }
+        .btn-success { background: #4f8a6b; box-shadow: none; }
+        .btn-success:hover { background: #5b9a79; box-shadow: none; }
+        .scroll-to-top { box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+        .scroll-to-top:hover { transform: none; background: #c6b592; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
 
-            .upload-zone {
-                padding: 18px 12px;
-            }
+        /* Solid wordmark + titles */
+        .logo, .welcome-title {
+            background: none; -webkit-text-fill-color: currentColor; color: var(--text-pure); text-shadow: none;
+        }
+        .brand-badge, .welcome-badge { box-shadow: none; background: rgba(184,164,122,.08); }
+        .welcome-icon, .submission-icon { filter: none; }
+        .topbar { box-shadow: 0 1px 0 rgba(255,255,255,.04); }
+        .sidebar { box-shadow: none; }
+
+        /* Chat bubbles: clear roles, no glow */
+        .message { animation: fadeUp .25s var(--ease) both; }
+        .message.assistant .message-content {
+            background: var(--bg-card); border-color: rgba(255,255,255,.07); box-shadow: none;
+        }
+        .message.user .message-content {
+            background: #24493a; border-color: rgba(255,255,255,.08); box-shadow: none; color: var(--text-pure);
+        }
+        .message.assistant .message-avatar {
+            background: #2f5d4a; color: var(--text-pure); border-color: rgba(255,255,255,.08); box-shadow: none;
+        }
+        .typing-dot { background: var(--text-muted); box-shadow: none; animation: typingSoft 1.4s ease-in-out infinite; }
+        @keyframes typingSoft { 0%,60%,100% { opacity:.3; } 30% { opacity:1; } }
+        .step-typing-cursor { box-shadow: none; }
+
+        /* Welcome + cards: single gentle entrance, subtle hover */
+        .welcome-badge, .welcome-icon, .welcome-title, .welcome-text { animation: fadeUp .4s var(--ease) both; }
+        .welcome-title { animation-delay: .05s; } .welcome-text { animation-delay: .1s; }
+        .feature-card { animation: fadeUp .4s var(--ease) both; box-shadow: none; }
+        .feature-card:nth-child(1) { animation-delay: .12s; } .feature-card:nth-child(2) { animation-delay: .16s; }
+        .feature-card:nth-child(3) { animation-delay: .2s; }  .feature-card:nth-child(4) { animation-delay: .24s; }
+        .feature-card:nth-child(5) { animation-delay: .28s; } .feature-card:nth-child(6) { animation-delay: .32s; }
+        .feature-card::before { background: var(--accent); opacity: 0; }
+        .feature-card:hover { transform: translateY(-2px); border-color: rgba(184,164,122,.4); box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+        .feature-card:hover .feature-icon { transform: none; }
+        @keyframes fadeUp { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
+
+        /* Focus: thin ring only */
+        .input-wrapper:focus-within, .form-input:focus, .field-edit-value:focus {
+            border-color: rgba(184,164,122,.6); box-shadow: 0 0 0 3px rgba(184,164,122,.12);
+        }
+        .btn:focus-visible, .sidebar-item:focus-visible, .send-btn:focus-visible { outline: 2px solid rgba(184,164,122,.6); outline-offset: 2px; }
+
+        /* Sidebar: quiet active state with a thin marker */
+        .sidebar-item { position: relative; }
+        .sidebar-item:hover { background: rgba(255,255,255,.04); }
+        .sidebar-item.active {
+            background: rgba(184,164,122,.10); box-shadow: none; border-color: transparent; color: var(--text-pure);
+        }
+        .sidebar-item.active::before {
+            content:''; position:absolute; left:0; top:22%; bottom:22%; width:2px; border-radius:2px; background: var(--accent);
+        }
+        .status-dot { background: #6aa987; box-shadow: none; }
+        .status-dot.offline { background: var(--text-dim); }
+
+        /* Upload, steps, results */
+        .upload-zone { background: rgba(255,255,255,.02); border-color: rgba(255,255,255,.14); }
+        .upload-zone:hover, .upload-zone.drag-over {
+            background: rgba(184,164,122,.06); border-color: rgba(184,164,122,.5); box-shadow: none; transform: none;
+        }
+        .step-node.active { box-shadow: none; background: rgba(184,164,122,.12); }
+        .step-indicator, .check-result, .submission-result { animation: fadeUp .3s var(--ease) both; box-shadow: none; }
+        .check-result.success, .check-result.warning, .check-result.error { box-shadow: none; }
+        .check-icon.pass, .check-icon.fail, .check-icon.warn { text-shadow: none; }
+        .submission-result { border-color: rgba(106,169,135,.35); }
+        .submission-ref { color: #86bf9f; text-shadow: none; }
+
+        /* Modal */
+        .modal-overlay { animation: fadeOnly .2s ease both; background: rgba(5,9,7,.8); }
+        .modal { animation: fadeUp .3s var(--ease) both; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+        @keyframes fadeOnly { from { opacity:0; } to { opacity:1; } }
+
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.12); }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.22); box-shadow: none; }
+        ::selection { background: rgba(184,164,122,.3); }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
         }
     </style>
 </head>
@@ -1100,7 +1433,7 @@
 
         // ---- In-chat application wizard cards (rendered inside chat messages, no page overlay) ----
         function WizardCardShell({ children }) {
-            return <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '12px', padding: '16px', marginTop: '8px', maxWidth: '520px' }}>{children}</div>;
+            return <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '14px', padding: '18px', marginTop: '10px', maxWidth: '540px', backdropFilter: 'blur(14px)', boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)' }}>{children}</div>;
         }
 
         // Step indicator component
@@ -1225,14 +1558,15 @@
                         <div style={{
                             marginTop: '14px',
                             padding: '10px 14px',
-                            background: 'rgba(132, 189, 0, 0.08)',
-                            border: '1px solid rgba(132, 189, 0, 0.3)',
+                            background: 'rgba(184, 164, 122, 0.08)',
+                            border: '1px solid var(--border-medium)',
                             borderRadius: '8px',
                             fontSize: '12px',
-                            color: '#84BD00',
+                            color: 'var(--accent)',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '8px'
+                            gap: '8px',
+                            boxShadow: '0 0 15px var(--accent-glow)'
                         }}>
                             <span>✅</span>
                             <span>
@@ -1248,7 +1582,7 @@
                         const working = busy === d;
                         return (
                             <div key={d} style={{ marginTop: '16px' }}>
-                                <div style={{ fontSize: '14px', fontWeight: 500, color: done ? '#22c55e' : working ? '#84BD00' : '#ccc', marginBottom: '8px' }}>
+                                <div style={{ fontSize: '14px', fontWeight: 600, color: done ? 'var(--success)' : working ? 'var(--accent)' : 'var(--text-muted)', marginBottom: '8px' }}>
                                     {done ? '✅' : working ? '🔍' : '📄'} {pretty(d)}{' '}
                                     {done ? '— Verified & Approved' : working ? '— Scanning & Verifying...' : ''}
                                 </div>
@@ -1256,16 +1590,16 @@
                                 {done ? (
                                     <div style={{
                                         padding: '10px 14px',
-                                        background: 'rgba(34, 197, 94, 0.06)',
-                                        border: '1px solid rgba(34, 197, 94, 0.2)',
+                                        background: 'rgba(106, 169, 135, 0.08)',
+                                        border: '1px solid rgba(106, 169, 135, 0.25)',
                                         borderRadius: '8px',
                                         fontSize: '12px',
-                                        color: '#86efac',
+                                        color: '#6ee7b7',
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '8px'
                                     }}>
-                                        <i className="fas fa-check-circle" style={{ color: '#22c55e', fontSize: '14px' }}></i>
+                                        <i className="fas fa-check-circle" style={{ color: 'var(--success)', fontSize: '14px' }}></i>
                                         <span>Document verified, extracted, and stored securely.</span>
                                     </div>
                                 ) : (
@@ -1296,7 +1630,7 @@
                                     >
                                         {working ? (
                                             <div style={{ padding: '16px 8px', textAlign: 'center' }}>
-                                                <div style={{ fontSize: '13px', fontWeight: '600', color: '#84BD00', marginBottom: '6px' }}>
+                                                <div style={{ fontSize: '13px', fontWeight: '700', color: 'var(--accent)', marginBottom: '6px', textShadow: '0 0 10px var(--accent-glow)' }}>
                                                     🔍 Scanning &amp; Extracting Document Fields...
                                                 </div>
                                                 <div style={{ fontSize: '12px', color: '#aaa', lineHeight: '1.5' }}>
@@ -1391,12 +1725,12 @@
 
                             {/* Human Review vs Auto-Approved Status Callout */}
                             {isHumanReview ? (
-                                <div style={{ marginTop: '6px', padding: '6px 12px', background: 'rgba(234, 179, 8, 0.15)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '6px', fontSize: '12px', color: '#eab308', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div style={{ marginTop: '6px', padding: '8px 14px', background: 'rgba(196, 154, 74, 0.12)', border: '1px solid rgba(196, 154, 74, 0.35)', borderRadius: '8px', fontSize: '12px', color: '#d4b06a', display: 'flex', alignItems: 'center', gap: '8px' }}>
                                     <span>⚠️</span>
-                                    <span><strong>Human Review:</strong> Confidence score is {confPct}% (between 51% and 79%). Document routed for human review.</span>
+                                    <span><strong>Human Review:</strong> Confidence score is {confPct}% (between 51% and 79%). Document routed for compliance review.</span>
                                 </div>
                             ) : isAutoApproved && confPct !== null ? (
-                                <div style={{ marginTop: '6px', padding: '6px 12px', background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '6px', fontSize: '12px', color: '#22c55e', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <div style={{ marginTop: '6px', padding: '8px 14px', background: 'rgba(106, 169, 135, 0.12)', border: '1px solid rgba(106, 169, 135, 0.35)', borderRadius: '8px', fontSize: '12px', color: '#6ee7b7', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 0 15px rgba(106, 169, 135, 0.15)' }}>
                                     <span>✓</span>
                                     <span><strong>Auto-Approved:</strong> Confidence score is {confPct}% (80%+). All required information verified!</span>
                                 </div>
@@ -1420,84 +1754,86 @@
             const isReview = status === 'needs_human_review';
             return (
                 <div className="submission-result" style={{
-                    background: '#16191f',
-                    border: '1px solid #2d3748',
-                    borderRadius: '12px',
-                    padding: '24px',
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-                    marginTop: '12px'
+                    background: 'rgba(21, 28, 24, 0.95)',
+                    border: '1px solid var(--border-medium)',
+                    borderRadius: '16px',
+                    padding: '26px',
+                    boxShadow: '0 12px 40px rgba(0,0,0,0.5), 0 0 30px var(--accent-glow)',
+                    marginTop: '14px'
                 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '18px' }}>
                         <div style={{
-                            width: '44px',
-                            height: '44px',
-                            borderRadius: '50%',
-                            background: isReview ? '#78350f' : '#064e3b',
-                            color: isReview ? '#f59e0b' : '#10b981',
+                            width: '46px',
+                            height: '46px',
+                            borderRadius: '12px',
+                            background: isReview ? 'rgba(196, 154, 74, 0.15)' : 'rgba(106, 169, 135, 0.15)',
+                            border: `1px solid ${isReview ? 'rgba(196, 154, 74, 0.4)' : 'var(--border-medium)'}`,
+                            color: isReview ? 'var(--warning)' : 'var(--accent)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '20px'
+                            fontSize: '22px',
+                            boxShadow: `0 0 16px ${isReview ? 'rgba(196, 154, 74, 0.3)' : 'var(--accent-glow)'}`
                         }}>
                             {isReview ? '⏳' : '✓'}
                         </div>
                         <div>
-                            <div style={{ fontSize: '18px', fontWeight: 700, color: '#f3f4f6' }}>
-                                Application Received & Lodged
+                            <div style={{ fontSize: '19px', fontFamily: 'var(--font-editorial)', fontWeight: 800, color: 'var(--text-pure)', letterSpacing: '0.3px' }}>
+                                Application Received &amp; Lodged
                             </div>
-                            <div style={{ fontSize: '12px', color: '#9ca3af' }}>
-                                Reference Dossier: <strong style={{ color: '#60a5fa', letterSpacing: '0.5px' }}>{refId || 'Generating...'}</strong>
+                            <div style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                                Reference Dossier: <strong style={{ color: 'var(--accent)', letterSpacing: '0.8px' }}>{refId || 'Generating...'}</strong>
                             </div>
                         </div>
                     </div>
 
                     {/* Progress tracker */}
                     <div style={{
-                        background: '#0d1117',
-                        borderRadius: '8px',
-                        padding: '12px 16px',
-                        marginBottom: '16px',
-                        border: '1px solid #1f2937'
+                        background: 'rgba(13, 18, 15, 0.75)',
+                        borderRadius: '10px',
+                        padding: '12px 18px',
+                        marginBottom: '18px',
+                        border: '1px solid var(--border-hairline)'
                     }}>
-                        <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#6b7280', fontWeight: 600, marginBottom: '8px' }}>
+                        <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--text-dim)', fontWeight: 700, letterSpacing: '1px', marginBottom: '8px' }}>
                             Intake Lifecycle Progress
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-                            <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <i className="fas fa-check-circle"></i> Review Confirmed
                             </span>
-                            <span style={{ color: '#4b5563' }}>➔</span>
-                            <span style={{ color: '#10b981', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ color: 'var(--text-dim)' }}>➔</span>
+                            <span style={{ color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <i className="fas fa-check-circle"></i> Authenticity Verified
                             </span>
-                            <span style={{ color: '#4b5563' }}>➔</span>
-                            <span style={{ color: isReview ? '#f59e0b' : '#60a5fa', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span style={{ color: 'var(--text-dim)' }}>➔</span>
+                            <span style={{ color: isReview ? 'var(--warning)' : 'var(--accent)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
                                 <i className={`fas ${isReview ? 'fa-user-check' : 'fa-spinner fa-spin'}`}></i>
                                 {displayStatus || (isReview ? 'Compliance Review' : 'Processing Registry')}
                             </span>
                         </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', fontSize: '13px', marginBottom: '16px' }}>
-                        <div style={{ background: '#111827', padding: '10px 12px', borderRadius: '6px' }}>
-                            <span style={{ color: '#9ca3af', fontSize: '11px', display: 'block' }}>Applicant</span>
-                            <strong style={{ color: '#e5e7eb' }}>{name}</strong>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px', fontSize: '13px', marginBottom: '18px' }}>
+                        <div style={{ background: 'rgba(23, 31, 27, 0.65)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border-hairline)' }}>
+                            <span style={{ color: 'var(--text-dim)', fontSize: '10.5px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Applicant</span>
+                            <strong style={{ color: 'var(--text-pure)' }}>{name}</strong>
                         </div>
-                        <div style={{ background: '#111827', padding: '10px 12px', borderRadius: '6px' }}>
-                            <span style={{ color: '#9ca3af', fontSize: '11px', display: 'block' }}>Enrolled Service</span>
-                            <strong style={{ color: '#e5e7eb' }}>{service}</strong>
+                        <div style={{ background: 'rgba(23, 31, 27, 0.65)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border-hairline)' }}>
+                            <span style={{ color: 'var(--text-dim)', fontSize: '10.5px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Enrolled Service</span>
+                            <strong style={{ color: 'var(--text-pure)' }}>{service}</strong>
                         </div>
-                        <div style={{ background: '#111827', padding: '10px 12px', borderRadius: '6px' }}>
-                            <span style={{ color: '#9ca3af', fontSize: '11px', display: 'block' }}>Target SLA Timeline</span>
-                            <strong style={{ color: '#38bdf8' }}>{processingTime}</strong>
+                        <div style={{ background: 'rgba(23, 31, 27, 0.65)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border-hairline)' }}>
+                            <span style={{ color: 'var(--text-dim)', fontSize: '10.5px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Target SLA Timeline</span>
+                            <strong style={{ color: 'var(--accent)' }}>{processingTime}</strong>
                         </div>
-                        <div style={{ background: '#111827', padding: '10px 12px', borderRadius: '6px' }}>
-                            <span style={{ color: '#9ca3af', fontSize: '11px', display: 'block' }}>Lodged At</span>
-                            <span style={{ color: '#e5e7eb' }}>{submittedAt || 'Just now'}</span>
+                        <div style={{ background: 'rgba(23, 31, 27, 0.65)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border-hairline)' }}>
+                            <span style={{ color: 'var(--text-dim)', fontSize: '10.5px', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>Lodged At</span>
+                            <span style={{ color: 'var(--text-pure)', fontFamily: 'var(--font-mono)' }}>{submittedAt || 'Just now'}</span>
                         </div>
                     </div>
 
-                    <div style={{ fontSize: '12px', color: '#9ca3af', marginBottom: '16px', lineHeight: '1.5' }}>
+                    <div style={{ fontSize: '12.5px', color: 'var(--text-muted)', marginBottom: '18px', lineHeight: '1.6' }}>
                         {isReview 
                             ? 'ℹ️ Your application has been scheduled for a secondary compliance officer review to verify identity attributes. You do not need to resubmit documents unless requested.'
                             : 'ℹ️ Your application packet has been registered in the system and is being processed in accordance with the service SLA.'}
@@ -1507,7 +1843,7 @@
                         <button
                             onClick={onTrackClick}
                             className="btn btn-primary"
-                            style={{ fontSize: '12px', padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                            style={{ fontSize: '12.5px', padding: '10px 18px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
                         >
                             <i className="fas fa-list-alt"></i> View in Applications Dashboard
                         </button>
@@ -1687,9 +2023,10 @@
             const [loading, setLoading] = useState(false);
             const [showAuth, setShowAuth] = useState(false);
             const [user, setUser] = useState(null);
-            const [authMode, setAuthMode] = useState('login');
-            const [authData, setAuthData] = useState({ username: '', password: '', name: '', email: '', full_name: '', birthday: '', gender: '' });
+            const [authMode, setAuthMode] = useState('login'); // login | register | reset
+            const [authData, setAuthData] = useState({ username: '', password: '', new_password: '', name: '', email: '', full_name: '', birthday: '', gender: '' });
             const [authError, setAuthError] = useState('');
+            const [authSuccess, setAuthSuccess] = useState('');
             const [services, setServices] = useState([]);
             const [documents, setDocuments] = useState([]);
             const [applications, setApplications] = useState([]);
@@ -1972,7 +2309,39 @@
 
             const handleAuth = async () => {
                 setAuthError('');
+                setAuthSuccess('');
                 try {
+                    if (authMode === 'reset') {
+                        const identifier = authData.username.trim() || authData.email.trim();
+                        if (!identifier) {
+                            setAuthError('Please enter your username or email address.');
+                            return;
+                        }
+                        const newPwd = (authData.new_password || authData.password || '').trim();
+                        if (!newPwd) {
+                            setAuthError('Please enter a new password.');
+                            return;
+                        }
+
+                        const res = await fetch(`${API_BASE}/auth/reset-password`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ identifier, new_password: newPwd })
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (data.success) {
+                            setAuthSuccess(data.message || 'Password reset successfully! You can now sign in.');
+                            setAuthData(prev => ({ ...prev, password: '', new_password: '' }));
+                            setTimeout(() => {
+                                setAuthMode('login');
+                                setAuthSuccess('');
+                            }, 2500);
+                        } else {
+                            setAuthError(data.detail || data.message || 'Failed to reset password. Please check your username/email.');
+                        }
+                        return;
+                    }
+
                     const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
                     const emailVal = (authData.email || '').trim() || (authData.username.includes('@') ? authData.username.trim() : `${authData.username.trim()}@example.com`);
                     const body = authMode === 'login'
@@ -3027,9 +3396,9 @@
                                     const appStatus = (app.status || 'PENDING').toUpperCase();
                                     const isComplete = appStatus === 'COMPLETE' || appStatus === 'COMPLETED' || appStatus === 'SUBMITTED' || appStatus === 'PASS';
                                     const isReview = appStatus.includes('REVIEW');
-                                    const badgeBg = isComplete ? 'rgba(34, 197, 94, 0.15)' : isReview ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)';
-                                    const badgeColor = isComplete ? '#22c55e' : isReview ? '#f59e0b' : '#ef4444';
-                                    const badgeBorder = isComplete ? 'rgba(34, 197, 94, 0.35)' : isReview ? 'rgba(245, 158, 11, 0.35)' : 'rgba(239, 68, 68, 0.35)';
+                                    const badgeBg = isComplete ? 'rgba(34, 197, 94, 0.15)' : isReview ? 'rgba(196, 154, 74, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+                                    const badgeColor = isComplete ? '#22c55e' : isReview ? '#c49a4a' : '#ef4444';
+                                    const badgeBorder = isComplete ? 'rgba(34, 197, 94, 0.35)' : isReview ? 'rgba(196, 154, 74, 0.35)' : 'rgba(239, 68, 68, 0.35)';
 
                                     return (
                                         <div key={app.id || app.application_id || idx} style={{
@@ -3053,7 +3422,7 @@
                                                         </div>
                                                     </div>
                                                     {app.applicant_name && (
-                                                        <div style={{ fontSize: '13px', color: '#84BD00', marginTop: '4px', fontWeight: '500' }}>
+                                                        <div style={{ fontSize: '13px', color: 'var(--accent)', marginTop: '4px', fontWeight: '600' }}>
                                                             <i className="fas fa-user" style={{ marginRight: '6px', opacity: 0.8 }}></i>
                                                             Applicant: {app.applicant_name}
                                                         </div>
@@ -3121,13 +3490,13 @@
             );
 
             const renderAccountPage = () => (
-                <div style={{ flex: 1, overflow: 'auto', background: '#0a0a0a' }}>
-                    <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid #1f1f1f', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ flex: 1, overflow: 'auto', background: 'transparent' }}>
+                    <div style={{ padding: '24px 36px 18px', borderBottom: '1px solid var(--border-hairline)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <div>
-                            <div style={{ fontSize: '24px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <i className="fas fa-user-shield" style={{ color: '#84BD00' }}></i> Account & Profile
+                            <div style={{ fontSize: '24px', fontFamily: 'var(--font-editorial)', fontWeight: '800', color: 'var(--text-pure)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <i className="fas fa-user-shield" style={{ color: 'var(--accent)' }}></i> Account &amp; Profile
                             </div>
-                            <div style={{ fontSize: '13px', color: '#888', marginTop: '4px' }}>
+                            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
                                 Manage your personal identity credentials, submitted documents, and application history
                             </div>
                         </div>
@@ -3137,14 +3506,16 @@
                     </div>
 
                     {/* Sub-tabs within Account */}
-                    <div style={{ display: 'flex', gap: '8px', padding: '16px 24px', borderBottom: '1px solid #1a1a1a', background: '#111' }}>
+                    <div style={{ display: 'flex', gap: '8px', padding: '16px 36px', borderBottom: '1px solid var(--border-hairline)', background: 'rgba(15, 19, 17, 0.65)' }}>
                         <button
                             className="btn"
                             style={{
-                                background: accountTab === 'details' ? '#84BD00' : '#1f1f1f',
-                                color: accountTab === 'details' ? '#121314' : '#e4e4e4',
-                                fontWeight: '600',
-                                fontSize: '13px'
+                                background: accountTab === 'details' ? 'linear-gradient(135deg, var(--accent) 0%, #b8a47e 100%)' : 'rgba(23, 31, 27, 0.7)',
+                                color: accountTab === 'details' ? '#0c120f' : 'var(--text-muted)',
+                                border: accountTab === 'details' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid var(--border-hairline)',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                boxShadow: accountTab === 'details' ? '0 0 16px var(--accent-glow)' : 'none'
                             }}
                             onClick={() => { setAccountTab('details'); loadUserProfile(); }}
                         >
@@ -3153,10 +3524,12 @@
                         <button
                             className="btn"
                             style={{
-                                background: accountTab === 'documents' ? '#84BD00' : '#1f1f1f',
-                                color: accountTab === 'documents' ? '#121314' : '#e4e4e4',
-                                fontWeight: '600',
-                                fontSize: '13px'
+                                background: accountTab === 'documents' ? 'linear-gradient(135deg, var(--accent) 0%, #b8a47e 100%)' : 'rgba(23, 31, 27, 0.7)',
+                                color: accountTab === 'documents' ? '#0c120f' : 'var(--text-muted)',
+                                border: accountTab === 'documents' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid var(--border-hairline)',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                boxShadow: accountTab === 'documents' ? '0 0 16px var(--accent-glow)' : 'none'
                             }}
                             onClick={() => { setAccountTab('documents'); loadDocuments(); }}
                         >
@@ -3165,10 +3538,12 @@
                         <button
                             className="btn"
                             style={{
-                                background: accountTab === 'applications' ? '#84BD00' : '#1f1f1f',
-                                color: accountTab === 'applications' ? '#121314' : '#e4e4e4',
-                                fontWeight: '600',
-                                fontSize: '13px'
+                                background: accountTab === 'applications' ? 'linear-gradient(135deg, var(--accent) 0%, #b8a47e 100%)' : 'rgba(23, 31, 27, 0.7)',
+                                color: accountTab === 'applications' ? '#0c120f' : 'var(--text-muted)',
+                                border: accountTab === 'applications' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid var(--border-hairline)',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                boxShadow: accountTab === 'applications' ? '0 0 16px var(--accent-glow)' : 'none'
                             }}
                             onClick={() => { setAccountTab('applications'); loadApplications(); }}
                         >
@@ -3355,25 +3730,27 @@
                                             return (
                                                 <div key={idx} style={{
                                                     padding: '20px',
-                                                    background: '#1a1a1a',
-                                                    border: '1px solid #2a2a2a',
-                                                    borderRadius: '12px',
+                                                    background: 'var(--bg-card)',
+                                                    border: '1px solid var(--border-hairline)',
+                                                    borderRadius: '14px',
+                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                                                    backdropFilter: 'blur(10px)'
                                                 }}>
                                                     {/* Header */}
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid #2a2a2a', flexWrap: 'wrap', gap: '12px' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--border-hairline)', flexWrap: 'wrap', gap: '12px' }}>
                                                         <div>
                                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                                                                <span style={{ fontSize: '15px', fontWeight: '600', color: '#f3f4f6' }}>
+                                                                <span style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-pure)' }}>
                                                                     {doc.filename || doc.name || 'Unknown file'}
                                                                 </span>
                                                                 <span style={{
                                                                     padding: '2px 8px',
-                                                                    background: '#1e3a5f',
-                                                                    color: '#60a5fa',
-                                                                    border: '1px solid #2563eb55',
+                                                                    background: 'rgba(184, 164, 122, 0.1)',
+                                                                    color: 'var(--accent)',
+                                                                    border: '1px solid var(--border-medium)',
                                                                     borderRadius: '6px',
                                                                     fontSize: '11px',
-                                                                    fontWeight: '500',
+                                                                    fontWeight: '600',
                                                                     display: 'inline-flex',
                                                                     alignItems: 'center',
                                                                     gap: '4px'
@@ -3381,7 +3758,7 @@
                                                                     <i className="fas fa-briefcase" style={{ fontSize: '10px' }}></i> {serviceDisplayName}
                                                                 </span>
                                                             </div>
-                                                            <div style={{ fontSize: '12px', color: '#888', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                            <div style={{ fontSize: '12px', color: 'var(--text-dim)', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'var(--font-mono)' }}>
                                                                 <span><i className="far fa-clock" style={{ marginRight: '4px' }}></i>{formattedDate}</span>
                                                                 <span>·</span>
                                                                 <span>{formatFileSize(doc.file_size || doc.size || 0)}</span>
@@ -3391,11 +3768,11 @@
                                                         </div>
                                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
                                                             {doc.extraction_confidence !== undefined && (
-                                                                <span style={{ fontSize: '12px', color: doc.extraction_confidence > 0.7 ? '#22c55e' : doc.extraction_confidence > 0.4 ? '#eab308' : '#ef4444' }}>
+                                                                <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: '600', color: doc.extraction_confidence > 0.7 ? 'var(--accent)' : doc.extraction_confidence > 0.4 ? 'var(--warning)' : 'var(--danger)' }}>
                                                                     {(doc.extraction_confidence * 100).toFixed(0)}% confidence
                                                                 </span>
                                                             )}
-                                                            <span style={{ fontSize: '12px', color: '#22c55e', marginRight: '4px' }}>
+                                                            <span style={{ fontSize: '12px', color: 'var(--accent)', marginRight: '4px', fontWeight: '600' }}>
                                                                 ✓ Processed
                                                             </span>
 
@@ -3434,22 +3811,22 @@
                                                     {/* Extracted Fields Table */}
                                                     {fields.length > 0 ? (
                                                         <div>
-                                                            <div style={{ fontSize: '12px', color: '#888', marginBottom: '8px', fontWeight: '600' }}>
+                                                            <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '8px', fontWeight: '700', fontFamily: 'var(--font-mono)', letterSpacing: '1px', textTransform: 'uppercase' }}>
                                                                 EXTRACTED DATA ({fields.length} fields)
                                                             </div>
                                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px' }}>
                                                                 {fields.map(([key, value]) => (
                                                                     <div key={key} style={{
                                                                         padding: '8px 12px',
-                                                                        background: '#141414',
-                                                                        border: '1px solid #2a2a2a',
-                                                                        borderRadius: '6px',
+                                                                        background: 'rgba(15, 19, 17, 0.75)',
+                                                                        border: '1px solid var(--border-hairline)',
+                                                                        borderRadius: '8px',
                                                                         fontSize: '12px',
                                                                     }}>
-                                                                        <div style={{ color: '#888', marginBottom: '2px', fontSize: '11px' }}>
+                                                                        <div style={{ color: 'var(--text-dim)', marginBottom: '3px', fontSize: '10.5px', fontFamily: 'var(--font-mono)' }}>
                                                                             {labels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                                         </div>
-                                                                        <div style={{ color: '#e4e4e4', wordBreak: 'break-word', fontWeight: '500' }}>
+                                                                        <div style={{ color: 'var(--text-pure)', wordBreak: 'break-word', fontWeight: '600' }}>
                                                                             {formatFieldValue(key, value, doc.service_id)}
                                                                         </div>
                                                                     </div>
@@ -3457,7 +3834,7 @@
                                                             </div>
                                                         </div>
                                                     ) : (
-                                                        <div style={{ fontSize: '12px', color: '#666', fontStyle: 'italic', padding: '8px 0' }}>
+                                                        <div style={{ fontSize: '12px', color: 'var(--text-dim)', fontStyle: 'italic', padding: '8px 0' }}>
                                                             No data extracted yet.
                                                         </div>
                                                     )}
@@ -3495,77 +3872,78 @@
                                             const appStatus = (app.status || 'PENDING').toUpperCase();
                                             const isComplete = appStatus === 'COMPLETE' || appStatus === 'COMPLETED' || appStatus === 'SUBMITTED' || appStatus === 'PASS';
                                             const isReview = appStatus.includes('REVIEW');
-                                            const badgeBg = isComplete ? 'rgba(34, 197, 94, 0.15)' : isReview ? 'rgba(245, 158, 11, 0.15)' : 'rgba(239, 68, 68, 0.15)';
-                                            const badgeColor = isComplete ? '#22c55e' : isReview ? '#f59e0b' : '#ef4444';
-                                            const badgeBorder = isComplete ? 'rgba(34, 197, 94, 0.35)' : isReview ? 'rgba(245, 158, 11, 0.35)' : 'rgba(239, 68, 68, 0.35)';
+                                            const badgeBg = isComplete ? 'rgba(34, 197, 94, 0.15)' : isReview ? 'rgba(196, 154, 74, 0.15)' : 'rgba(239, 68, 68, 0.15)';
+                                            const badgeColor = isComplete ? '#22c55e' : isReview ? '#c49a4a' : '#ef4444';
+                                            const badgeBorder = isComplete ? 'rgba(34, 197, 94, 0.35)' : isReview ? 'rgba(196, 154, 74, 0.35)' : 'rgba(239, 68, 68, 0.35)';
 
                                             return (
                                                 <div key={app.id || app.application_id || idx} style={{
-                                                    padding: '22px',
-                                                    background: 'linear-gradient(135deg, rgba(26,26,26,0.85) 0%, rgba(20,20,20,0.95) 100%)',
-                                                    border: '1px solid rgba(255,255,255,0.08)',
+                                                    padding: '24px',
+                                                    background: 'var(--bg-card)',
+                                                    border: '1px solid var(--border-hairline)',
                                                     borderRadius: '16px',
                                                     display: 'flex',
                                                     flexDirection: 'column',
                                                     gap: '14px',
-                                                    boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                                                    backdropFilter: 'blur(10px)',
-                                                    transition: 'transform 0.2s, border-color 0.2s'
+                                                    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                                                    backdropFilter: 'blur(12px)',
+                                                    transition: 'all 0.25s ease'
                                                 }}>
                                                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
                                                         <div>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                                <span style={{ fontSize: '20px' }}>{getServiceIcon(app.service_id || app.service_type)}</span>
-                                                                <div style={{ fontSize: '18px', fontWeight: '700', color: '#f5f5f5', letterSpacing: '0.01em' }}>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                <span style={{ fontSize: '22px' }}>{getServiceIcon(app.service_id || app.service_type)}</span>
+                                                                <div style={{ fontSize: '18px', fontFamily: 'var(--font-editorial)', fontWeight: '800', color: 'var(--text-pure)', letterSpacing: '0.02em' }}>
                                                                     {serviceLabel}
                                                                 </div>
                                                             </div>
                                                             {app.applicant_name && (
-                                                                <div style={{ fontSize: '13px', color: '#84BD00', marginTop: '4px', fontWeight: '500' }}>
+                                                                <div style={{ fontSize: '13px', color: 'var(--accent)', marginTop: '6px', fontWeight: '600' }}>
                                                                     <i className="fas fa-user" style={{ marginRight: '6px', opacity: 0.8 }}></i>
                                                                     Applicant: {app.applicant_name}
                                                                 </div>
                                                             )}
-                                                            <div style={{ fontSize: '12px', color: '#777', marginTop: '6px' }}>
-                                                                Ref: <span style={{ color: '#aaa', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>{app.id || app.application_id}</span> • Submitted: {app.created_at || app.submitted_at ? new Date(app.created_at || app.submitted_at).toLocaleString() : 'Recent'}
+                                                            <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '6px', fontFamily: 'var(--font-mono)' }}>
+                                                                Ref: <span style={{ color: 'var(--accent)', background: 'rgba(120,221,178,0.08)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-hairline)' }}>{app.id || app.application_id}</span> • Submitted: {app.created_at || app.submitted_at ? new Date(app.created_at || app.submitted_at).toLocaleString() : 'Recent'}
                                                             </div>
                                                         </div>
                                                         <span style={{
                                                             padding: '6px 14px',
                                                             borderRadius: '20px',
                                                             fontSize: '11px',
+                                                            fontFamily: 'var(--font-mono)',
                                                             fontWeight: '700',
                                                             letterSpacing: '0.05em',
                                                             background: badgeBg,
                                                             color: badgeColor,
                                                             border: `1px solid ${badgeBorder}`,
-                                                            boxShadow: `0 0 12px ${badgeBg}`
+                                                            boxShadow: `0 0 14px ${badgeBg}`
                                                         }}>
                                                             {appStatus.replace(/_/g, ' ')}
                                                         </span>
                                                     </div>
 
                                                     {app.metadata && Object.keys(app.metadata).length > 0 && (
-                                                        <div style={{ background: 'rgba(0,0,0,0.35)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                                            <div style={{ fontSize: '11px', color: '#888', fontWeight: '600', marginBottom: '8px', letterSpacing: '0.05em' }}>DETAILS</div>
+                                                        <div style={{ background: 'rgba(15, 19, 17, 0.75)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-hairline)' }}>
+                                                            <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontWeight: '700', fontFamily: 'var(--font-mono)', marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase' }}>DETAILS</div>
                                                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', fontSize: '12px' }}>
                                                                 {Object.entries(app.metadata).map(([k, v]) => (
                                                                     <div key={k}>
-                                                                        <span style={{ color: '#888' }}>{k.replace(/_/g, ' ')}: </span>
-                                                                        <span style={{ color: '#e4e4e4', fontWeight: '500' }}>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
+                                                                        <span style={{ color: 'var(--text-dim)' }}>{k.replace(/_/g, ' ')}: </span>
+                                                                        <span style={{ color: 'var(--text-pure)', fontWeight: '600' }}>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
                                                         </div>
                                                     )}
 
-                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px', paddingTop: '12px', borderTop: '1px solid var(--border-hairline)' }}>
                                                         <button
                                                             className="btn btn-ghost"
                                                             style={{
-                                                                color: '#ef4444',
-                                                                borderColor: 'rgba(239, 68, 68, 0.3)',
-                                                                background: 'rgba(239, 68, 68, 0.08)',
+                                                                color: 'var(--danger)',
+                                                                borderColor: 'rgba(201, 112, 110, 0.3)',
+                                                                background: 'rgba(201, 112, 110, 0.08)',
                                                                 fontSize: '12px',
                                                                 padding: '6px 14px',
                                                                 borderRadius: '8px',
@@ -3596,78 +3974,79 @@
 
                 const renderServiceCard = (svc, isAvailable) => (
                     <div key={svc.id} style={{
-                        padding: '22px',
-                        background: 'rgba(26, 26, 26, 0.75)',
-                        border: isAvailable ? '1px solid rgba(132, 189, 0, 0.25)' : '1px dashed rgba(255, 255, 255, 0.15)',
-                        borderRadius: '14px',
-                        backdropFilter: 'blur(12px)',
+                        padding: '24px',
+                        background: 'var(--bg-card)',
+                        border: isAvailable ? '1px solid var(--border-medium)' : '1px dashed rgba(255, 255, 255, 0.12)',
+                        borderRadius: '16px',
+                        backdropFilter: 'blur(14px)',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '14px',
                         transition: 'all 0.25s ease',
-                        boxShadow: isAvailable ? '0 4px 20px -5px rgba(0,0,0,0.5)' : 'none',
-                        opacity: isAvailable ? 1 : 0.88
+                        boxShadow: isAvailable ? '0 8px 30px rgba(0,0,0,0.4)' : 'none',
+                        opacity: isAvailable ? 1 : 0.85
                     }}>
                         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                <div style={{ fontSize: '32px', filter: isAvailable ? 'drop-shadow(0 0 8px rgba(132,189,0,0.3))' : 'grayscale(60%)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                <div style={{ fontSize: '32px', filter: isAvailable ? 'drop-shadow(0 0 10px var(--accent-glow))' : 'grayscale(60%)' }}>
                                     {getServiceIcon(svc.id)}
                                 </div>
                                 <div>
-                                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff', letterSpacing: '-0.01em' }}>
+                                    <div style={{ fontSize: '17px', fontFamily: 'var(--font-editorial)', fontWeight: '800', color: 'var(--text-pure)', letterSpacing: '0.02em' }}>
                                         {svc.name}
                                     </div>
-                                    <div style={{ fontSize: '11px', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.06em', color: isAvailable ? '#84BD00' : '#888', marginTop: '3px' }}>
+                                    <div style={{ fontSize: '10.5px', fontFamily: 'var(--font-mono)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px', color: isAvailable ? 'var(--accent)' : 'var(--text-dim)', marginTop: '4px' }}>
                                         {isAvailable ? '● Available Now' : '⏳ Coming Soon'}
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div style={{ fontSize: '13px', color: '#bbb', lineHeight: '1.6' }}>
+                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6' }}>
                             {svc.description || 'Comprehensive document onboarding and verification service.'}
                         </div>
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', background: 'rgba(0, 0, 0, 0.25)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12px', background: 'rgba(15, 19, 17, 0.7)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-hairline)' }}>
                             <div>
-                                <span style={{ color: '#888', fontWeight: '600', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.05em' }}>Required Documents:</span>
+                                <span style={{ color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase', fontSize: '10px', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>Required Documents:</span>
                                 <div style={{ marginTop: '6px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                     {(svc.documents_required || []).length > 0 
                                         ? (svc.documents_required || []).map((d, i) => (
                                             <span key={i} style={{ 
                                                 display: 'inline-flex',
                                                 alignItems: 'center',
-                                                padding: '3px 8px', 
-                                                background: 'rgba(255, 255, 255, 0.06)', 
-                                                border: '1px solid rgba(255, 255, 255, 0.08)',
+                                                padding: '4px 10px', 
+                                                background: 'rgba(184, 164, 122, 0.08)', 
+                                                border: '1px solid var(--border-hairline)',
                                                 borderRadius: '6px', 
                                                 fontSize: '11px',
-                                                color: '#ddd'
+                                                fontFamily: 'var(--font-mono)',
+                                                color: 'var(--accent)'
                                             }}>
-                                                <i className="fas fa-file-check" style={{ marginRight: '5px', fontSize: '10px', color: '#84BD00' }}></i>
+                                                <i className="fas fa-file-check" style={{ marginRight: '6px', fontSize: '10px', color: 'var(--accent)' }}></i>
                                                 {d.replace(/_/g, ' ')}
                                             </span>
                                         ))
-                                        : <span style={{ color: '#666', fontStyle: 'italic' }}>None specified</span>
+                                        : <span style={{ color: 'var(--text-dim)', fontStyle: 'italic' }}>None specified</span>
                                     }
                                 </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', paddingTop: '6px', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                                <span style={{ color: '#888', fontWeight: '600', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.05em' }}>Processing Time:</span>
-                                <span style={{ color: '#84BD00', fontWeight: '600' }}>{svc.processing_time || 'Instant'}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '4px', paddingTop: '6px', borderTop: '1px solid var(--border-hairline)' }}>
+                                <span style={{ color: 'var(--text-dim)', fontWeight: '700', textTransform: 'uppercase', fontSize: '10px', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>Processing Time:</span>
+                                <span style={{ color: 'var(--accent)', fontWeight: '700', fontFamily: 'var(--font-mono)' }}>{svc.processing_time || 'Instant'}</span>
                             </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                        <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
                             {isAvailable ? (
                                 <button className="btn btn-primary" onClick={() => {
                                     setShowServicesPage(false);
                                     startApplication(svc.id);
-                                }} style={{ flex: 1, padding: '8px 12px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', borderRadius: '8px' }}>
+                                }} style={{ flex: 1, padding: '10px 14px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', borderRadius: '8px' }}>
                                     <i className="fas fa-play"></i> Apply for this service
                                 </button>
                             ) : (
-                                <div style={{ flex: 1, padding: '8px 12px', fontSize: '12px', textAlign: 'center', color: '#777', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                <div style={{ flex: 1, padding: '10px 14px', fontSize: '12px', textAlign: 'center', color: 'var(--text-dim)', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', border: '1px solid var(--border-hairline)' }}>
                                     <i className="fas fa-lock" style={{ marginRight: '6px' }}></i>Opening soon
                                 </div>
                             )}
@@ -3678,7 +4057,7 @@
                                 } else {
                                     setShowAuth(true);
                                 }
-                            }} style={{ padding: '8px 14px', fontSize: '13px', borderRadius: '8px' }} title="Ask Lynx AI about this service">
+                            }} style={{ padding: '10px 16px', fontSize: '13px', borderRadius: '8px' }} title="Ask Lynx AI about this service">
                                 <i className="fas fa-comment-dots" style={{ marginRight: '4px' }}></i> Ask
                             </button>
                         </div>
@@ -3687,12 +4066,12 @@
 
                 return (
                     <div className="chat-area" style={{ overflowY: 'auto' }}>
-                        <div className="page-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '18px 24px' }}>
+                        <div className="page-header" style={{ borderBottom: '1px solid var(--border-hairline)', padding: '20px 36px' }}>
                             <div>
-                                <h2 style={{ fontSize: '20px', fontWeight: '700', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                    <i className="fas fa-cubes" style={{ color: '#84BD00' }}></i> Service Catalog
+                                <h2 style={{ fontSize: '22px', fontFamily: 'var(--font-editorial)', fontWeight: '800', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <i className="fas fa-cubes" style={{ color: 'var(--accent)' }}></i> Service Catalog
                                 </h2>
-                                <div style={{ fontSize: '13px', color: '#888', marginTop: '4px' }}>
+                                <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
                                     Browse available intake programs and upcoming automated verification pipelines.
                                 </div>
                             </div>
@@ -3724,13 +4103,13 @@
                                             alignItems: 'center',
                                             justifyContent: 'space-between',
                                             paddingBottom: '8px',
-                                            borderBottom: '2px solid rgba(132, 189, 0, 0.4)'
+                                            borderBottom: '2px solid var(--border-medium)'
                                         }}>
                                             <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                <i className="fas fa-check-circle" style={{ color: '#84BD00' }}></i>
+                                                <i className="fas fa-check-circle" style={{ color: 'var(--accent)' }}></i>
                                                 Available Services
                                             </div>
-                                            <span style={{ fontSize: '12px', background: 'rgba(132, 189, 0, 0.15)', color: '#84BD00', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
+                                            <span style={{ fontSize: '12px', background: 'rgba(184, 164, 122, 0.12)', color: 'var(--accent)', border: '1px solid var(--border-medium)', padding: '2px 8px', borderRadius: '10px', fontWeight: '600' }}>
                                                 {availableServices.length} Active
                                             </span>
                                         </div>
@@ -3787,19 +4166,78 @@
                     <div className="modal-overlay">
                         <div className="modal">
                             <div className="modal-title">
-                                {authMode === 'login' ? 'Welcome Back' : 'Create Account'}
+                                {authMode === 'login' ? 'Welcome Back' : authMode === 'register' ? 'Create Account' : 'Reset Password'}
                             </div>
                             <div className="modal-subtitle">
-                                {authMode === 'login' ? 'Sign in to continue' : 'Get started with DocIntake'}
+                                {authMode === 'login' ? 'Sign in to continue' : authMode === 'register' ? 'Get started with DocIntake' : 'Enter your username or email and choose a new password'}
+                            </div>
+
+                            {/* Navigation Tabs inside modal */}
+                            <div style={{ display: 'flex', gap: '6px', marginBottom: '18px', background: 'rgba(255,255,255,0.04)', padding: '4px', borderRadius: '8px' }}>
+                                <button
+                                    type="button"
+                                    onClick={() => { setAuthMode('login'); setAuthError(''); setAuthSuccess(''); }}
+                                    style={{
+                                        flex: 1,
+                                        padding: '8px 12px',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        background: authMode === 'login' ? 'var(--accent, #00d285)' : 'transparent',
+                                        color: authMode === 'login' ? '#000' : 'var(--text-muted, #888)'
+                                    }}
+                                >
+                                    <i className="fas fa-sign-in-alt"></i> Sign In
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setAuthMode('register'); setAuthError(''); setAuthSuccess(''); }}
+                                    style={{
+                                        flex: 1,
+                                        padding: '8px 12px',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        background: authMode === 'register' ? 'var(--accent, #00d285)' : 'transparent',
+                                        color: authMode === 'register' ? '#000' : 'var(--text-muted, #888)'
+                                    }}
+                                >
+                                    <i className="fas fa-user-plus"></i> Sign Up
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => { setAuthMode('reset'); setAuthError(''); setAuthSuccess(''); }}
+                                    style={{
+                                        flex: 1,
+                                        padding: '8px 12px',
+                                        fontSize: '12px',
+                                        fontWeight: 600,
+                                        borderRadius: '6px',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s',
+                                        background: authMode === 'reset' ? 'var(--accent, #00d285)' : 'transparent',
+                                        color: authMode === 'reset' ? '#000' : 'var(--text-muted, #888)'
+                                    }}
+                                >
+                                    <i className="fas fa-key"></i> Reset
+                                </button>
                             </div>
 
                             <div className="form-group">
-                                <label>Username</label>
+                                <label>{authMode === 'reset' ? 'Username or Email' : 'Username'}</label>
                                 <input
                                     className="form-input"
                                     value={authData.username}
                                     onChange={e => setAuthData({...authData, username: e.target.value})}
-                                    placeholder="Enter username"
+                                    placeholder={authMode === 'reset' ? 'Enter username or email' : 'Enter username'}
+                                    autoFocus
                                 />
                             </div>
 
@@ -3817,29 +4255,57 @@
                                 </div>
                             )}
 
-                            <div className="form-group">
-                                <label>Password</label>
-                                <div className="password-wrapper">
-                                    <input
-                                        className="form-input"
-                                        type={showPassword ? "text" : "password"}
-                                        value={authData.password}
-                                        onChange={e => setAuthData({...authData, password: e.target.value})}
-                                        placeholder="Enter password"
-                                        onKeyDown={e => e.key === 'Enter' && handleAuth()}
-                                        style={{ paddingRight: '40px' }}
-                                    />
-                                    <button
-                                        type="button"
-                                        className="password-toggle"
-                                        onClick={() => setShowPassword(!showPassword)}
-                                        tabIndex="-1"
-                                        aria-label={showPassword ? "Hide password" : "Show password"}
-                                    >
-                                        <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
-                                    </button>
+                            {authMode !== 'reset' && (
+                                <div className="form-group">
+                                    <label>Password</label>
+                                    <div className="password-wrapper">
+                                        <input
+                                            className="form-input"
+                                            type={showPassword ? "text" : "password"}
+                                            value={authData.password}
+                                            onChange={e => setAuthData({...authData, password: e.target.value})}
+                                            placeholder="Enter password"
+                                            onKeyDown={e => e.key === 'Enter' && handleAuth()}
+                                            style={{ paddingRight: '40px' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="password-toggle"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            tabIndex="-1"
+                                            aria-label={showPassword ? "Hide password" : "Show password"}
+                                        >
+                                            <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
+
+                            {authMode === 'reset' && (
+                                <div className="form-group">
+                                    <label>New Password (min 4 chars)</label>
+                                    <div className="password-wrapper">
+                                        <input
+                                            className="form-input"
+                                            type={showPassword ? "text" : "password"}
+                                            value={authData.new_password || authData.password}
+                                            onChange={e => setAuthData({...authData, new_password: e.target.value, password: e.target.value})}
+                                            placeholder="Enter new password"
+                                            onKeyDown={e => e.key === 'Enter' && handleAuth()}
+                                            style={{ paddingRight: '40px' }}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="password-toggle"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            tabIndex="-1"
+                                            aria-label={showPassword ? "Hide password" : "Show password"}
+                                        >
+                                            <i className={`fas ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`}></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             {authMode === 'register' && (
                                 <React.Fragment>
@@ -3880,30 +4346,45 @@
                                 </React.Fragment>
                             )}
 
-                    {authError && (
-                        <div>
-                            <div className="error-msg">{authError}</div>
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                                <button
-                                    className="btn btn-ghost"
-                                    onClick={() => setAuthError('')}
-                                    style={{ flex: 1 }}
-                                >
-                                    Try again
-                                </button>
-                                <button
-                                    className="btn btn-ghost"
-                                    onClick={() => setShowAuth(false)}
-                                    style={{ flex: 1 }}
-                                >
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                    )}
+                            {authSuccess && (
+                                <div style={{
+                                    padding: '10px 14px',
+                                    borderRadius: '8px',
+                                    background: 'rgba(0, 210, 133, 0.15)',
+                                    border: '1px solid var(--accent, #00d285)',
+                                    color: 'var(--accent, #00d285)',
+                                    fontSize: '13px',
+                                    marginBottom: '12px'
+                                }}>
+                                    <i className="fas fa-check-circle" style={{ marginRight: '6px' }}></i>
+                                    {authSuccess}
+                                </div>
+                            )}
+
+                            {authError && (
+                                <div>
+                                    <div className="error-msg">{authError}</div>
+                                    <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                                        <button
+                                            className="btn btn-ghost"
+                                            onClick={() => setAuthError('')}
+                                            style={{ flex: 1 }}
+                                        >
+                                            Try again
+                                        </button>
+                                        <button
+                                            className="btn btn-ghost"
+                                            onClick={() => setShowAuth(false)}
+                                            style={{ flex: 1 }}
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
 
                             <button className="btn btn-primary" onClick={handleAuth} style={{ width: '100%', marginTop: '16px' }}>
-                                {authMode === 'login' ? 'Sign In' : 'Create Account'}
+                                {authMode === 'login' ? 'Sign In' : authMode === 'register' ? 'Create Account' : 'Reset Password'}
                             </button>
 
                             <button
@@ -3914,19 +4395,30 @@
                                 ← Back to Chat
                             </button>
 
-                                    <button
-                                        className="btn btn-ghost"
-                                        onClick={() => {
-                                            setAuthMode(authMode === 'login' ? 'register' : 'login');
-                                            setAuthError('');
-                                        }}
-                                        style={{ width: '100%', marginTop: '8px' }}
-                                    >
-                                        {authMode === 'login' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-                                    </button>
-                                </div>
+                            <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginTop: '12px', fontSize: '12px' }}>
+                                {authMode === 'login' ? (
+                                    <>
+                                        <a href="#reset" onClick={(e) => { e.preventDefault(); setAuthMode('reset'); setAuthError(''); setAuthSuccess(''); }} style={{ color: 'var(--accent, #00d285)', textDecoration: 'none' }}>
+                                            Forgot password? Reset
+                                        </a>
+                                        <span style={{ color: '#555' }}>•</span>
+                                        <a href="#signup" onClick={(e) => { e.preventDefault(); setAuthMode('register'); setAuthError(''); setAuthSuccess(''); }} style={{ color: 'var(--text-muted, #aaa)', textDecoration: 'none' }}>
+                                            Need an account? Sign up
+                                        </a>
+                                    </>
+                                ) : authMode === 'reset' ? (
+                                    <a href="#signin" onClick={(e) => { e.preventDefault(); setAuthMode('login'); setAuthError(''); setAuthSuccess(''); }} style={{ color: 'var(--accent, #00d285)', textDecoration: 'none' }}>
+                                        Remembered your password? Sign in
+                                    </a>
+                                ) : (
+                                    <a href="#signin" onClick={(e) => { e.preventDefault(); setAuthMode('login'); setAuthError(''); setAuthSuccess(''); }} style={{ color: 'var(--accent, #00d285)', textDecoration: 'none' }}>
+                                        Already have an account? Sign in
+                                    </a>
+                                )}
                             </div>
-                        );
+                        </div>
+                    </div>
+                );
             }
 
             return (
@@ -3937,7 +4429,10 @@
                             <button className="sidebar-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
                                 <i className="fas fa-bars"></i>
                             </button>
-                            <div className="logo">DocIntake</div>
+                            <div className="logo">
+                                DOCINTAKE
+                                <span className="brand-badge">TASK 1</span>
+                            </div>
                             <div className="topbar-time">{currentTime}</div>
                         </div>
                         <div className="topbar-right">
@@ -3968,8 +4463,8 @@
                                     <i className="fas fa-undo"></i>
                                     Reset Chat
                                 </button>
-                                <button className="sidebar-btn" onClick={() => { handleStartApplication(); if (window.innerWidth <= 768) setSidebarOpen(false); }} style={{ borderColor: '#84BD00', background: 'rgba(132, 189, 0, 0.1)' }}>
-                                    <i className="fas fa-file-alt"></i>
+                                <button className="sidebar-btn" onClick={() => { handleStartApplication(); if (window.innerWidth <= 768) setSidebarOpen(false); }} style={{ borderColor: 'var(--border-medium)', background: 'rgba(184, 164, 122, 0.08)' }}>
+                                    <i className="fas fa-file-alt" style={{ color: 'var(--accent)' }}></i>
                                     Start New Application
                                 </button>
                             </div>
@@ -4016,24 +4511,25 @@
                             <div className="chat-messages">
                                 {messages.length === 0 ? (
                                     <div className="welcome-message">
-                                        <div className="welcome-icon">🦊</div>
-                                        <div className="welcome-title">Welcome to DocIntake</div>
-                                        <div className="welcome-text">Hi! I'm Lynx — your AI assistant for document onboarding. How can I help you today?</div>
+                                        <div className="welcome-badge">AUTONOMOUS MULTI-SERVICE INTAKE</div>
+                                        <div className="welcome-icon">⚡</div>
+                                        <div className="welcome-title">DocIntake</div>
+                                        <div className="welcome-text">Agentic document onboarding &amp; instant vision AI verification across multi-service registries. How can we assist your onboarding today?</div>
                                         <div className="feature-grid">
                                             <div className="feature-card" onClick={() => handleFeatureClick('I want to apply for basic registration')}>
                                                 <div className="feature-icon">🆔</div>
                                                 <div className="feature-title">Basic Registration</div>
-                                                <div className="feature-desc">Simple identity registration</div>
+                                                <div className="feature-desc">National ID extraction with automated ClamAV hygiene &amp; clarity scoring</div>
                                             </div>
                                             <div className="feature-card" onClick={() => handleFeatureClick('I want to apply for premium cross-border service')}>
                                                 <div className="feature-icon">🌍</div>
                                                 <div className="feature-title">Cross Border</div>
-                                                <div className="feature-desc">International verification</div>
+                                                <div className="feature-desc">Multi-document cross validation with passport &amp; Emirates ID matching</div>
                                             </div>
                                             <div className="feature-card" onClick={() => handleFeatureClick('I need mobility or rental service')}>
                                                 <div className="feature-icon">🚗</div>
-                                                <div className="feature-title">Mobility/Rental</div>
-                                                <div className="feature-desc">Vehicle rental service</div>
+                                                <div className="feature-title">Mobility &amp; Rental</div>
+                                                <div className="feature-desc">Instant driving license category &amp; traffic code extraction</div>
                                             </div>
                                         </div>
                                     </div>
@@ -4184,34 +4680,34 @@
                     {/* Bottom-right sticky version badge */}
                     <div style={{
                         position: 'fixed',
-                        bottom: '12px',
-                        right: '16px',
+                        bottom: '14px',
+                        right: '18px',
                         zIndex: 9999,
-                        background: 'rgba(18, 18, 18, 0.82)',
-                        backdropFilter: 'blur(8px)',
-                        WebkitBackdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(132, 189, 0, 0.35)',
+                        background: 'rgba(18, 24, 21, 0.9)',
+                        backdropFilter: 'blur(10px)',
+                        WebkitBackdropFilter: 'blur(10px)',
+                        border: '1px solid var(--border-medium)',
                         borderRadius: '20px',
-                        padding: '4px 12px',
+                        padding: '5px 14px',
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '6px',
+                        gap: '8px',
                         fontSize: '11px',
-                        fontFamily: 'monospace',
-                        color: '#a3a3a3',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.45)',
+                        fontFamily: 'var(--font-mono)',
+                        color: 'var(--text-muted)',
+                        boxShadow: '0 4px 16px rgba(0, 0, 0, 0.5), 0 0 15px var(--accent-glow)',
                         pointerEvents: 'none',
-                        letterSpacing: '0.04em'
+                        letterSpacing: '0.06em'
                     }}>
                         <span style={{
-                            width: '6px',
-                            height: '6px',
+                            width: '7px',
+                            height: '7px',
                             borderRadius: '50%',
-                            background: '#84BD00',
+                            background: 'var(--accent)',
                             display: 'inline-block',
-                            boxShadow: '0 0 6px #84BD00'
+                            boxShadow: '0 0 8px var(--accent)'
                         }}></span>
-                        <span>v2.2.0</span>
+                        <span>TASK 1 • v2.2</span>
                     </div>
                 </div>
             );

@@ -1,12 +1,4 @@
-"""
-Services package — exports all service classes.
-
-Changes:
-- Removed SearchService (no more DB/vector search — vision model handles extraction directly)
-- GenerationService now uses Qwen2.5-VL 3B vision model (image+text input)
-- EmbeddingService removed (vision model embeds internally)
-- Added StorageService (MinIO S3-compatible object storage)
-"""
+"""Services package — exports all service classes."""
 
 from services.ocr import OCRService
 from services.generation import GenerationService

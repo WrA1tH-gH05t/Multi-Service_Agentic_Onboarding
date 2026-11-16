@@ -1,27 +1,4 @@
-"""Extraction Ladder — WP5 + WP7 (Phase 4 + Docling pre-processing)
-
-Attempts a sequence of extraction approaches (“rungs”) for each document
-until a satisfactory result is found.  Each rung is recorded in the trace
-so the validation agent can see exactly which approach won.
-
-Rungs (in order):
-  0. Docling pre-processing (layout parse + deterministic field extraction)
-     short-circuits Rung 1 when confidence >= docling.skip_vision_threshold
-  1. Direct vision-model field extraction (Qwen2.5-VL 3B)  ← primary
-  2. Re-extract cropped region  → MRZ parse                  ← targeted
-  3. MRZ-only parse via mrz library                          ← structured
-  4. OCR fallback (PyMuPDF text / Tesseract)                 ← last resort
-
-After rungs complete, the ladder compares results across rungs and
-selects the highest-confidence consensus for each field.
-
-Config-driven thresholds (from config.yaml):
-  validation_rules.<doc_type>.human_review_threshold  — fields below
-                                                       this → review
-  validation_rules.<doc_type>.pass_threshold           — fields ≥ this → auto-pass
-  validation_rules.<doc_type>.reject_threshold         — consecutive
-                                                       failures ≥ this → reject
-"""
+"""Extraction Ladder — WP5 + WP7 (Phase 4 + Docling pre-processing)"""
 
 import base64
 import io
@@ -158,14 +135,7 @@ DEFAULT_THRESHOLDS = {
 # ────────────────────────────────────────────────────────────────────
 
 class ExtractionLadder:
-    """Attempt extraction via a sequence of rungs, then merge results.
-
-    Args:
-        config: Full app config dict (ollama section, validation_rules section).
-        ollama_config: Sub-dict with host/port/model/embedding_model.
-        image_bytes: Raw document image/PDF bytes (may be None if only OCR is wanted).
-        text_only: Skip vision-model rung (OCR-only mode).
-    """
+    """Attempt extraction via a sequence of rungs, then merge results."""
 
     def __init__(
         self,
@@ -208,11 +178,7 @@ class ExtractionLadder:
     # ──────────────────────────────────────────────────────────────
 
     def run(self, document_type: str = "id") -> ExtractionLadderResult:
-        """Execute the full extraction ladder.
-
-        Returns an ExtractionLadderResult with rung-by-rung results,
-        consensus fields, and per-field source-tracking.
-        """
+        """Execute the full extraction ladder."""
         result = ExtractionLadderResult(document_type=document_type)
 
         # Rung 0: Docling pre-processing (layout + deterministic extraction)
@@ -298,20 +264,7 @@ class ExtractionLadder:
     # ──────────────────────────────────────────────────────────────
 
     def _rung_docling(self, document_type: str) -> RungResult:
-        """Rung 0: Parse document with Docling for layout-aware text extraction.
-
-        Advantages over raw vision-model prompting:
-        - Deterministic: no token sampling, no hallucinations
-        - Cheap: runs locally without GPU
-        - Structured: reading order, tables, bounding boxes
-        - Feeds clean markdown to Rung 1 (vision model) when not skipping it
-
-        Short-circuit behaviour:
-        - If Docling extracts enough mandatory fields at high confidence
-          (>= docling.skip_vision_threshold) Rung 1 is skipped entirely.
-        - The parsed markdown is cached on self._docling_parsed so that
-          downstream rungs (e.g. MRZ parse) can reuse it.
-        """
+        """Rung 0: Parse document with Docling for layout-aware text extraction."""
         if not self._docling.is_available():
             return RungResult(
                 rung=Rung.DOCLING,
@@ -380,10 +333,7 @@ class ExtractionLadder:
                 error=str(exc),
             )
     def _rung_vision(self, document_type: str) -> RungResult:
-        """Rung 1: Qwen2.5-VL 3B direct extraction.
-        
-        For PDFs: renders page with fitz → converts to base64 for vision model.
-        """
+        """Rung 1: Qwen2.5-VL 3B direct extraction."""
         try:
             # Render PDF to image if it's a PDF
             if b"%PDF" in self._image_bytes[:5]:
@@ -455,10 +405,7 @@ class ExtractionLadder:
     # ──────────────────────────────────────────────────────────────
 
     def _rung_mrz_crop(self, document_type: str) -> RungResult:
-        """Rung 2: Crop the MRZ region and re-extract with vision model.
-        
-        For PDFs: renders page → crops MRZ region → vision model reads MRZ text.
-        """
+        """Rung 2: Crop the MRZ region and re-extract with vision model."""
         try:
             # Render PDF to image if it's a PDF
             img_bytes = self._image_bytes
@@ -536,10 +483,7 @@ class ExtractionLadder:
     # ──────────────────────────────────────────────────────────────
 
     def _rung_mrz_parse(self, document_type: str) -> RungResult:
-        """Rung 3: Parse MRZ text using the `mrz` library if available.
-        
-        For scanned PDFs: renders page → crops MRZ region → vision model reads MRZ text → mrz library parses.
-        """
+        """Rung 3: Parse MRZ text using the `mrz` library if available."""
         try:
             import mrz  # pip install python-mrz
             import pymupdf as fitz
@@ -691,16 +635,7 @@ class ExtractionLadder:
     def _merge_results(
         self, rungs: List[RungResult], document_type: str
     ) -> Tuple[Dict[str, Any], float]:
-        """Merge results from all successful rungs into a consensus.
-
-        Strategy:
-        - Each field gets the value from the highest-confidence successful rung
-        - If two rungs agree, that increases confidence
-        - Fields present in all rungs → highest confidence
-        - Only fields with confidence >= threshold are included in consensus
-
-        Returns: (consensus_dict, overall_confidence)
-        """
+        """Merge results from all successful rungs into a consensus."""
         field_scores: Dict[str, List[Tuple[float, Any]]] = {}
 
         for rung in rungs:
@@ -754,10 +689,7 @@ class ExtractionLadder:
         return source_map
 
     def _get_field_confidences(self, rungs: List[RungResult]) -> List[Tuple[str, float]]:
-        """Get (field_name, confidence) pairs from successful rungs.
-
-        For each field, uses the highest confidence from any successful rung.
-        """
+        """Get (field_name, confidence) pairs from successful rungs."""
         field_best: Dict[str, float] = {}
         for rung in rungs:
             if not rung.success:
@@ -829,11 +761,7 @@ class ExtractionLadder:
         return None
 
     def _file_to_base64_jpg(self, file_bytes: bytes, max_dim: int = 800) -> str:
-        """Convert file bytes to base64 JPEG for the vision model.
-        
-        Handles both raw image files and PDFs (renders first page).
-        Uses JPEG to keep payload under 500K chars for Ollama reliability.
-        """
+        """Convert file bytes to base64 JPEG for the vision model."""
         try:
             # If this is a PDF, render first page to PNG
             img_bytes = file_bytes
@@ -862,10 +790,7 @@ class ExtractionLadder:
 
     def _call_ollama_vision(self, b64_img: str, prompt: str, system_msg: str = None,
                            num_predict: int = 512, temperature: float = 0.1) -> tuple:
-        """Call qwen2.5vl:3b using the native 'images' parameter.
-        
-        Returns (dict_fields, raw_text) tuple.
-        """
+        """Call qwen2.5vl:3b using the native 'images' parameter."""
         messages = [{"role": "user", "content": prompt, "images": [b64_img]}]
         if system_msg:
             messages.insert(0, {"role": "system", "content": system_msg})
@@ -970,10 +895,7 @@ class ExtractionLadder:
 
     @staticmethod
     def _regex_extract_fields(text: str, document_type: str) -> Dict[str, str]:
-        """Extract fields from OCR text using regex patterns.
-
-        This is a fallback when no AI model is available.
-        """
+        """Extract fields from OCR text using regex patterns."""
         fields: Dict[str, str] = {}
         text_lower = text.lower()
 

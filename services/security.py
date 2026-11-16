@@ -1,25 +1,4 @@
-"""
-Security and Prompt Injection Defense Service.
-
-Role in Project:
-    Acts as the defensive perimeter for incoming text and extracted OCR/Vision data.
-    Provides real-time regex detection of jailbreaks, prompt overrides, system leakage,
-    and cross-tenant data tampering. Also performs applicant name matching between 
-    identity documents and applicant claims according to business policy rules.
-
-Cross-File Interconnections:
-    - Called by `app.routes.chat_message.send_chat_message` to block direct prompt injection
-      attacks before invoking LLM generation (`services.generation`).
-    - Called by `services.extraction_ladder` / `app.routes.documents` to sanitize OCR-extracted
-      document fields (`sanitize_extracted_document_fields`) and neutralize indirect prompt injections.
-    - Called by `agents.validation_agent` to verify document ownership (`validate_applicant_name_match`)
-      ensuring names on passports and IDs match the user's application account.
-
-Protects against:
-1. Prompt injection & jailbreak attempts in user chat messages.
-2. Indirect prompt injections hidden inside scanned/extracted document text or fields.
-3. Attempts to leak system instructions, access other users' data, or execute unauthorized operations.
-"""
+"""Security and Prompt Injection Defense Service."""
 
 import re
 import logging
@@ -67,21 +46,7 @@ SAFE_INJECTION_REPLY = (
 
 
 def detect_prompt_injection(text: str) -> Tuple[bool, Optional[str]]:
-    """Scan text for prompt injection, jailbreak attempts, or unauthorized access instructions.
-    
-    Checks incoming user messages or raw document strings against compiled regex patterns
-    representing known attack vectors (e.g., 'ignore previous instructions', 'DAN mode', system prompt leaks).
-
-    Interconnections:
-        - Invoked in `app.routes.chat_message.send_chat_message` before user prompt is fed to `services.generation`.
-        - Invoked in `sanitize_extracted_document_fields` to screen OCR/Vision parsed text.
-
-    Args:
-        text: Input string from a chat message or extracted document value.
-
-    Returns:
-        (is_injection, matched_pattern_or_reason)
-    """
+    """Scan text for prompt injection, jailbreak attempts, or unauthorized access instructions."""
     if not text or not isinstance(text, str):
         return False, None
     
@@ -98,21 +63,7 @@ def detect_prompt_injection(text: str) -> Tuple[bool, Optional[str]]:
 
 
 def sanitize_extracted_document_fields(fields: Dict[str, Any]) -> Tuple[Dict[str, Any], List[str]]:
-    """Sanitize document extracted fields to neutralize indirect prompt injection payloads.
-    
-    If an extracted field contains an injection instruction (e.g. 'ignore previous instructions'),
-    that field is flagged and replaced with a neutralized marker '[REDACTED_INJECTION_ATTEMPT]'.
-
-    Interconnections:
-        - Called by document processing pipelines (`services.extraction_ladder` and `app.routes.documents`)
-          before extracted fields are committed to PostgreSQL or used in downstream LLM reasoning.
-    
-    Args:
-        fields: Dictionary of extracted key-value pairs from documents.
-
-    Returns:
-        (sanitized_fields, list_of_flagged_fields)
-    """
+    """Sanitize document extracted fields to neutralize indirect prompt injection payloads."""
     if not fields or not isinstance(fields, dict):
         return fields or {}, []
     
@@ -132,11 +83,7 @@ def sanitize_extracted_document_fields(fields: Dict[str, Any]) -> Tuple[Dict[str
 
 
 def _normalize_name_tokens(name: str) -> list[str]:
-    """Normalize a name into lowercase alphanumeric tokens, stripping accents and punctuation.
-
-    Interconnections:
-        - Helper function exclusively utilized by `validate_applicant_name_match()`.
-    """
+    """Normalize a name into lowercase alphanumeric tokens, stripping accents and punctuation."""
     import unicodedata
     if not name or not isinstance(name, str):
         return []
@@ -147,25 +94,7 @@ def _normalize_name_tokens(name: str) -> list[str]:
 
 
 def validate_applicant_name_match(applicant_name: str, doc_name: str, doc_type: str) -> Tuple[bool, str]:
-    """Validate user applicant name against document name according to business policy:
-    - passport: full name must match (all tokens match, order/accent/case insensitive).
-    - national_id / driving_license: at least the first name must match.
-    - other documents: at least the first name must match.
-
-    Interconnections:
-        - Invoked by `agents.validation_agent.ValidationAgent` during cross-document and
-          identity consistency checks.
-        - Enforces DocIntake Platform strict identity governance rules preventing impersonation or
-          uploading someone else's ID documents for an application.
-
-    Args:
-        applicant_name: The applicant's declared name on the account/application.
-        doc_name: The extracted name read from the document.
-        doc_type: Document identifier (e.g. 'passport', 'national_id', 'emirates_id').
-
-    Returns:
-        (is_match, reason_message)
-    """
+    """Validate user applicant name against document name according to business policy:"""
     user_tokens = _normalize_name_tokens(applicant_name)
     doc_tokens = _normalize_name_tokens(doc_name)
 

@@ -1,17 +1,4 @@
-"""
-Phase 3: Database persistence layer.
-
-Replaces in-memory _application_store and _chat_sessions with a persistent
-PostgreSQL (or SQLite fallback) database. Provides:
-
-- Application lifecycle persistence (create, read, update, delete)
-- User application history
-- Chat session persistence
-- Document metadata tracking (content_hash for dedup)
-- Audit trail for all processing events
-- Session isolation (user-scoped queries)
-- Concurrency-safe transactions
-"""
+"""Phase 3: Database persistence layer."""
 
 import os
 import logging
@@ -459,7 +446,7 @@ class DatabaseService:
         sqlite_url = f"sqlite:///{sqlite_path}"
 
         try:
-            self.engine = create_engine(pg_url, pool_pre_ping=True, echo=False)
+            self.engine = create_engine(pg_url, pool_pre_ping=True, echo=False, connect_args=dict(connect_timeout=3))
             # Test connection
             with self.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
@@ -550,22 +537,14 @@ class DatabaseService:
 
     @staticmethod
     def scoped_hash(user_id: Optional[str], raw_hash: str) -> str:
-        """Compute a user-scoped content hash so two users can upload identical files.
-        
-        If user_id is provided, returns sha256(f"{user_id}:{raw_hash}").
-        Otherwise returns the raw hash.
-        """
+        """Compute a user-scoped content hash so two users can upload identical files."""
         if not user_id:
             return raw_hash
         return hashlib.sha256(f"{user_id}:{raw_hash}".encode("utf-8")).hexdigest()
 
     @staticmethod
     def is_duplicate(session: Session, content_hash: str, user_id: Optional[str] = None) -> Optional[str]:
-        """Check if a document with this hash already exists.
-
-        Returns:
-            document_id if duplicate found, None otherwise
-        """
+        """Check if a document with this hash already exists."""
         q = session.query(Document).filter_by(content_hash=content_hash)
         if user_id:
             q = q.filter_by(user_id=user_id)
@@ -858,11 +837,7 @@ class DatabaseService:
         return hashlib.sha256(file_bytes).hexdigest()
 
     def check_duplicate_upload(self, application_id: str, document_slot: str, content_hash: str) -> Optional[dict]:
-        """Check if this exact document has already been uploaded.
-        
-        Returns None if no duplicate, or dict with existing doc info if duplicate.
-        Uses the unique (application_id, document_slot, content_hash) constraint.
-        """
+        """Check if this exact document has already been uploaded."""
         with self.session_scope() as session:
             row = (
                 session.query(Document)
@@ -1090,10 +1065,7 @@ class DatabaseService:
             return True
 
     def check_idempotency_key(self, key: str, user_id: Optional[str] = None) -> Optional[Dict]:
-        """Check if an idempotency key has already been used.
-        
-        Returns the stored response if found and not expired, else None.
-        """
+        """Check if an idempotency key has already been used."""
         with self.session_scope() as session:
             q = session.query(IdempotencyKey).filter_by(idempotency_key=key)
             if user_id:
@@ -1114,25 +1086,7 @@ class DatabaseService:
     # ────────────────────────────────────────────────────────────────
 
     def delete_application(self, application_id: str, storage, user_id: str = None) -> Dict:
-        """Delete an application and all associated data atomically.
-        
-        Removes:
-        - All documents (rows in documents table + MinIO objects)
-        - All extracted fields
-        - All review items
-        - All trace events
-        - All application events
-        - All audit logs
-        - The application row itself
-        
-        Args:
-            application_id: The application to delete
-            storage: StorageService instance for MinIO cleanup
-            user_id: Optional user ownership check
-            
-        Returns:
-            Dict with counts of deleted items and any errors
-        """
+        """Delete an application and all associated data atomically."""
         from datetime import datetime, timezone
         result = {
             "deleted": False,
@@ -1255,13 +1209,7 @@ class DatabaseService:
 
     def transition_application_status(self, application_id: str,
                                       current_status: str, new_status: str, user_id: str = None) -> bool:
-        """Atomically transition application status if it matches current_status.
-        
-        Uses SELECT FOR UPDATE + compare-and-set to prevent race conditions
-        when multiple threads/processes try to update status simultaneously.
-        
-        Returns True if transition succeeded, False if status didn't match.
-        """
+        """Atomically transition application status if it matches current_status."""
         with self.session_scope() as session:
             # Lock the row (FOR UPDATE in PG; no-op in SQLite but still serializes)
             q = session.query(Application).filter_by(application_id=application_id)
@@ -1277,36 +1225,7 @@ class DatabaseService:
             return True
 
     def check_and_mark_application_complete(self, application_id: str, user_id: str = None) -> Tuple[bool, str]:
-        """Atomically check if all required documents are present and mark complete ONCE.
-
-        Uses SELECT FOR UPDATE on the application row to prevent race conditions when two
-        documents arrive nearly at the same time:
-        - Locks the application row.
-        - Retrieves required document slots (e.g. ['national_id', 'passport']).
-        - Counts distinct valid document types attached to this application.
-        - If distinct document types count >= required document types count and all required types are met:
-          - If app.status == 'complete':
-            returns (False, 'already_complete') -> Does NOT mark complete twice!
-          - If app.status != 'complete':
-            app.status = 'complete'
-            app.updated_at = datetime.now(timezone.utc)
-            # Log single audit event
-            audit = AuditLog(
-                log_id=f"audit_{os.urandom(4).hex()}",
-                user_id=app.user_id,
-                application_id=application_id,
-                event_type="application_completed",
-                details={
-                    "application_id": application_id,
-                    "service_id": app.service_id,
-                    "status": "complete"
-                },
-            )
-            session.add(audit)
-            return (True, "marked_complete")
-        - If document count is incomplete (e.g. 1 out of 2):
-          return (False, f"incomplete: missing {missing}")
-        """
+        """Atomically check if all required documents are present and mark complete ONCE."""
         with self.session_scope() as session:
             q = session.query(Application).filter_by(application_id=application_id)
             if user_id:

@@ -1,31 +1,4 @@
-"""
-User Authentication & Authorization Service - Phase 6
-
-Real login/signup with database-backed user accounts.
-Every lookup is filtered by user ID at the database level.
-
-Module Architecture & Interconnections:
-----------------------------------------
-- Upstream Callers:
-  * FastAPI Routers:
-    - `app.routes.auth` (`/auth/login`, `/auth/register`, `/auth/signup`, `/auth/logout`, `/auth/me`):
-      Invokes `AuthService.authenticate()`, `register_user()`, `validate_token()`, and `logout()`.
-    - `app.routes.wizard` (`/wizard/chat`, `/wizard/session`, etc.):
-      Validates tokens via `validate_token()`, fetches user IDs and records to enforce per-user session isolation.
-    - `app.routes.documents` (`/documents/sessions`, `/documents/sessions/summary`, `/documents/sessions/{session_id}`):
-      Validates session tokens to scope collection sessions strictly to the authenticated user.
-    - `app.routes.health` (`/health`):
-      Checks state health status for auth service availability.
-- Downstream Storage & Dependencies:
-  * `services.user_store.PersistentUserStore`:
-    Stores user accounts, credential hashes, and active sessions in disk-backed JSON (`services/auth_users.json`).
-  * `services.database.User`:
-    SQLAlchemy user model in SQLite/PostgreSQL where users and login timestamps are mirrored during authentication.
-- Design Principles:
-  * Strong password enforcement and salted SHA-256 password hashing.
-  * Server-side revocable session tokens stored in memory and persisted to disk.
-  * Architectural enforcement of tenant isolation: Data querying requires validated `user_id` values.
-"""
+"""User Authentication & Authorization Service - Phase 6"""
 
 import hashlib
 import re
@@ -69,33 +42,10 @@ class UserAccount:
 
 
 class AuthService:
-    """
-    Authentication and Authorization Service.
-
-    Design Decision: Uses password hashing (SHA-256 with salt) for
-    simplicity and on-premise compatibility. In production, this would
-    use bcrypt or Argon2. Tokens are stored server-side (not client-side
-    JWT-only) so they can be revoked.
-
-    Every database query filters by user_id at the SQL level, not in
-    application logic. This is the only way to prevent data leaks.
-
-    Interconnections:
-    - Coordinates with `services.user_store.PersistentUserStore` for JSON credential persistence.
-    - Consumed by `app.routes.auth` for login, signup, registration, token verification, and logout.
-    - Consumed by `app.routes.wizard` and `app.routes.documents` to authenticate request tokens.
-    """
+    """Authentication and Authorization Service."""
 
     def __init__(self, config=None):
-        """Initialize AuthService with configuration and persistent user store.
-
-        Restores active session tokens from the persistent store so client
-        sessions survive backend server restarts.
-
-        Args:
-            config (Optional[dict]): Global application configuration dictionary.
-                Reads `config["security"]["token_lifetime_hours"]` (default: 24).
-        """
+        """Initialize AuthService with configuration and persistent user store."""
         self._config = config or {}
         self._store = PersistentUserStore()
         self._tokens: Dict[str, str] = {}  # token -> user_id
@@ -107,25 +57,7 @@ class AuthService:
 
     @staticmethod
     def validate_password(password: str) -> tuple[bool, str]:
-        """
-        Validate password strength against corporate onboarding security standards.
-        
-        Rules:
-        - Minimum 8 characters
-        - At least 1 uppercase letter
-        - At least 1 lowercase letter
-        - At least 1 number
-        - At least 1 special character
-
-        Args:
-            password: Plaintext password candidate string.
-
-        Returns:
-            tuple[bool, str]: (is_valid, validation_error_message). If valid, error message is empty.
-
-        Interconnections:
-            - Invoked by `register_user()` during signup workflows.
-        """
+        """Validate password strength against corporate onboarding security standards."""
         if len(password) < 8:
             return (False, "Password must be at least 8 characters long.")
         
@@ -145,22 +77,7 @@ class AuthService:
 
     @staticmethod
     def validate_username(username: str) -> tuple[bool, str]:
-        """
-        Validate username format.
-        
-        Rules:
-        - Must not be empty
-        - No special characters (only alphanumeric characters and underscores allowed)
-
-        Args:
-            username: Proposed user login handle.
-
-        Returns:
-            tuple[bool, str]: (is_valid, validation_error_message). If valid, error message is empty.
-
-        Interconnections:
-            - Called by `register_user()` before persistence in `PersistentUserStore`.
-        """
+        """Validate username format."""
         if not username:
             return (False, "Username cannot be empty.")
         
@@ -204,25 +121,7 @@ class AuthService:
         return (True, "User registered successfully.", user)
 
     def authenticate(self, username: str, password: str) -> tuple[bool, str, Optional[str]]:
-        """
-        Authenticate a user with username and password.
-        Searches by username first, then falls back to searching by email.
-        Verifies salted SHA-256 hash. On success, generates a 32-byte hex token,
-        records session expiration, appends token to user sessions, and persists state.
-
-        Args:
-            username: Username or email string provided by client.
-            password: Plaintext password candidate.
-
-        Returns:
-            tuple[bool, str, Optional[str]]:
-                (success, status_message, session_token or None).
-
-        Interconnections:
-            - Called by `app.routes.auth.login` and automatically after registration in `register()`.
-            - Interacts with `PersistentUserStore` to load and update session data.
-            - Updates `last_login` timestamp in `services.database.User` via `app.routes.auth`.
-        """
+        """Authenticate a user with username and password."""
         # Try by username first
         user = self._store.get_user_by_name(username)
         
@@ -257,27 +156,7 @@ class AuthService:
         return (True, "Authentication successful.", token)
 
     def validate_token(self, token: str) -> Optional[UserAccount]:
-        """
-        Validate a session token and return the associated user.
-
-        Checks memory cache first, falling back to persistent store session arrays.
-        Enforces token expiration time and checks if account is active.
-        Revokes expired tokens automatically via `logout()`.
-
-        Args:
-            token: Hexadecimal session token string.
-
-        Returns:
-            Optional[UserAccount]: Validated user account object, or None if
-                token is missing, invalid, expired, or account is disabled.
-
-        Interconnections:
-            - Central security checkpoint called across API routes:
-              * `app.routes.auth.get_me`: Verifies identity of caller.
-              * `app.routes.wizard`: Secures wizard chat turns and document submissions.
-              * `app.routes.documents`: Scopes document upload & session inspection to user.
-              * `AuthorizationMiddleware.require_auth`: Enforces route protection.
-        """
+        """Validate a session token and return the associated user."""
         user_id = self._tokens.get(token)
         if not user_id:
             # Fallback: check if token exists in any user's persistent sessions
@@ -304,65 +183,18 @@ class AuthService:
         return user
 
     def get_user_applications(self, user_id: str) -> List[Dict]:
-        """
-        Get all applications for a specific user.
-
-        DESIGN CRITICAL: This query filters by user_id at the data access
-        level. The caller MUST pass a validated user_id from auth.
-        There is no way to query applications without a user_id.
-
-        Args:
-            user_id: Validated unique user ID string.
-
-        Returns:
-            List[Dict]: List of application dictionary records.
-
-        Interconnections:
-            - Database-backed equivalent implemented in `services.repository.ApplicationRepository`
-              and `services.database.Application` querying with `WHERE user_id = :user_id`.
-        """
+        """Get all applications for a specific user."""
         # In production, this would be a SQL query:
         # SELECT * FROM applications WHERE user_id = :user_id
         return []  # Placeholder - actual implementation connects to DB
 
     def get_user_application(self, user_id: str, application_id: str) -> Optional[Dict]:
-        """
-        Get a single application for a specific user.
-
-        DESIGN CRITICAL: Filters by BOTH user_id AND application_id.
-        This prevents a user from accessing another user's application
-        even if they know the application ID.
-
-        Args:
-            user_id: Validated owner user ID string.
-            application_id: Application primary identifier string.
-
-        Returns:
-            Optional[Dict]: Application details or None if not owned by user.
-
-        Interconnections:
-            - Enforced in `AuthorizationMiddleware.require_application_access()` to prevent
-              horizontal privilege escalation between applicants.
-        """
+        """Get a single application for a specific user."""
         # SQL: SELECT * FROM applications WHERE user_id = :user_id AND id = :app_id
         return None  # Placeholder
 
     def logout(self, token: str) -> bool:
-        """Invalidate a session token.
-
-        Removes token from memory maps (`_tokens`, `_token_expiry`) and removes
-        it from the user's persisted session list in `PersistentUserStore`.
-
-        Args:
-            token: Hexadecimal session token to invalidate.
-
-        Returns:
-            bool: True if the token was found and invalidated, False otherwise.
-
-        Interconnections:
-            - Called by `app.routes.auth.logout` when applicant ends their session.
-            - Called internally by `validate_token` upon encountering an expired token.
-        """
+        """Invalidate a session token."""
         user_id = self._tokens.get(token)
         if user_id:
             user = self._store.get_user_by_id(user_id)
@@ -381,75 +213,26 @@ class AuthService:
         return False
 
     def _hash_password(self, password: str, salt: str) -> str:
-        """Hash password with salt using SHA-256.
-
-        Args:
-            password: Raw plaintext password string.
-            salt: Random hex salt string.
-
-        Returns:
-            str: Salted hash string formatted as '<digest>$<salt>'.
-        """
+        """Hash password with salt using SHA-256."""
         return hashlib.sha256(f"{salt}{password}".encode()).hexdigest() + "$" + salt
 
 
 class AuthorizationMiddleware:
-    """
-    Authorization middleware that enforces user-level data isolation.
-
-    Every request that accesses data MUST pass through this middleware,
-    which injects the user_id from the authenticated session.
-
-    SQL WHERE clauses always include user_id = :user_id at the database
-    level — not just in application logic.
-
-    Attributes:
-        auth_service (AuthService): Underlying authentication service used for validation.
-    """
+    """Authorization middleware that enforces user-level data isolation."""
 
     def __init__(self, auth_service: AuthService):
-        """Initialize AuthorizationMiddleware with an AuthService instance.
-
-        Args:
-            auth_service (AuthService): Configured authentication service.
-        """
+        """Initialize AuthorizationMiddleware with an AuthService instance."""
         self.auth_service = auth_service
 
     def require_auth(self, token: str) -> Optional[UserAccount]:
-        """
-        Require authentication for a request.
-
-        Args:
-            token: Session token provided in header or query parameter.
-
-        Returns:
-            UserAccount: The authenticated user instance.
-
-        Raises:
-            PermissionError: If token is missing, invalid, expired, or user is inactive.
-        """
+        """Require authentication for a request."""
         user = self.auth_service.validate_token(token)
         if not user:
             raise PermissionError("Authentication required.")
         return user
 
     def require_application_access(self, token: str, application_id: str) -> Optional[UserAccount]:
-        """
-        Require that the authenticated user has access to the specified application.
-
-        This is the critical check that prevents one user from accessing
-        another user's data.
-
-        Args:
-            token: Session token provided by requestor.
-            application_id: Application identifier requested for access.
-
-        Returns:
-            UserAccount: Authenticated user account if access is authorized.
-
-        Raises:
-            PermissionError: If user is unauthenticated or does not own the target application.
-        """
+        """Require that the authenticated user has access to the specified application."""
         user = self.require_auth(token)
 
         # Database-level check: SELECT * FROM applications

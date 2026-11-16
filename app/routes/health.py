@@ -1,35 +1,4 @@
-"""
-Health check endpoint — system readiness and per-component status reporting.
-
-Role in Project:
-    Provides a single `/health` GET endpoint that returns the operational status of every
-    major system component. The frontend (`app.py` Streamlit sidebar) polls this endpoint
-    periodically to display a live status panel, and DevOps/Docker health checks use it to
-    decide whether the container is ready to serve traffic.
-
-Cross-File Interconnections:
-    - `services.generation.GenerationService.check_connection` — pings the Qwen vision
-      model (Ollama) to see if the LLM backend is responding.
-    - `services.storage.StorageService.check_connection` — verifies MinIO connectivity.
-    - `services.database.DatabaseService.check_connection` — verifies PostgreSQL connectivity.
-    - `app.main.app_state["ready"]` — the `ready` boolean is set by the startup lifespan
-      in `app.main` and reflects whether storage, database, and generation are all healthy.
-      It is used to return `"status": "healthy"` vs `"status": "degraded"`.
-
-Response Shape:
-    {
-        "status": "healthy" | "degraded",
-        "services": {
-            "generation": str,     # "healthy" | "unavailable" | <error>
-            "storage": str,
-            "ocr": "healthy" | "unavailable",
-            "auth": "healthy" | "unavailable",
-            "catalog": "healthy" | "unavailable",
-            "golden_dataset": "healthy" | "unavailable",
-            "database": str,
-        }
-    }
-"""
+"""Health check endpoint — system readiness and per-component status reporting."""
 
 import logging
 from typing import Optional
@@ -47,21 +16,7 @@ def get_state():
 
 @router.get("/health")
 async def health():
-    """Return system health status for all major components.
-
-    Probes each component individually so a single failure does not hide the status of
-    other healthy components. Non-responsive components return "unavailable" rather than
-    raising an exception, enabling graceful degraded-mode operation.
-
-    Checks performed:
-        - GenerationService.check_connection() — async ping to Ollama/Qwen LLM.
-        - StorageService.check_connection() — sync ping to MinIO.
-        - DatabaseService.check_connection() — sync ping to PostgreSQL.
-        - Presence check for OCR, auth, catalog, golden_dataset services.
-
-    Returns:
-        JSONResponse with overall status and per-service status dict.
-    """
+    """Return system health status for all major components."""
     state = get_state()
 
     generation_status = "unknown"
@@ -101,11 +56,7 @@ async def health():
 
 @router.get("/health/ready")
 async def readiness():
-    """Kubernetes / Docker readiness probe checking live MinIO and relational database responsiveness.
-
-    Returns HTTP 200 when all core components are actively ready to serve traffic;
-    returns HTTP 503 if object storage or database connection is degraded.
-    """
+    """Kubernetes / Docker readiness probe checking live MinIO and relational database responsiveness."""
     state = get_state()
     storage_ready = False
     storage_details = {}
@@ -134,10 +85,7 @@ async def readiness():
 
 @router.get("/metrics/storage")
 async def storage_metrics():
-    """Telemetry and operation metrics for the MinIO object storage subsystem.
-
-    Exposes Prometheus-style in-memory counters, latency percentiles, and transferred byte totals.
-    """
+    """Telemetry and operation metrics for the MinIO object storage subsystem."""
     state = get_state()
     storage = state.get("storage")
     if storage and hasattr(storage, "get_telemetry"):

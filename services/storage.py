@@ -1,22 +1,4 @@
-"""
-Enterprise-Hardened MinIO Storage Service for DocIntake Platform Task 1.
-
-Enterprise Hardening Features Added:
--------------------------------------
-1. Security & Compliance:
-   - Server-Side Encryption (SSE-S3 / SSE-KMS headers support)
-   - Tenant isolation & normalized multi-tenant key prefixes: `tenant_id/application_id/doc_id`
-   - Strict checksumming (SHA-256 integrity verification stored in object metadata)
-   - Content security & path traversal sanitation
-2. Observability & Auditing:
-   - Structured JSON audit logging for document lifecycle (upload, download, delete, presign)
-   - Built-in in-memory telemetry & metrics collectors (latency percentiles, request counters, error rates)
-   - Readiness vs Liveness dual probe support
-3. High Performance & Resilience:
-   - Dynamic chunk/part sizing with memory optimization
-   - Connection pool keep-alive and configurable timeouts
-   - Circuit-breaker/fail-soft connection management preserving HTTP 503 contract
-"""
+"""Enterprise-Hardened MinIO Storage Service for Multi-Service Onboarding Task 1."""
 
 import io
 import os
@@ -46,8 +28,8 @@ except ImportError:  # pragma: no cover
         """Placeholder so except clauses still work when minio is missing."""
         code = "MinioNotInstalled"
 
-logger = logging.getLogger("doc_intake.storage")
-audit_logger = logging.getLogger("doc_intake.storage.audit")
+logger = logging.getLogger("app.storage")
+audit_logger = logging.getLogger("app.storage.audit")
 
 _RECONNECT_COOLDOWN_SECONDS = 3.0
 _NETWORK_ERRORS = ((urllib3.exceptions.HTTPError, OSError) if _MINIO_OK else (OSError,))
@@ -149,27 +131,7 @@ def format_object_name(
     doc_type: Optional[str] = None,
     suffix: Optional[str] = None,
 ) -> str:
-    """Format an S3/MinIO object key into clean, standardized 'name_idnumber_date.ext' format.
-
-    Ensures every uploaded file visible in the MinIO console follows:
-        <name>_<idnumber>_<date>.<ext>
-
-    Examples:
-        layla_ahmed_784199012345671_20261110.pdf
-        layla_ahmed_n12345678_20261110.pdf
-        layla_ahmed_app9842_20261110.pdf
-
-    Args:
-        name: Applicant or account holder name (e.g. 'Layla Ahmed' -> 'layla_ahmed').
-        id_number: National ID, Passport, Application, or User identifier.
-        date_val: Date or datetime of upload; defaults to current UTC date (YYYYMMDD).
-        filename: Original filename used to extract the file extension (e.g. '.pdf').
-        doc_type: Optional document type (e.g. 'national_id', 'passport') used as a fallback.
-        suffix: Optional disambiguation suffix if multiple files share identical credentials.
-
-    Returns:
-        Clean, sanitized S3/MinIO object key string.
-    """
+    """Format an S3/MinIO object key into clean, standardized 'name_idnumber_date.ext' format."""
     # 1. Clean Name
     raw_name = str(name or "").strip()
     clean_name = re.sub(r"[^a-zA-Z0-9]+", "_", raw_name).strip("_").lower()
@@ -216,16 +178,7 @@ def format_object_name(
 
 
 class StorageService:
-    """MinIO object storage service for document files with enterprise hardening.
-
-    Enterprise Enhancements:
-    - Multi-tenant tenant_id isolation helper.
-    - End-to-end SHA-256 cryptographic payload verification.
-    - Server-Side Encryption (SSE) metadata integration.
-    - Structured audit logging for SIEM compliance.
-    - Prometheus-style metrics snapshotting.
-    - Strict backward compatibility with existing Task 1 routes.
-    """
+    """MinIO object storage service for document files with enterprise hardening."""
 
     def __init__(self, config: Optional[dict] = None):
         config = config or {}
@@ -244,7 +197,7 @@ class StorageService:
         if not config.get("access_key") and not os.getenv("MINIO_ACCESS_KEY"):
             logger.warning(
                 "MinIO credentials not set in config or env; using development defaults. "
-                "Ensure production credentials for DocIntake Platform deployment."
+                "Ensure production credentials for deployment."
             )
 
         self.bucket_name = config.get("bucket_name") or os.getenv("MINIO_BUCKET") or "onboarding-docs"
@@ -418,7 +371,7 @@ class StorageService:
         """Emit structured JSON audit log entry for enterprise SIEM integration."""
         event = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
-            "service": "doc_intake_storage",
+            "service": "app_storage",
             "action": action,
             "object_name": object_name,
             "status": status,
@@ -643,23 +596,6 @@ class StorageService:
         except Exception as e:
             self._mark_down(e)
             return f"unavailable ({self._last_error})"
-
-    def file_exists(self, object_name: str) -> bool:
-        """Check if an object exists in the storage bucket."""
-        if not self.client:
-            return False
-        key = self._safe_key(object_name)
-        try:
-            self.client.stat_object(self.bucket_name, key)
-            return True
-        except Exception:
-            return False
-
-    def liveness_probe(self) -> Tuple[bool, str]:
-        """Kubernetes / Enterprise Liveness probe checking local client process state."""
-        if self.client is None:
-            return False, "storage_client_uninitialized"
-        return True, "storage_client_alive"
 
     def readiness_probe(self) -> Tuple[bool, Dict[str, Any]]:
         """Kubernetes / Enterprise Readiness probe checking live MinIO responsiveness."""

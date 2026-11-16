@@ -1,31 +1,4 @@
-"""
-Repository layer — user-scoped data access.
-
-Module Purpose & Role in the Project:
--------------------------------------
-Acts as the authoritative, security-hardened data access layer for all persistent operations.
-It wraps `services.database.DatabaseService` to strictly enforce tenant and cross-user isolation:
-every query, update, insert, or deletion on sensitive entities (Applications, Documents, Chat
-Sessions, Collection Sessions) requires and enforces a valid `user_id`. Callers cannot accidentally
-or maliciously read, overwrite, or delete records belonging to another user.
-
-Interconnections with Other Subsystems:
-- Fast API Routes:
-  * `app.routes.applications`: Uses `create_application`, `list_user_applications`, and `get_application`
-    for managing client onboarding lifecycles.
-  * `app.routes.documents`: Uses `get_document`, `list_user_documents`, `upload_document`,
-    `delete_application`, `transition_application_status`, `get_validation_rules`, and idempotency
-    key registration during document upload, processing, and cascade deletion.
-  * `app.routes.chat`: Uses `get_chat_session`, `update_chat_session`, `save_chat_message`, and
-    `get_chat_session_messages` to manage conversational history with strict user-bound authorization.
-  * `app.routes.wizard`: Uses `check_and_mark_application_complete` to finalize onboarding applications.
-- Database Layer:
-  * Delegates session lifecycle, connection pooling, and raw SQL/ORM transactions to
-    `services.database.DatabaseService`.
-- Object Storage:
-  * Works with `services.storage.StorageService` in cascading deletions (`delete_application`) to ensure
-    both MinIO object binaries and database rows are purged cleanly.
-"""
+"""Repository layer — user-scoped data access."""
 
 import logging
 from typing import Optional, List, Dict, Any, Tuple
@@ -48,31 +21,10 @@ ALLOWED_APPLICATION_STATUSES = {"incomplete", "processing", "complete", "needs_r
 
 
 class Repository:
-    """User-scoped repository for all persistent data access.
-
-    Responsibility:
-    - Central mediator and isolation gate between business logic (routes/agents) and
-      the database (`services.database.DatabaseService`).
-    - Enforces authorization and ownership guarantees at the data-access boundary:
-      every mutation and retrieval requires `user_id`, preventing horizontal privilege escalation.
-    - Manages lifecycle for Applications, Documents, Chat Sessions, Collection Agent Sessions,
-      Validation Rules, and Idempotency deduplication keys.
-
-    State Attributes:
-    - db (DatabaseService): Instance of DatabaseService managing database connections, session scopes,
-      and ORM mapping.
-
-    Interactions:
-    - Injected into routes (`applications.py`, `documents.py`, `chat.py`, `wizard.py`).
-    - Interacts with MinIO via `StorageService` during cascade deletion.
-    """
+    """User-scoped repository for all persistent data access."""
 
     def __init__(self, db: DatabaseService):
-        """Initialize Repository with an active DatabaseService instance.
-
-        Args:
-            db (DatabaseService): Database service managing engine, sessionmaker, and models.
-        """
+        """Initialize Repository with an active DatabaseService instance."""
         self.db = db
 
     # ────────────────────────────────────────────────────────────────
@@ -80,19 +32,7 @@ class Repository:
     # ────────────────────────────────────────────────────────────────
 
     def get_application(self, application_id: str, user_id: str) -> Optional[Dict]:
-        """Fetch one application verifying ownership by user_id.
-
-        Args:
-            application_id (str): The unique identifier of the application.
-            user_id (str): The requesting user's unique identity.
-
-        Returns:
-            Optional[Dict]: Application attributes dictionary if found and owned by user_id, else None.
-
-        Interconnections:
-            Called by `app.routes.applications.get_application`, `app.routes.documents.get_status`,
-            and `app.routes.documents.delete_application`.
-        """
+        """Fetch one application verifying ownership by user_id."""
         with self.db.session_scope() as session:
             app = (
                 session.query(Application)
@@ -102,17 +42,7 @@ class Repository:
             return app.to_dict() if app else None
 
     def list_user_applications(self, user_id: str) -> List[Dict]:
-        """List all applications belonging to a specific user, ordered newest first.
-
-        Args:
-            user_id (str): The requesting user's unique identity.
-
-        Returns:
-            List[Dict]: List of serialized application dictionaries owned by this user.
-
-        Interconnections:
-            Called by `app.routes.applications.list_applications` endpoint.
-        """
+        """List all applications belonging to a specific user, ordered newest first."""
         with self.db.session_scope() as session:
             apps = (
                 session.query(Application)
@@ -123,22 +53,7 @@ class Repository:
             return [app.to_dict() for app in apps]
 
     def update_application(self, application_id: str, user_id: str, **kwargs) -> bool:
-        """Update permitted application attributes, verifying ownership by user_id.
-
-        Args:
-            application_id (str): Target application ID.
-            user_id (str): Authenticated owner ID.
-            **kwargs: Field updates (must be in `UPDATABLE_APPLICATION_FIELDS`).
-
-        Returns:
-            bool: True if application was updated, False if application does not exist or belong to user.
-
-        Raises:
-            ValueError: If an unapproved field or invalid status string is provided.
-
-        Interconnections:
-            Called when saving validation outcomes or linking collection sessions.
-        """
+        """Update permitted application attributes, verifying ownership by user_id."""
         with self.db.session_scope() as session:
             app = (
                 session.query(Application)
@@ -160,24 +75,7 @@ class Repository:
     def create_application(self, user_id: str, service_id: str,
                            applicant_name: str, required_documents: list,
                            collection_session_id: str = None) -> str:
-        """Create a new onboarding application bound to the user's scope.
-
-        Args:
-            user_id (str): Authenticated owner ID.
-            service_id (str): Catalogue service identifier (e.g. 'basic_registration').
-            applicant_name (str): Full legal name of the applicant.
-            required_documents (list): List of required document slot names.
-            collection_session_id (str, optional): Linked collection agent session ID.
-
-        Returns:
-            str: Newly created `application_id`.
-
-        Raises:
-            ValueError: If `user_id` or `applicant_name` is missing or empty.
-
-        Interconnections:
-            Called by `app.routes.applications.create_application`.
-        """
+        """Create a new onboarding application bound to the user's scope."""
         if not user_id:
             raise ValueError("user_id is required")
         if not (applicant_name or "").strip():
@@ -237,9 +135,7 @@ class Repository:
     # ────────────────────────────────────────────────────────────────
 
     def get_or_create_chat_session(self, user_id: str, force_new: bool = False) -> str:
-        """The user's current chat session (reused while active), or a new one.
-
-        Pass force_new=True for an explicit "new chat" / Reset Chat."""
+        """The user's current chat session (reused while active), or a new one."""
         return self.db.get_or_create_chat_session(user_id=user_id, force_new=force_new)
 
     def get_chat_session(self, session_id: str, user_id: str) -> Optional[Dict]:
@@ -268,12 +164,7 @@ class Repository:
         )
 
     def get_chat_session_messages(self, session_id: str, user_id: Optional[str] = None) -> List[Dict]:
-        """Messages for a session. ALWAYS pass user_id.
-
-        The old docstring said the session id "already binds to the user", but nothing checked it:
-        anyone holding a session id could read the conversation. Without user_id this still returns
-        the messages (so existing callers keep working) and logs a warning naming the gap; update
-        those callers to pass the signed-in user's id."""
+        """Messages for a session. ALWAYS pass user_id."""
         if user_id is None:
             logger.warning("get_chat_session_messages called without user_id: unscoped read of session %s", str(session_id)[:12])
         return self.db.get_chat_session_messages(session_id, user_id=user_id)
@@ -381,9 +272,7 @@ class Repository:
     # ────────────────────────────────────────────────────────────────
 
     def delete_application(self, application_id: str, storage, user_id: str) -> Dict:
-        """Delete an application and all associated data. user_id is REQUIRED and checked.
-
-        (It used to default to None, which skipped the ownership check.)"""
+        """Delete an application and all associated data. user_id is REQUIRED and checked."""
         if not user_id:
             raise ValueError("user_id is required to delete an application")
         return self.db.delete_application(application_id, storage, user_id=user_id)

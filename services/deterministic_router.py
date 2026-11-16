@@ -1,17 +1,4 @@
-"""
-Deterministic Router — Phase 2 (hardened)
-
-Replaces LLM-based routing with fixed, explainable logic.
-
-Design decisions:
-- Fully deterministic: same input always yields same output
-- No guessing: low-confidence matches return "ambiguous"
-- Coming-soon services are explicitly named, never hidden
-- Every decision is trace-logged with inputs, scores, and rule fired
-- Configurable thresholds via config.yaml router section
-- pgvector similarity fallback for semantic matching
-- FAQ answers are grounded in service_definitions chunks
-"""
+"""Deterministic Router — Phase 2 (hardened)"""
 
 import logging
 import re
@@ -166,9 +153,7 @@ DEFAULT_THRESHOLDS = {
 
 
 def _levenshtein_distance(a: str, b: str) -> int:
-    """Simple Levenshtein distance (edit distance) between two strings.
-    Returns distance; if > 2, not considered a fuzzy match.
-    """
+    """Simple Levenshtein distance (edit distance) between two strings."""
     if len(a) < len(b):
         return _levenshtein_distance(b, a)
     if not b:
@@ -188,8 +173,7 @@ def _levenshtein_distance(a: str, b: str) -> int:
 
 
 def _check_levenshtein(text: str, keyword: str, max_dist: int = 2) -> bool:
-    """Check if a keyword matches within max_dist edit distance of any
-    word or token in the text."""
+    """Check if a keyword matches within max_dist edit distance of any"""
     text_lower = text.lower()
     keyword_lower = keyword.lower()
 
@@ -207,15 +191,7 @@ def _check_levenshtein(text: str, keyword: str, max_dist: int = 2) -> bool:
 
 
 class DeterministicRouter:
-    """
-    Deterministic router that replaces LLM-based routing with fixed,
-    explainable logic.
-
-    Usage:
-        router = DeterministicRouter(catalog, config)
-        decision = router.route("How do I apply for a passport?", user_id="user123")
-        print(decision.intent, decision.service_resolution, decision.matched_service)
-    """
+    """Deterministic router that replaces LLM-based routing with fixed,"""
 
     def __init__(
         self,
@@ -243,20 +219,7 @@ class DeterministicRouter:
 
     def route(self, user_input: str, user_id: Optional[str] = None,
               application_id: Optional[str] = None) -> RoutingDecision:
-        """
-        Route a user input to the appropriate service.
-
-        Steps:
-        1. Classify intent (question / apply / other)
-        2. Try keyword match against catalogue
-        3. Try alias match against catalogue
-        4. Try embedding similarity (pgvector + Ollama)
-        5. If confidence too low, return ambiguous
-        6. If coming-soon service, return coming_soon resolution
-        7. Log the decision to trace_events table AND trace logger
-
-        Returns a RoutingDecision with all fields populated.
-        """
+        """Route a user input to the appropriate service."""
         inputs = {
             "user_input": user_input,
             "user_id": user_id,
@@ -335,17 +298,7 @@ class DeterministicRouter:
     # ───────────────────────────────────────────────────────────────
 
     def _classify_intent(self, text: str) -> str:
-        """
-        Classify the intent of user input using fixed rules.
-
-        Returns one of: 'question', 'apply', 'other'
-
-        Rules:
-        - Contains question words + service reference -> question
-        - Contains apply/start/sign up keywords -> apply
-        - Both present -> question (answer first, then offer apply button)
-        - No clear signal -> other
-        """
+        """Classify the intent of user input using fixed rules."""
         text_lower = text.lower()
 
         matches_question = any(
@@ -370,16 +323,7 @@ class DeterministicRouter:
     # ───────────────────────────────────────────────────────────────
 
     def _match_service_keywords(self, text: str) -> Optional[ServiceDefinition]:
-        """
-        Match user input against the service catalogue using keyword matching.
-
-        Handles:
-        - Direct keyword index lookups (exact sub-string)
-        - Alias mapping (e.g., "national id" -> "national_id")
-        - Fuzzy matching (up to 2 character Levenshtein distance)
-
-        Returns the best matching ServiceDefinition, or None.
-        """
+        """Match user input against the service catalogue using keyword matching."""
         text_lower = text.lower()
 
         # 1. Direct keyword index lookup (exact sub-string match)
@@ -422,16 +366,7 @@ class DeterministicRouter:
         return None
 
     def _compute_keyword_score(self, text: str, service: ServiceDefinition) -> float:
-        """
-        Compute a keyword match score (0-1) for a given service.
-
-        Scoring:
-        - Service ID mentioned: 1.0
-        - Service name mentioned: 0.8
-        - Required document mentioned: 0.7
-        - Alias mentioned: 0.6
-        - Description keywords match: 0.3-0.5 depending on count
-        """
+        """Compute a keyword match score (0-1) for a given service."""
         text_lower = text.lower()
         max_score = 0.0
 
@@ -467,10 +402,7 @@ class DeterministicRouter:
         return max_score
 
     def _find_best_alternative(self, text: str) -> Tuple[Optional[ServiceDefinition], float]:
-        """
-        Find the best alternative service match by scoring all services.
-        Returns (service_definition, score) or (None, 0.0).
-        """
+        """Find the best alternative service match by scoring all services."""
         best_svc = None
         best_score = 0.0
 
@@ -487,12 +419,7 @@ class DeterministicRouter:
     # ───────────────────────────────────────────────────────────────
 
     def _check_embedding_similarity(self, text: str) -> float:
-        """
-        Check embedding similarity between user input and all service definitions.
-
-        Uses pgvector stored embeddings first, falls back to Ollama inline.
-        Returns similarity score 0-1.
-        """
+        """Check embedding similarity between user input and all service definitions."""
         if not self._db:
             # Try Ollama directly as last resort
             return self._check_ollama_embedding(text)
@@ -597,20 +524,7 @@ class DeterministicRouter:
     # ───────────────────────────────────────────────────────────────
 
     def answer_faq(self, question: str) -> Optional[FAQAnswer]:
-        """
-        Answer a FAQ question using pgvector retrieval from service_definitions.
-
-        Uses temperature=0 equivalent: deterministic top-1 chunk retrieval.
-        Returns FAQAnswer with source_file + chunk_id for traceability.
-
-        Steps:
-        1. Embed the question using Ollama
-        2. Compare against stored embeddings in service_definitions table
-        3. Return top-1 match with source file and chunk ID
-        4. If no stored embeddings exist, fall back to keyword matching
-
-        Returns None if no match above fallback_threshold.
-        """
+        """Answer a FAQ question using pgvector retrieval from service_definitions."""
         if not self._db:
             # Fall back to keyword-based FAQ
             return self._faq_keyword_fallback(question)
@@ -777,37 +691,13 @@ class DeterministicRouter:
 # ────────────────────────────────────────────────────────────────────
 
 class FAQGroundednessTester:
-    """
-    Tests that FAQ answers are grounded in actual service definitions.
-
-    Verifies:
-    1. Every answer cites a source_file
-    2. The source_file exists or is a known internal source
-    3. The answer text contains keywords from the source
-    4. pgvector similarity is above threshold
-    """
+    """Tests that FAQ answers are grounded in actual service definitions."""
 
     def __init__(self, router: DeterministicRouter):
         self.router = router
 
     def test_answer(self, question: str, answer: Optional[FAQAnswer]) -> dict:
-        """
-        Run groundedness checks on a single FAQ answer.
-
-        Returns:
-            {
-                "question": str,
-                "answer": str or None,
-                "grounded": bool,
-                "checks": {
-                    "has_answer": bool,
-                    "has_source": bool,
-                    "source_valid": bool,
-                    "similarity_ok": bool,
-                    "keywords_present": bool,
-                }
-            }
-        """
+        """Run groundedness checks on a single FAQ answer."""
         checks = {
             "has_answer": answer is not None and bool(answer.answer),
             "has_source": answer is not None and bool(answer.source_file),
@@ -859,11 +749,7 @@ class FAQGroundednessTester:
         }
 
     def run_suite(self) -> dict:
-        """
-        Run a full groundedness test suite against known FAQ patterns.
-
-        Returns summary with pass/fail counts.
-        """
+        """Run a full groundedness test suite against known FAQ patterns."""
         test_questions = [
             "What documents do I need for basic registration?",
             "How do I apply for a passport?",

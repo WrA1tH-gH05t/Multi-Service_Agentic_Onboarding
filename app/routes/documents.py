@@ -77,12 +77,7 @@ async def upload_document(
     token: Optional[str] = Query(None, alias="token"),
     idempotency_key: Optional[str] = Query(None, alias="Idempotency-Key"),
 ):
-    """Upload a document with AI-powered field extraction via Qwen2.5-VL 7B.
-    Requires authentication.
-    
-    Phase 3: Duplicate detection (SHA-256), atomic uploads, DB persistence,
-    cross-service contamination prevention, idempotency key support.
-    """
+    """Upload a document with AI-powered field extraction via Qwen2.5-VL 7B."""
     state = get_state()
     db = state.get("database")
     config = state.get("config", {})
@@ -669,12 +664,7 @@ async def extract_fields_from_document(file: UploadFile = File(...), doc_type: s
 
 @router.post("/applications/{application_id}/delete")
 async def delete_application(application_id: str, token: Optional[str] = Query(None, alias="token")):
-    """Delete an application and all associated data atomically.
-    
-    Removes: all documents (rows + MinIO objects), extracted fields,
-    review items, trace events, application events, audit logs,
-    collection sessions, and the application row itself.
-    """
+    """Delete an application and all associated data atomically."""
     state = get_state()
     db = state.get("database")
     repo = state.get("repository")
@@ -729,11 +719,7 @@ async def transition_application_status(
     to_status: str = Query(..., alias="to"),
     token: Optional[str] = Query(None, alias="token")
 ):
-    """Atomically transition application status using SELECT FOR UPDATE + compare-and-set.
-    
-    Prevents race conditions when multiple threads/processes try to update status.
-    Returns 200 if transition succeeded, 409 if status didn't match (concurrent update).
-    """
+    """Atomically transition application status using SELECT FOR UPDATE + compare-and-set."""
     state = get_state()
     db = state.get("database")
     repo = state.get("repository")
@@ -799,10 +785,7 @@ async def get_validation_rules(
     service_id: str = Query("all", description="Service ID to filter rules"),
     document_type: Optional[str] = Query(None, description="Document type to filter rules")
 ):
-    """Fetch validation rules for a service/doc_type combo.
-    
-    Rules are loaded from config.yaml into the DB at startup.
-    """
+    """Fetch validation rules for a service/doc_type combo."""
     state = get_state()
     repo = state.get("repository")
     

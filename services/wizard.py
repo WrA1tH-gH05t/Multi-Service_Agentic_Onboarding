@@ -1,27 +1,4 @@
-"""Application wizard state management.
-
-Manages the 4-step wizard flow:
-1. Name - User enters full name
-2. Document upload - System validates clarity, extracts fields
-3. Review - User sees extracted data (masked), confirms/edits
-4. Submitted - Final submission with reference ID
-
-Fixes in this version
-- to_dict() / get_summary() referenced id_file_url / id_file_name, which do not exist on the
-  dataclass, so they raised AttributeError. They now read from the documents list.
-- update_document_checks() set `self.updated_at` on the manager instead of the session, so the
-  session's own timestamp never changed after an upload. Fixed.
-- A re-upload appended a second document but the checks were written to the FIRST one, so the
-  new file stayed unvalidated. A re-upload now replaces the earlier document of that type.
-- malware_scan defaulted to "clean" although no scan runs. It now defaults to "not_scanned".
-- update_clarity_check() silently did nothing because nothing ever created the clarity record.
-- set_id_extraction() always jumped to REVIEW, even for a blurry document.
-- Session ids are full UUIDs (were 8 characters) and lookups can be scoped to the owner.
-- Serialisation masks personal data.
-
-NOTE: sessions still live in memory. They are lost on restart and are not shared between
-workers. Persist them through the Repository (see the notes that came with this patch).
-"""
+"""Application wizard state management."""
 import logging
 import re
 import uuid
@@ -252,12 +229,7 @@ class WizardSession:
 
 
 class WizardStateManager:
-    """Manages all wizard sessions.
-
-    Every method accepts an optional keyword `user_id`. When given, the session is returned only
-    if it belongs to that user (a different user gets None, as if it did not exist). Routes
-    should always pass the authenticated user's id.
-    """
+    """Manages all wizard sessions."""
 
     def __init__(self):
         self._sessions: Dict[str, WizardSession] = {}

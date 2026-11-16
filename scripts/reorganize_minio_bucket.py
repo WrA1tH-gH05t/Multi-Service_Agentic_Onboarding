@@ -1,10 +1,4 @@
-"""
-MinIO Bucket Reorganization Utility for DocIntake Platform Task 1.
-
-Reorganizes cluttered, nested, or legacy file uploads into the clean, standardized:
-    <name>_<idnumber>_<date>.<ext>
-format visible in the MinIO Console.
-"""
+"""MinIO Bucket Reorganization Utility for DocIntake Platform Task 1."""
 
 import sys
 import os

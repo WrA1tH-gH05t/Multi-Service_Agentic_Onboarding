@@ -1,35 +1,4 @@
-"""
-DocIntake Streamlit Frontend Application.
-
-Module Purpose & Role in the Project:
-------------------------------------
-This module serves as the primary user-facing web interface for the DocIntake
-multi-service agentic onboarding system. Built with Streamlit, it provides:
-  1. Service Discovery (Home): Overview of supported onboarding services, required
-     documentation, and processing expectations.
-  2. Interactive Chat (Chat): Conversational interface powered by the backend agentic
-     pipeline for FAQs, multi-turn application onboarding, and contextual PDF attachments.
-  3. Document Management (Documents & Upload): File upload to backend API (MinIO + PGVector)
-     and document status tracking/deletion.
-  4. Application Dashboard (Applications): Status monitoring for multi-service onboarding
-     applications associated with the authenticated user.
-  5. Golden Dataset Management (Golden Dataset): Evaluation test suite UI.
-  6. Authentication (Login / Sign Up): Session management for secure API interactions.
-
-Interconnections with Other Components:
----------------------------------------
-- Backend FastAPI Service (`http://localhost:8000/api/v1`):
-    * `GET /health` -> Checked by `check_api_connection()` for liveness indicator.
-    * `GET /documents` -> Fetched by `fetch_documents()` to populate document lists.
-    * `POST /documents/upload` -> Executed via `upload_file_to_api()` streaming PDFs.
-    * `POST /documents/{doc_id}/delete` -> Triggered by JS fetch in document card delete button.
-    * `GET /services` -> Fetched by `fetch_services()` to display service catalog.
-    * `GET /user/applications` -> Fetched by `fetch_applications()` for the user's ongoing onboarding.
-    * `POST /auth/login` & `POST /auth/signup` -> Invoked by `login_user()` and `signup_user()`.
-    * `POST /chat/message` -> Invoked by `send_chat_message()` to query the backend LangGraph/Ollama agent.
-- `app/golden_dataset_page.py`:
-    * Imports `render_golden_dataset_page()` to render the benchmark & evaluation screen.
-"""
+"""DocIntake Streamlit Frontend Application."""
 
 # Chat-style interface for the Multi-Service Agentic Onboarding System
 # Updated with: service discovery, guided onboarding, application management,
@@ -318,16 +287,7 @@ if "user_username" not in st.session_state:
 # ============================================================
 @st.cache_data(ttl=10)
 def check_api_connection() -> bool:
-    """
-    Check if the FastAPI backend service is alive and healthy.
-
-    Interconnections:
-    - Calls: `GET {API_BASE}/health` on the backend FastAPI server (`app.api.main`).
-    - Called By: Streamlit sidebar status renderer to display system connectivity indicator.
-
-    Returns:
-        bool: True if backend responds with HTTP 200 within timeout; False otherwise.
-    """
+    """Check if the FastAPI backend service is alive and healthy."""
     try:
         resp = requests.get(f"{API_BASE}/health", timeout=3)
         return resp.status_code == 200
@@ -336,17 +296,7 @@ def check_api_connection() -> bool:
 
 @st.cache_data(ttl=15)
 def fetch_documents() -> list:
-    """
-    Fetch the list of registered and ingested documents from the backend API.
-
-    Interconnections:
-    - Calls: `GET {API_BASE}/documents` (handled by `app.api.routes.documents.get_documents`).
-    - Touches: PostgreSQL `documents` table via the backend.
-    - Called By: Streamlit sidebar document counter and the '📁 Documents' page card view.
-
-    Returns:
-        list: A list of document metadata dictionaries (id, filename, file_size, status, etc.).
-    """
+    """Fetch the list of registered and ingested documents from the backend API."""
     try:
         resp = requests.get(f"{API_BASE}/documents", timeout=10)
         if resp.status_code == 200:
@@ -357,18 +307,7 @@ def fetch_documents() -> list:
 
 @st.cache_data(ttl=60)
 def fetch_services() -> list:
-    """
-    Fetch available onboarding services configuration from the backend.
-
-    Interconnections:
-    - Calls: `GET {API_BASE}/services` (handled by `app.api.routes.services` or catalog router).
-    - Touches: PostgreSQL `services` / `service_definitions` table via backend.
-    - Called By: Streamlit sidebar service listing and the '🏠 Home' service card view.
-
-    Returns:
-        list: List of service dictionaries containing id, name, description,
-              documents_required, and processing_time.
-    """
+    """Fetch available onboarding services configuration from the backend."""
     try:
         resp = requests.get(f"{API_BASE}/services", timeout=10)
         if resp.status_code == 200:
@@ -379,18 +318,7 @@ def fetch_services() -> list:
 
 @st.cache_data(ttl=15)
 def fetch_applications() -> list:
-    """
-    Retrieve onboarding applications for the currently authenticated user.
-
-    Interconnections:
-    - Reads: `st.session_state.user_id`.
-    - Calls: `GET {API_BASE}/user/applications?user_id=...` (handled by `app.api.routes.applications`).
-    - Touches: PostgreSQL `applications` table filtered by `user_id`.
-    - Called By: '📋 Applications' view and the application dropdown in the '📤 Upload' view.
-
-    Returns:
-        list: List of application dicts with status, created_at, documents list, etc.
-    """
+    """Retrieve onboarding applications for the currently authenticated user."""
     try:
         if st.session_state.user_id:
             resp = requests.get(f"{API_BASE}/user/applications?user_id={st.session_state.user_id}", timeout=10)
@@ -401,22 +329,7 @@ def fetch_applications() -> list:
     return []
 
 def login_user(username: str, password: str) -> dict:
-    """
-    Authenticate an existing user against the backend auth endpoint.
-
-    Interconnections:
-    - Calls: `POST {API_BASE}/auth/login` (handled by `app.api.routes.auth.login`).
-    - Touches: PostgreSQL `users` table verifying hashed passwords (bcrypt).
-    - Called By: '🔐 Login' page submission button.
-    - Updates: `st.session_state` with `user_id`, `user_token`, `user_email`, `user_username`.
-
-    Args:
-        username (str): Username or email string.
-        password (str): Plaintext password to verify.
-
-    Returns:
-        dict: API JSON response containing success flag, token, user details, or error message.
-    """
+    """Authenticate an existing user against the backend auth endpoint."""
     try:
         resp = requests.post(
             f"{API_BASE}/auth/login",
@@ -430,22 +343,7 @@ def login_user(username: str, password: str) -> dict:
     return {"success": False, "error": "Login failed"}
 
 def signup_user(username: str, password: str, email: str) -> dict:
-    """
-    Register a new user account via the backend authentication service.
-
-    Interconnections:
-    - Calls: `POST {API_BASE}/auth/signup` (handled by `app.api.routes.auth.signup`).
-    - Touches: Inserts new user record into PostgreSQL `users` table.
-    - Called By: '🔐 Login' page under the 'Sign Up' tab.
-
-    Args:
-        username (str): Alphanumeric username.
-        password (str): Password meeting security complexity constraints.
-        email (str): Valid email address.
-
-    Returns:
-        dict: Response payload indicating registration success or validation failure.
-    """
+    """Register a new user account via the backend authentication service."""
     try:
         resp = requests.post(
             f"{API_BASE}/auth/signup",
@@ -459,24 +357,7 @@ def signup_user(username: str, password: str, email: str) -> dict:
     return {"success": False, "error": "Signup failed"}
 
 def upload_file_to_api(file, application_id=None) -> dict:
-    """
-    Upload a PDF document to the backend API for ingestion, OCR/extraction, and indexing.
-
-    Interconnections:
-    - Calls: `POST {API_BASE}/documents/upload` as multipart/form-data.
-    - Touches: Backend streams raw PDF bytes to MinIO object storage, saves metadata
-      to PostgreSQL `documents`, and enqueues document chunks into PGVector.
-    - Called By:
-        * '💬 Chat' page when a PDF is attached alongside chat prompts.
-        * '📤 Upload' page for standalone document onboarding.
-
-    Args:
-        file: UploadedFile object from Streamlit `st.file_uploader`.
-        application_id (str, optional): ID of the application to link document to.
-
-    Returns:
-        dict: JSON response with `success`, `data` (document info), or `error`.
-    """
+    """Upload a PDF document to the backend API for ingestion, OCR/extraction, and indexing."""
     try:
         files = {"file": (file.name, file, "application/pdf")}
         data = {}
@@ -495,22 +376,7 @@ def upload_file_to_api(file, application_id=None) -> dict:
     return {"success": False, "error": f"HTTP {resp.status_code}"}
 
 def send_chat_message(query: str) -> dict:
-    """
-    Dispatch a conversational query to the backend agentic chat endpoint.
-
-    Interconnections:
-    - Calls: `POST {API_BASE}/chat/message` (handled by `app.api.routes.chat.chat_message`).
-    - Touches: Backend LangGraph multi-agent supervisor/workflow, Ollama LLM, PGVector
-      semantic search index, and application state machines.
-    - Called By: Streamlit '💬 Chat' interface on prompt submission.
-
-    Args:
-        query (str): User text prompt/inquiry.
-
-    Returns:
-        dict: Response payload containing assistant `response`, `sources`,
-              `confidence`, `intent`, and `matched_service`.
-    """
+    """Dispatch a conversational query to the backend agentic chat endpoint."""
     try:
         resp = requests.post(
             f"{API_BASE}/chat/message",
@@ -524,18 +390,7 @@ def send_chat_message(query: str) -> dict:
     return {"response": "Error: Could not get response", "sources": [], "confidence": 0.0}
 
 def format_size(bytes_val: float) -> str:
-    """
-    Format byte counts into human-readable strings (B, KB, MB, GB, TB).
-
-    Interconnections:
-    - Called By: Document rendering tables, file metrics cards in '📤 Upload' and '📁 Documents'.
-
-    Args:
-        bytes_val (float): Size in bytes.
-
-    Returns:
-        str: Scaled and formatted string representation (e.g., '14.2 MB').
-    """
+    """Format byte counts into human-readable strings (B, KB, MB, GB, TB)."""
     for unit in ['B', 'KB', 'MB', 'GB']:
         if bytes_val < 1024:
             return f"{bytes_val:.1f} {unit}"
@@ -546,25 +401,7 @@ def format_size(bytes_val: float) -> str:
 # Validation helpers
 # ============================================================
 def validate_password_strength(password: str) -> tuple[bool, str]:
-    """
-    Validate that password meets security complexity requirements.
-
-    Requirements:
-    - At least 8 characters.
-    - At least 1 uppercase letter.
-    - At least 1 lowercase letter.
-    - At least 1 digit.
-    - At least 1 special character.
-
-    Interconnections:
-    - Called By: '🔐 Login' -> 'Sign Up' form validation logic.
-
-    Args:
-        password (str): The candidate password string.
-
-    Returns:
-        tuple[bool, str]: (is_valid, error_message).
-    """
+    """Validate that password meets security complexity requirements."""
     errors = []
     if len(password) < 8:
         errors.append("At least 8 characters")
@@ -582,18 +419,7 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
     return True, ""
 
 def validate_username_format(username: str) -> tuple[bool, str]:
-    """
-    Validate username format ensuring alphanumeric characters and underscores only.
-
-    Interconnections:
-    - Called By: '🔐 Login' -> 'Sign Up' form validation logic.
-
-    Args:
-        username (str): Candidate username string.
-
-    Returns:
-        tuple[bool, str]: (is_valid, error_message).
-    """
+    """Validate username format ensuring alphanumeric characters and underscores only."""
     if not username:
         return False, "Username cannot be empty"
     if not re.match(r'^[a-zA-Z0-9_]+$', username):
@@ -601,18 +427,7 @@ def validate_username_format(username: str) -> tuple[bool, str]:
     return True, ""
 
 def validate_email_format(email: str) -> tuple[bool, str]:
-    """
-    Validate email address format using standard regex matching.
-
-    Interconnections:
-    - Called By: '🔐 Login' -> 'Sign Up' form validation logic.
-
-    Args:
-        email (str): Candidate email string.
-
-    Returns:
-        tuple[bool, str]: (is_valid, error_message).
-    """
+    """Validate email address format using standard regex matching."""
     if not email:
         return False, "Email cannot be empty"
     if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):

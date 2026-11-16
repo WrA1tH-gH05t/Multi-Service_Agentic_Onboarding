@@ -2,6 +2,7 @@
 
 # Database (PostgreSQL with pgvector)
 database:
+  allow_sqlite_fallback: true
   host: localhost
   port: 5432
   name: doc_intake

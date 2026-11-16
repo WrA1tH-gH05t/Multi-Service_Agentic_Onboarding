@@ -1,22 +1,4 @@
-"""
-Persistent user storage - survives server restarts.
-Stores users as JSON in auth_users.json.
-
-Module Architecture & Interconnections:
-----------------------------------------
-- Upstream Callers:
-  * `services.auth.AuthService`:
-    Directly instantiates and queries `PersistentUserStore` for authenticating logins,
-    registering accounts, checking username/email uniqueness, and persisting session tokens.
-  * `app.routes.wizard`:
-    References `auth._store.get_user_by_id(user_id)` to resolve user metadata (username, email)
-    when synchronizing application state and auditing submissions.
-- Storage & Data Flow:
-  * Manages reading and writing to `services/auth_users.json`.
-  * Provides in-memory indexed dictionaries (`_user_by_name`, `_user_by_email`, `_user_by_id`)
-    for O(1) lookups by username, email, or user ID.
-  * Pairs with SQLAlchemy's `User` model in `services.database` as a redundant/local file-based store.
-"""
+"""Persistent user storage - survives server restarts."""
 import json
 import os
 import re
@@ -27,29 +9,10 @@ USERS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "auth_user
 
 
 class PersistentUserStore:
-    """Manages persistent JSON-file storage of user credentials and active sessions.
-
-    Maintains dual in-memory hash maps for fast lookup by username, email, and user ID.
-    Synchronizes updates immediately to disk (`auth_users.json`).
-
-    Attributes:
-        filepath (str): Absolute file path to the JSON storage file.
-        _users (Dict[str, UserAccountDict]): Primary mapping of user_id -> UserAccountDict.
-        _user_by_name (Dict[str, str]): Fast lookup index of username -> user_id.
-        _user_by_email (Dict[str, str]): Fast lookup index of email -> user_id.
-        _user_by_id (Dict[str, UserAccountDict]): Reference mapping of user_id -> UserAccountDict.
-
-    Interconnections:
-        - Instantiated by `services.auth.AuthService.__init__()`.
-        - Accessed by `app.routes.wizard` during onboarding session validation.
-    """
+    """Manages persistent JSON-file storage of user credentials and active sessions."""
 
     def __init__(self, filepath=None):
-        """Initialize PersistentUserStore with file path and load stored accounts.
-
-        Args:
-            filepath (Optional[str]): Custom path to JSON file; defaults to `services/auth_users.json`.
-        """
+        """Initialize PersistentUserStore with file path and load stored accounts."""
         self.filepath = filepath or USERS_FILE
         self._users = {}
         self._user_by_name = {}      # username -> user_id
@@ -58,11 +21,7 @@ class PersistentUserStore:
         self._load()
     
     def _load(self):
-        """Load users from disk and populate in-memory lookup indexes.
-
-        Converts ISO format datetime strings back into Python `datetime` objects.
-        Resets storage gracefully to empty dicts if the file is missing or corrupt.
-        """
+        """Load users from disk and populate in-memory lookup indexes."""
         if os.path.exists(self.filepath):
             try:
                 with open(self.filepath, "r") as f:
@@ -90,10 +49,7 @@ class PersistentUserStore:
                 self._user_by_id = {}
     
     def _save(self):
-        """Save all active user accounts and sessions to disk in JSON format.
-
-        Serializes each `UserAccountDict` instance via `.to_dict()` with 2-space indentation.
-        """
+        """Save all active user accounts and sessions to disk in JSON format."""
         data = {uid: ua.to_dict() for uid, ua in self._users.items()}
         with open(self.filepath, "w") as f:
             json.dump(data, f, indent=2)
@@ -109,118 +65,38 @@ class PersistentUserStore:
         self._save()
     
     def get_user_by_name(self, username: str) -> Optional["UserAccountDict"]:
-        """Get user account by username.
-
-        Args:
-            username: Target username string.
-
-        Returns:
-            Optional[UserAccountDict]: Matching user or None if not found.
-
-        Interconnections:
-            - Called by `services.auth.AuthService.authenticate()`.
-        """
+        """Get user account by username."""
         user_id = self._user_by_name.get(username)
         return self._users.get(user_id) if user_id else None
     
     def get_user_by_email(self, email: str) -> Optional["UserAccountDict"]:
-        """Get user account by email address.
-
-        Args:
-            email: Target email string.
-
-        Returns:
-            Optional[UserAccountDict]: Matching user or None if not found.
-
-        Interconnections:
-            - Called as a fallback during authentication when username lookup yields no match.
-        """
+        """Get user account by email address."""
         user_id = self._user_by_email.get(email)
         return self._users.get(user_id) if user_id else None
     
     def get_user_by_id(self, user_id: str) -> Optional["UserAccountDict"]:
-        """Get user account by unique user ID.
-
-        Args:
-            user_id: Primary user ID string.
-
-        Returns:
-            Optional[UserAccountDict]: Matching user or None if not found.
-
-        Interconnections:
-            - Called by `services.auth.AuthService.validate_token()` and `logout()`.
-            - Called by `app.routes.wizard` to resolve applicant details for human review / audits.
-        """
+        """Get user account by unique user ID."""
         return self._user_by_id.get(user_id)
     
     def username_exists(self, username: str) -> bool:
-        """Check if username is already taken.
-
-        Args:
-            username: Candidate username string.
-
-        Returns:
-            bool: True if already registered, False otherwise.
-
-        Interconnections:
-            - Called by `services.auth.AuthService.register_user()` during pre-registration checks.
-        """
+        """Check if username is already taken."""
         return username in self._user_by_name
     
     def email_exists(self, email: str) -> bool:
-        """Check if email is already registered.
-
-        Args:
-            email: Candidate email string.
-
-        Returns:
-            bool: True if already registered, False otherwise.
-
-        Interconnections:
-            - Called by `services.auth.AuthService.register_user()` to prevent duplicate accounts.
-        """
+        """Check if email is already registered."""
         return email in self._user_by_email
     
     def user_exists(self, identifier: str) -> bool:
-        """Check if either username or email is already taken.
-
-        Args:
-            identifier: Candidate username or email string.
-
-        Returns:
-            bool: True if existing account matches username or email, False otherwise.
-        """
+        """Check if either username or email is already taken."""
         return identifier in self._user_by_name or identifier in self._user_by_email
     
     def get_all_users(self) -> Dict[str, "UserAccountDict"]:
-        """Retrieve all registered users dictionary.
-
-        Returns:
-            Dict[str, UserAccountDict]: Mapping of all user IDs to their user records.
-        """
+        """Retrieve all registered users dictionary."""
         return self._users
 
 
 class UserAccountDict:
-    """Lightweight data class representing a persisted user record.
-
-    Attributes:
-        user_id (str): Unique user identifier.
-        email (str): Registered email address.
-        hashed_password (str): Salted password hash string.
-        username (str): Login username (defaults to email if not provided).
-        created_at (datetime): Account creation timestamp (UTC).
-        last_login (Optional[datetime]): Timestamp of last successful authentication.
-        is_active (bool): Whether the account is active or disabled.
-        sessions (List[str]): List of active session tokens belonging to the user.
-        full_name (Optional[str]): Legal full name.
-        birthday (Optional[str]): Date of birth.
-        gender (Optional[str]): Gender.
-
-    Interconnections:
-        - Returned by `PersistentUserStore` to `services.auth.AuthService`.
-        - Compatible with `UserAccount` attributes expected by callers.
-    """
+    """Lightweight data class representing a persisted user record."""
 
     def __init__(self, user_id, email, hashed_password, created_at=None, username=None, last_login=None, is_active=True, sessions=None, full_name=None, birthday=None, gender=None, **kwargs):
         """Initialize UserAccountDict instance."""
@@ -237,11 +113,7 @@ class UserAccountDict:
         self.gender = gender
     
     def to_dict(self) -> dict:
-        """Serialize user account data into JSON-compatible dictionary.
-
-        Returns:
-            dict: Dictionary with stringified ISO timestamps and session array.
-        """
+        """Serialize user account data into JSON-compatible dictionary."""
         return {
             "user_id": self.user_id,
             "email": self.email,

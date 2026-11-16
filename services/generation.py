@@ -1,15 +1,4 @@
-"""
-Generation Service — Vision-language model (Qwen2.5-VL 3B).
-
-Replaces the old text-only qwen3:0.6b with a multimodal model that:
-1. Accepts image inputs (document photos / PDF page images)
-2. Extracts structured fields (name, DOB, document_number, etc.) as JSON
-3. Also handles text-only chat when no image is provided
-
-Config: ollama.model in config.yaml (default: qwen2.5vl:3b)
-Endpoint: http://host:port/api/chat (OpenAI-compatible chat format)
-Image format: base64-encoded PNG/JPEG in messages array
-"""
+"""Generation Service — Vision-language model (Qwen2.5-VL 3B)."""
 
 import base64
 import io
@@ -25,12 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class GenerationService:
-    """Vision-language generation service using Qwen2.5-VL 3B via Ollama.
-
-    Dual mode:
-    - Image mode: sends image(s) + text prompt → returns structured JSON extraction
-    - Text mode: sends text-only prompt → returns natural language response
-    """
+    """Vision-language generation service using Qwen2.5-VL 3B via Ollama."""
 
     # National ID specific field schema
     NATIONAL_ID_SCHEMA = {
@@ -123,16 +107,7 @@ class GenerationService:
 
     @staticmethod
     def _file_to_base64_png(file_bytes: bytes, page: int = 0) -> str:
-        """Convert uploaded file bytes to base64-encoded PNG string.
-
-        Handles both image files (JPEG, PNG, TIFF) and PDFs.
-        
-        For images: converts to RGB PNG, resizes if needed.
-        For PDFs with page=0: extracts first page.
-        For PDFs with page>0: extracts that page (0-indexed).
-        
-        Returns a tuple of (base64_string, is_pdf, total_pages).
-        """
+        """Convert uploaded file bytes to base64-encoded PNG string."""
         # Try opening as image first
         try:
             img = Image.open(io.BytesIO(file_bytes))
@@ -174,11 +149,7 @@ class GenerationService:
 
     @staticmethod
     def _pdf_to_all_pages_png(file_bytes: bytes) -> List[tuple]:
-        """Extract ALL pages from a PDF as base64-encoded PNG images.
-        
-        Returns a list of (base64_string, page_number_1indexed) tuples.
-        Empty list if file is not a PDF or PyMuPDF not available.
-        """
+        """Extract ALL pages from a PDF as base64-encoded PNG images."""
         try:
             import pymupdf as fitz
             doc = fitz.open(stream=file_bytes, filetype="pdf")
@@ -205,15 +176,7 @@ class GenerationService:
         return b64
 
     async def _call_ollama_with_images(self, b64_images: list, messages: list) -> Optional[dict]:
-        """Call qwen2.5vl:3b using native 'images' parameter in messages.
-        
-        Args:
-            b64_images: List of base64-encoded image strings
-            messages: List of message dicts (content will be updated with images)
-            
-        Returns:
-            Parsed JSON dict or None
-        """
+        """Call qwen2.5vl:3b using native 'images' parameter in messages."""
         # Build payload with images parameter
         payload = {
             "model": self.model,
@@ -272,18 +235,7 @@ class GenerationService:
         document_type: str = "",
         chat_history: Optional[List[Dict[str, str]]] = None,
     ) -> str:
-        """Generate a response — either from an image (field extraction) or text.
-
-        Args:
-            prompt: Main user query.
-            context: Optional context/knowledge to base answer on.
-            system: Optional system instruction.
-            query: Deprecated alias for prompt.
-            image_bytes: Document image bytes (PDF or image). If provided,
-                         the model performs field extraction instead of chat.
-            extraction_schema: Dict of field_name → description for JSON extraction.
-                               Defaults to standard ID fields if None.
-        """
+        """Generate a response — either from an image (field extraction) or text."""
         actual_prompt = prompt or query
 
         if image_bytes:
@@ -361,12 +313,7 @@ class GenerationService:
     async def _extract_fields_from_image(
         self, image_bytes: bytes, schema: Dict[str, str], document_type: str = ""
     ) -> str:
-        """Send image to vision model for structured field extraction.
-
-        For multi-page scanned documents, extracts all pages and merges results.
-        
-        Returns a JSON string of extracted fields.
-        """
+        """Send image to vision model for structured field extraction."""
         b64_image, is_pdf, total_pages = self._file_to_base64_png(image_bytes)
 
         # For multi-page scanned PDFs, extract all pages and merge
@@ -460,19 +407,7 @@ class GenerationService:
     async def _extract_multi_page_fields(
         self, pages: List[tuple], schema: Dict[str, str], document_type: str = ""
     ) -> str:
-        """Extract fields from a multi-page scanned document by analyzing all pages together.
-        
-        For each page, extract all visible fields. Then merge results, taking non-empty values
-        from any page. Returns merged JSON with all schema fields.
-        
-        Args:
-            pages: List of (base64_image, page_number_1indexed) tuples
-            schema: Field schema dict
-            document_type: Type hint for prompt customization
-            
-        Returns:
-            JSON string with merged extracted fields
-        """
+        """Extract fields from a multi-page scanned document by analyzing all pages together."""
         # Build field extraction prompt for each page
         field_list = "\n".join(
             f'  "{field}": "{desc}"' for field, desc in schema.items()
@@ -575,23 +510,7 @@ class GenerationService:
         self, image_bytes: bytes, is_pdf: bool = False, page_hint: str = "",
         document_type: str = ""
     ) -> str:
-        """Extract fields from a government-issued ID document image or PDF.
-
-        Optimized for:
-        - Scanned PDFs (multi-page: front/back sides, multiple pages)
-        - Government IDs (national IDs, passports, driver's licenses, visas, residence permits)
-        - Multi-language documents (labels in local language + English)
-        - MRZ (Machine Readable Zone) at bottom of passports/national IDs
-
-        Args:
-            image_bytes: Raw file bytes (image or PDF)
-            is_pdf: Whether the file is a PDF (auto-detected if False)
-            page_hint: Optional hint about which page/side this is ("front", "back", "page 1", etc.)
-            document_type: "passport" or "national_id" to select the right schema
-
-        Returns:
-            JSON string with extracted ID fields
-        """
+        """Extract fields from a government-issued ID document image or PDF."""
         # Auto-detect PDF and extract pages
         b64_image, detected_pdf, total_pages = self._file_to_base64_png(image_bytes)
         is_pdf = detected_pdf or is_pdf
@@ -679,15 +598,7 @@ class GenerationService:
         return json.dumps({"_error": "Failed to extract fields from ID document after multiple attempts"})
 
     async def _extract_id_from_pdf_pages(self, pages: List[tuple], schema: Dict[str, str] = None) -> str:
-        """Extract ID fields from a multi-page PDF by analyzing all pages together.
-
-        Args:
-            pages: List of (base64_image, page_number) tuples
-            schema: Field schema dict (defaults to NATIONAL_ID_SCHEMA)
-
-        Returns:
-            JSON string with merged extracted fields from all pages
-        """
+        """Extract ID fields from a multi-page PDF by analyzing all pages together."""
         if schema is None:
             schema = self.NATIONAL_ID_SCHEMA
         
@@ -848,20 +759,7 @@ class GenerationService:
         image_bytes: bytes,
         required_types: List[str],
     ) -> dict:
-        """Use the VL model to validate whether the uploaded document is the correct type.
-
-        Args:
-            image_bytes: Raw file bytes (image or PDF page)
-            required_types: List of acceptable document types, e.g. ["national_id", "passport", "driving_license"]
-
-        Returns:
-            dict with keys:
-              - is_valid: bool
-              - detected_type: str (e.g. "passport", "national_id", "invoice", "contract", "other")
-              - is_scanned: bool (True if it looks like a clean scan, False if screenshot/converted)
-              - confidence: float (0-1)
-              - reason: str (explanation)
-        """
+        """Use the VL model to validate whether the uploaded document is the correct type."""
         b64_image, is_pdf, total_pages = self._file_to_base64_png(image_bytes)
 
         allowed = ", ".join(required_types) if required_types else "government-issued ID (passport, national ID, or driving license)"
