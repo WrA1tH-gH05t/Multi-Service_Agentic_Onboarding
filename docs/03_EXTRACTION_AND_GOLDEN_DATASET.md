@@ -11,7 +11,7 @@
 
 Document extraction across identity cards, passports, and driving licenses presents formidable challenges: non-standard tabular geometries, micro-print fonts, multi-script layouts (Arabic and Latin), photographic background watermarks, and subtle visual icons (e.g., condition stamps or eyeglasses icons).
 
-The DocIntake Platform platform utilizes **Qwen2.5-VL Multimodal Vision AI** coupled with a **Two-Pass Multi-Page Image Rasterizer** and a **Robust Canonicalization Normalizer**. Extraction accuracy is benchmarked and verified against a curated **Golden Dataset** representing varied national identity formats (MIDV-500, MIDV-2019, UAE Driving Licenses, and Schengen Passports).
+The DocIntake Platform utilizes **Qwen2.5-VL Multimodal Vision AI** coupled with a **Two-Pass Multi-Page Image Rasterizer** and a **Robust Canonicalization Normalizer**. Extraction accuracy is benchmarked and verified against a curated **Golden Dataset** representing varied national identity formats (MIDV-500, MIDV-2019, UAE Driving Licenses, and Schengen Passports).
 
 ---
 

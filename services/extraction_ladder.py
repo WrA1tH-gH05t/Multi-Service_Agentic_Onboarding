@@ -255,7 +255,7 @@ class ExtractionLadder:
         return result
 
     # ──────────────────────────────────────────────────────────────
-    #  Rung 1 — Vision model (Qwen2.5-VL 3B)
+    #  Rung 1 — Vision model (Qwen2.5-VL 7B)
     # ──────────────────────────────────────────────────────────────
 
 
@@ -333,7 +333,7 @@ class ExtractionLadder:
                 error=str(exc),
             )
     def _rung_vision(self, document_type: str) -> RungResult:
-        """Rung 1: Qwen2.5-VL 3B direct extraction."""
+        """Rung 1: Qwen2.5-VL 7B direct extraction."""
         try:
             # Render PDF to image if it's a PDF
             if b"%PDF" in self._image_bytes[:5]:
@@ -790,7 +790,7 @@ class ExtractionLadder:
 
     def _call_ollama_vision(self, b64_img: str, prompt: str, system_msg: str = None,
                            num_predict: int = 512, temperature: float = 0.1) -> tuple:
-        """Call qwen2.5vl:3b using the native 'images' parameter."""
+        """Call qwen2.5vl:7b using the native 'images' parameter."""
         messages = [{"role": "user", "content": prompt, "images": [b64_img]}]
         if system_msg:
             messages.insert(0, {"role": "system", "content": system_msg})

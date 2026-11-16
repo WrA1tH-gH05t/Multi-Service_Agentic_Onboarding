@@ -11,7 +11,7 @@
 
 A core operational challenge in automated document intake is balancing **Straight-Through Processing (STP) efficiency** against **risk mitigation**. Overly aggressive automation risks accepting corrupted, unreadable, or fraudulent records. Conversely, overly cautious routing routes clean applications to manual review, increasing back-office costs and missing service SLAs.
 
-The DocIntake Platform platform addresses this with a calibrated **Three-Tier Confidence Scoring and Routing Policy**:
+The DocIntake Platform addresses this with a calibrated **Three-Tier Confidence Scoring and Routing Policy**:
 
 ```
       0% ─────────────────── 50% ─────────────────── 80% ─────────────────── 100%

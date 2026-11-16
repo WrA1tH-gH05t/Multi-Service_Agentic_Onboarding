@@ -132,7 +132,7 @@ The system must verify file content by looking at actual content (magic bytes), 
 ## 3. Field Extraction Policy
 
 ### 3.1 Extraction Approach
-The system uses vision-language models (Qwen2.5-VL 3B) via Ollama for field extraction:
+The system uses vision-language models (Qwen2.5-VL 7B) via Ollama for field extraction:
 - Images are converted to base64-encoded PNG
 - Model extracts structured JSON fields
 - Low temperature (0.1) for accurate extraction

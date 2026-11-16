@@ -128,7 +128,7 @@ def validate_cross_document(doc1, doc2):
 **Purpose:** If extraction on a document produces a nonsensical result, try a different approach before concluding the document is the problem.
 
 **Rules:**
-1. First attempt: Standard extraction with Qwen2.5-VL 3B
+1. First attempt: Standard extraction with Qwen2.5-VL 7B
 2. Second attempt: Different extraction prompt (more detailed, different field order)
 3. Third attempt: Extract from individual pages (for PDFs) and merge
 4. Fourth attempt: Hand to human review if all approaches fail

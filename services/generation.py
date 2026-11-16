@@ -1,4 +1,4 @@
-"""Generation Service — Vision-language model (Qwen2.5-VL 3B)."""
+"""Generation Service — Vision-language model (Qwen2.5-VL 7B)."""
 
 import base64
 import io
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class GenerationService:
-    """Vision-language generation service using Qwen2.5-VL 3B via Ollama."""
+    """Vision-language generation service using Qwen2.5-VL 7B via Ollama."""
 
     # National ID specific field schema
     NATIONAL_ID_SCHEMA = {
@@ -172,11 +172,11 @@ class GenerationService:
 
     @staticmethod
     def _base64_to_data_url(b64: str) -> dict:
-        """Format base64 image for qwen2.5vl:3b native images parameter."""
+        """Format base64 image for qwen2.5vl:7b native images parameter."""
         return b64
 
     async def _call_ollama_with_images(self, b64_images: list, messages: list) -> Optional[dict]:
-        """Call qwen2.5vl:3b using native 'images' parameter in messages."""
+        """Call qwen2.5vl:7b using native 'images' parameter in messages."""
         # Build payload with images parameter
         payload = {
             "model": self.model,
@@ -189,7 +189,7 @@ class GenerationService:
             }
         }
         
-        # For qwen2.5vl:3b, attach images to the user message
+        # For qwen2.5vl:7b, attach images to the user message
         for msg in reversed(payload["messages"]):
             if msg.get("role") == "user" and "content" in msg:
                 msg["images"] = b64_images

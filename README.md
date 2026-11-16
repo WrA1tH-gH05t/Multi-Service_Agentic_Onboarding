@@ -21,7 +21,7 @@ This system helps you:
 - **Self-Healing Database Sessions**: `DatabaseService` automatically initializes and connects on first session access.
 - **UI Version Indicator**: The frontend interface now displays a persistent bottom-right status tag with the active version number (`v2.2.0`).
 
-**Key change from v1**: We replaced the text-only `qwen3:0.6b` model with the multimodal `qwen2.5vl:3b` vision model. This eliminates the need for a separate OCR pipeline — documents are now processed as images directly.
+**Key change from v1**: We replaced the text-only `qwen3:0.6b` model with the multimodal `qwen2.5vl:7b` vision model. This eliminates the need for a separate OCR pipeline — documents are now processed as images directly.
 
 ## 🏗️ System Architecture
 
@@ -125,19 +125,19 @@ docker exec -i doc-intake-postgres psql -U intake -d doc_intake -f /docker-entry
 psql -h 127.0.0.1 -U intake -d doc_intake -f scripts/init_db.sql
 ```
 
-### Step 4: AI Model — Qwen2.5-VL 3B (Vision)
+### Step 4: AI Model — Qwen2.5-VL 7B (Vision)
 
 ```bash
 # Pull the vision-language model (accepts images + text, outputs structured JSON)
-ollama pull qwen2.5vl:3b
+ollama pull qwen2.5vl:7b
 ```
 
 **Model details:**
 - **Architecture**: Vision-language model (multimodal)
-- **VRAM requirement**: ~3.5GB (fits on RTX 4060 Laptop, 8GB VRAM)
+- **VRAM requirement**: ~6.0GB (fits on RTX 4060 Laptop, 8GB VRAM)
 - **Capabilities**: Understands document images, extracts structured fields, generates JSON responses
 - **License**: Apache 2.0 (permissive)
-- **DocVQA accuracy**: 91.6% on document visual question answering benchmarks
+- **DocVQA accuracy**: 92.9% on document visual question answering benchmarks
 
 The model handles both text chat and image understanding from a single endpoint. No separate embedding or OCR models needed.
 
@@ -182,7 +182,7 @@ task 1/
 │   ├── service_catalog.py  # Service definitions & FAQ data
 │   ├── validation.py       # File type/size validation (supports images)
 │   ├── ocr.py              # OCR fallback (unused in main flow)
-│   ├── generation.py       # Vision model (Qwen2.5-VL 3B) — replaces qwen3
+│   ├── generation.py       # Vision model (Qwen2.5-VL 7B) — replaces qwen3
 │   ├── golden_dataset.py   # Golden dataset management
 │   └── user_store.py       # User storage
 ├── workers/                # Background task processing (placeholder)
@@ -218,7 +218,7 @@ task 1/
 
 ### Vision-Based Document Processing (v2.0)
 1. **You upload a document** (PDF, PNG, JPG, TIFF, BMP)
-2. **Vision Model Processing** → Qwen2.5-VL 3B receives the image directly — no OCR step needed
+2. **Vision Model Processing** → Qwen2.5-VL 7B receives the image directly — no OCR step needed
 3. **Structured Field Extraction** → Model outputs JSON with all identified fields (name, DOB, document number, etc.)
 4. **Document Type Detection** → System classifies as passport, driving license, or national ID based on extracted fields
 5. **Response** → Extracted fields shown in chat with confidence score
@@ -231,7 +231,7 @@ task 1/
    - System asks for each document one at a time, with feedback on upload success
    - If wrong document uploaded: "That doesn't look like a National ID Card. Please upload a government-issued ID card."
    - If unclear image: "The image is blurry. Please take a clearer photo with all text visible."
-4. **Vision Extraction**: Qwen2.5-VL 3B extracts fields from uploaded image (replaces separate OCR pipeline)
+4. **Vision Extraction**: Qwen2.5-VL 7B extracts fields from uploaded image (replaces separate OCR pipeline)
 5. **Validation Agent**:
    - For Premium/Cross Border: Checks ID card AND passport fields match (name, DOB, etc.)
    - Checks document validity (not expired)
@@ -279,9 +279,9 @@ The agent will recognize these and clearly state they are not yet available:
 ## 🔧 Troubleshooting (v2.0)
 
 ### "Vision model not responding"
-- Verify Qwen2.5-VL 3B is running: `ollama list | grep qwen2.5vl`
+- Verify Qwen2.5-VL 7B is running: `ollama list | grep qwen2.5vl`
 - Check Ollama is running: `docker ps | grep ollama` or `ollama serve`
-- Model not found? Run: `ollama pull qwen2.5vl:3b`
+- Model not found? Run: `ollama pull qwen2.5vl:7b`
 - VRAM overflow? Check GPU usage: `nvidia-smi`
 
 ### "File upload fails"
@@ -354,5 +354,5 @@ When uploading documents or testing the onboarding intake pipeline, adhere to th
 
 ---
 
-**v2.0 — Upgraded to Vision AI with Qwen2.5-VL 3B**
+**v2.0 — Upgraded to Vision AI with Qwen2.5-VL 7B**
 **Built with ❤️ for learning system design and document processing**

@@ -11,8 +11,8 @@ database:
   pool_size: 10
   max_overflow: 20
 
-# Qwen2.5-VL 3B — vision-language model for document image understanding
-# Runs on RTX 4060 Laptop GPU (8 GB VRAM) at Q4_K_M (~3.5 GB VRAM)
+# Qwen2.5-VL 7B — vision-language model for document image understanding
+# Runs on RTX 4060 Laptop GPU (8 GB VRAM) (~6.0 GB VRAM)
 # Accepts images directly, extracts structured JSON fields from documents
 ollama:
   host: 127.0.0.1

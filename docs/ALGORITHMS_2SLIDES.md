@@ -4,15 +4,15 @@
 
 ## SLIDE 1: Core AI & Extraction Algorithms
 
-**Vision-Language Model — Qwen2.5-VL 3B**
+**Vision-Language Model — Qwen2.5-VL 7B**
 - Family: Multimodal foundation models (decoder-only transformer, next-token prediction)
 - Examples: Qwen2.5-VL, LLaVA, Phi-3-Vision
 - Strength: Extracts structured fields directly from scanned document images — no separate OCR or layout model needed. Runs fully offline on a laptop GPU.
 
-**Model Quantization — Q4_K_M**
+**Model Quantization & Footprint**
 - Family: Model compression (quantisation, pruning, distillation)
 - Examples: Q4_K_M, AWQ, GGUF, INT8
-- Strength: Cuts model size from ~6 GB to ~3.5 GB with minimal accuracy loss. Makes a 3B-parameter model feasible on consumer hardware.
+- Strength: Fits within consumer GPU VRAM (~6.0 GB VRAM on RTX 4060 Laptop 8GB) with state-of-the-art accuracy.
 
 **Extraction Ladder (4-Rung Ensemble)**
 - Family: Consensus/voting — independent candidate generation and aggregation
