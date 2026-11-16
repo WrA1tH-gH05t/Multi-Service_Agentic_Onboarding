@@ -1,5 +1,22 @@
 # CHANGELOG — Multi-Service Agentic Onboarding System
 
+## [v2.4.2] — 2026-11-16 (Patch Release: Model Scope Boundary Enforcement & Out-of-Scope Leakage Prevention)
+
+### Bug Fixes
+- **Model Project Scope Boundary Enforcement**:
+  - Fixed an issue where the conversational assistant answered questions outside project scope (such as providing gym plans, workout splits, recipes, coding scripts, and trivia) instead of staying strictly bound to DocIntake onboarding, document verification, application tracking, and platform support.
+  - Replaced the allow-by-default fallback in `ScopeClassifier` with zero-trust domain anchor validation: any query lacking contextual anchors to DocIntake services, documents, onboarding workflows, or platform architecture is rejected immediately with `OUT_OF_SCOPE_RESPONSE` without invoking the LLM.
+  - Added explicit regex triggers for gym routines, workouts, fitness splits, diet/nutrition, medical queries, academic homework, and gaming.
+  - Expanded in-scope conversational greetings to include assistant identity and name recognition (`"hi Lynx"`).
+  - Hardened LLM system prompt directives in `app/routes/chat_message.py` with strict refusal mandates for non-DocIntake topics.
+  - Implemented post-generation output guardrail `is_out_of_scope_reply()` in `services/scope_classifier.py` and wired it into `app/routes/chat_message.py` to intercept and replace any leaked workout routines or recipes before response delivery.
+  - Added a comprehensive 66-case regression test suite in `tests/test_scope_boundaries.py`.
+
+- **UI Version Indicator**:
+  - Updated the persistent bottom-right status tag to `TASK 1 • v2.4.2`.
+
+---
+
 ## [v2.4.0] — 2026-11-16 (Minor Release: Conversational Details Guard, Expired Document Auto-Purge, Review Lock & Verification Scoring Hardening)
 
 ### Major Changes

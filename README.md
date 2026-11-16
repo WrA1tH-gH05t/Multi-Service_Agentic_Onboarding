@@ -1,8 +1,8 @@
-|Multi-Service Agentic Onboarding System v2.4|
+|Multi-Service Agentic Onboarding System v2.4.2|
 |A conversational agent that guides customers through sign up, document upload, and verification across multiple services — now with **vision AI**, enterprise MinIO storage with SSE, resilient cross-document validation, and multi-format date handling.|
 |Built for fully on-premise deployment with Docker Desktop. Runs on consumer GPUs (RTX 4060 Laptop).|
 
-## 🎯 What This System Does (v2.4 — Vision AI & Enterprise Hardening)
+## 🎯 What This System Does (v2.4.2 — Vision AI & Enterprise Hardening)
 
 This system helps you:
 - **Discover services**: Ask about available services and what documents they require
@@ -13,12 +13,23 @@ This system helps you:
 - **S3 collision-resistant storage**: Standardized `name_idnumber_date.ext` naming with automatic collision disambiguation (`_v_<hash>`) and server-side encryption (SSE-S3 / SSE-KMS)
 - **Chat**: Interact with an AI assistant that understands your application status
 
-## 🆕 What's New in v2.4.0 (Minor Release Update)
+## 🆕 What's New in v2.4.2 (Bug Fix Release)
+
+### Bug Fixes
+- **Model Project Scope Boundary Enforcement**:
+  - Fixed an issue where the model could answer questions outside the project scope (e.g. producing gym/workout plans, recipes, general programming help, or trivia) instead of remaining strictly bound to DocIntake operations.
+  - Implemented zero-trust domain anchor validation in `ScopeClassifier`: any query lacking contextual anchors to DocIntake services, documents, onboarding workflows, or platform architecture is immediately rejected without invoking the LLM.
+  - Added explicit regex triggers for gym routines, workouts, fitness plans, diet/nutrition, medical queries, academic homework, and gaming.
+  - Hardened LLM system prompt directives with strict refusal mandates.
+  - Added post-generation output guardrails (`is_out_of_scope_reply`) to catch and redact any leaked out-of-scope guidance.
+  - Added a 66-case regression test suite in `tests/test_scope_boundaries.py`.
+- **UI Version Indicator**: Web interface displays the active `v2.4.2` status tag.
+
+## 🆕 Previous Release Highlights (v2.4.0)
 - **Conversational Details Guard**: Asking for service details no longer prematurely prompts the user to start a new application.
 - **Expired Document Auto-Purge**: Expired identity documents are detected, flagged to the user, and purged from storage and the database.
 - **Confirmation State & Locked UX**: Reviewed applications show a `✓ Reviewed` badge and prevent deselecting or unticking confirmation checkboxes once submitted.
 - **Accurate Extraction Confidence & Completion Flow**: Scoring is strictly based on semantic field validity and format accuracy, ensuring verified complete applications correctly display `complete` status without false human-review locks.
-- **UI Version Indicator**: Web interface displays the active `v2.4.0` status tag.
 
 ## 🆕 Previous Release Highlights (v2.2.1)
 - **AI Vision Model Prompt Injection Guard**: Hardened document vision extraction prompts against embedded indirect prompt injections (e.g., text instructions placed inside document images attempting to override extraction schemas or alter classification fields).

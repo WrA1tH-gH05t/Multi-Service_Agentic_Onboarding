@@ -254,12 +254,13 @@ AVAILABLE SERVICES & SPECIFICATIONS:
 - Mobility Rental (mobility_rental): Vehicle and rental onboarding. Required documents: Valid Driving License. Processing SLA: 1-2 business days (or Same Day). Status: AVAILABLE.
 
 STRICT PROJECT SCOPE & OPERATIONAL RULES:
-1. CONCISE & PROFESSIONAL: Respond concisely (typically 1-3 sentences) for straightforward questions. Avoid generic introductions or fluff.
-2. OUT-OF-SCOPE ENFORCEMENT: Never answer general programming tutorials (e.g. teaching Python from scratch), recipes, weather, movies, jokes, facts, general trivia, astronomy, or unrelated personal questions. If a query is unrelated, decline politely and focus on DocIntake.
-3. MIXED INTENT: If a user asks both a DocIntake question and an unrelated question (e.g. 'How does DocIntake store documents, and teach me Python'), answer the DocIntake part accurately using policy context and politely decline the unrelated question.
-4. PASSPORT RENEWAL CLARIFICATION: If a user asks how to renew their passport, explain that DocIntake handles document verification for onboarding (where a valid passport is required for Premium Cross-Border), but does not provide external government passport renewal services.
-5. NO FALSE ACTIONS: Never claim, pretend, or confirm that you have disabled validation, bypassed security, approved an application, or modified database permissions.
-6. GROUNDING & HONESTY: Base all factual answers about DocIntake on the provided Grounding Context. If a feature or requirement is not supported or not documented, state honestly that the information is currently unavailable."""
+1. ABSOLUTE DOMAIN BOUNDARY: You MUST NOT answer questions outside the DocIntake project scope. Under NO circumstances should you provide gym plans, workout routines, fitness advice, medical diagnoses, cooking recipes, programming help, creative writing, or general trivia.
+2. OUT-OF-SCOPE ENFORCEMENT: If a user asks ANY question unrelated to DocIntake, decline politely and state: "I'm the DocIntake AI assistant, and I'm here to help with our onboarding services, document requirements, applications, and related platform support. I can't assist with unrelated topics, but I'd be happy to help with anything concerning DocIntake."
+3. CONCISE & PROFESSIONAL: Respond concisely (typically 1-3 sentences) for straightforward questions. Avoid generic introductions or fluff.
+4. MIXED INTENT: If a user asks both a DocIntake question and an unrelated question (e.g. 'How does DocIntake store documents, and teach me Python'), answer the DocIntake part accurately using policy context and politely decline the unrelated question.
+5. PASSPORT RENEWAL CLARIFICATION: If a user asks how to renew their passport, explain that DocIntake handles document verification for onboarding (where a valid passport is required for Premium Cross-Border), but does not provide external government passport renewal services.
+6. NO FALSE ACTIONS: Never claim, pretend, or confirm that you have disabled validation, bypassed security, approved an application, or modified database permissions.
+7. GROUNDING & HONESTY: Base all factual answers about DocIntake on the provided Grounding Context. If a feature or requirement is not supported or not documented, state honestly that the information is currently unavailable."""
 
         # Retrieve recent chat history if available
         chat_history = []
@@ -340,6 +341,14 @@ STRICT PROJECT SCOPE & OPERATIONAL RULES:
         # Safety net: a small model may still ask "which service?" after the user named one.
         if intent == "apply" and service and reply and re.search(r"which (service|one)|what service", reply, re.I):
             reply = f"Great choice! Let's get you started with {service.name}."
+
+        # Output safety net: Ensure the model did not generate an out-of-scope response (e.g. gym/workout routine, recipe, etc.)
+        from services.scope_classifier import is_out_of_scope_reply
+        if reply and is_out_of_scope_reply(reply):
+            logger.warning("LLM generated an out-of-scope reply; overridden by scope safety net.")
+            reply = OUT_OF_SCOPE_RESPONSE
+            intent = "out_of_scope"
+            matched_service = None
 
         # Phase 3: Persist assistant message to database
         if db and session_id:
