@@ -1,5 +1,24 @@
 # CHANGELOG — Multi-Service Agentic Onboarding System
 
+## [v2.4.0] — 2026-11-16 (Minor Release: Conversational Details Guard, Expired Document Auto-Purge, Review Lock & Verification Scoring Hardening)
+
+### Major Changes
+- **Conversational Service Details Guard**:
+  - Refined service inquiry handling so that when users ask for service details (or the assistant asks if the user would like more details), it no longer prematurely triggers the *"Would you like me to start a new application for you?"* offer card.
+- **Expired Document Detection & Immediate Purge**:
+  - Implemented pre-flight and upload-time expiry date checks (`_is_valid_expiry_date`) in the onboarding wizard workflow.
+  - Expired IDs/passports are promptly flagged with explicit user notification, and previous expired document rows/files are automatically deleted from both MinIO storage and the database.
+- **Confirmation State & Locked Consent UX**:
+  - In the review interface, once the agreement checkbox is ticked and "Confirm and submit" is pressed, the interactive options transition to a static **✓ Reviewed** badge.
+  - The consent checkbox and inline edits are strictly locked and disabled, preventing post-confirmation unticking or modifications.
+- **Accurate Extraction Score & Auto-Completion Routing**:
+  - Re-engineered extraction confidence scoring to calculate true field accuracy and semantic validation (checking valid date formats, gender values, and field lengths) across expected schema fields.
+  - Standardized passport canonical type mapping (`passport_type = 'P'`) and enriched identity name cross-matching in `ValidationAgent`, allowing verified applications with full document extraction to transition directly to `complete` status instead of false-positive human review escalation.
+- **Frontend Version Tag Update**:
+  - Updated the persistent UI status badge at the bottom right of the web application to display `TASK 1 • v2.4.0`.
+
+---
+
 ## [v2.2.0] — 2026-11-11 (Extremity Hardening: Multi-Format Date Parsing, Name Variant Tolerances, S3 Disambiguation & Self-Healing Connections)
 
 ### Major Changes

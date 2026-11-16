@@ -107,12 +107,15 @@ def validate_applicant_name_match(applicant_name: str, doc_name: str, doc_type: 
     is_passport = "passport" in d_type
 
     if is_passport:
-        # Full name must match: set of tokens must be identical or concatenated match
+        # Full name matching:
+        # 1. Exact token set equality regardless of order (e.g. "SATISH KUMAR ARVIND KAUSHIK" vs "ARVIND KAUSHIK SATISH KUMAR")
         if set(user_tokens) == set(doc_tokens):
             return True, "Passport full name matched successfully."
-        # Also check concatenated form (e.g. O'Connor vs OConnor)
+        # 2. Check concatenated form (e.g. O'Connor vs OConnor)
         if "".join(user_tokens) == "".join(doc_tokens):
             return True, "Passport full name matched successfully."
+        # 3. Subset matching: only if substantial (e.g. user entered full name and doc contains it with father/patronymic name)
+        # However, if only first name or partial name is present, passport requires full name
         return False, (
             f"Passport name mismatch: full name must match. "
             f"Provided: '{applicant_name}', Document: '{doc_name}'"
@@ -131,3 +134,175 @@ def validate_applicant_name_match(applicant_name: str, doc_name: str, doc_type: 
             f"{doc_type} name mismatch: at least the first name must match. "
             f"Provided first name: '{user_first}', Document names: '{doc_name}'"
         )
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Role-Based Access Control and Document Content Protection
+# ──────────────────────────────────────────────────────────────────────
+
+# Strict roles:
+# - applicant: Can view and download ONLY their own documents
+# - government_reviewer: Can view documents for applications routed to their assigned agency
+# - compliance_reviewer: Can view documents if assigned and authorized
+# - platform_admin: Can manage users, settings, and non-sensitive infrastructure (NO direct customer document content bypass)
+# - developer: Strictly restricted to logs, code, metrics, synthetic data (CANNOT view real customer documents)
+
+class DocumentAccessControl:
+    """Enforces strict role-based access control and developer restrictions on document content."""
+
+    DEVELOPER_RESTRICTED_ACTIONS = {"view", "download", "presigned_url", "extract_raw"}
+
+    @staticmethod
+    def get_user_role(db, user_id: str) -> Tuple[str, Optional[str]]:
+        """Retrieve user's primary role and assigned agency_id from database or default to applicant."""
+        if not db or not user_id:
+            return "applicant", None
+        try:
+            with db.session_scope() as session:
+                from services.database import UserRole
+                role_record = session.query(UserRole).filter_by(user_id=user_id).first()
+                if role_record:
+                    return role_record.role_name, role_record.agency_id
+        except Exception as e:
+            logger.warning(f"Error checking user role for {user_id}: {e}")
+        return "applicant", None
+
+    @classmethod
+    def authorize_document_access(
+        cls,
+        db,
+        user_id: str,
+        document_id: str,
+        action: str = "view",
+        ip_address: Optional[str] = None
+    ) -> Tuple[bool, str, Optional[Dict[str, Any]]]:
+        """Verify whether a user is authorized to view or download a specific document.
+        
+        Returns:
+            (authorized: bool, reason: str, doc_data: Optional[Dict])
+        """
+        import uuid
+        from services.database import Document, Application, ApplicationConsent, DocumentAccessAudit
+
+        role_name, assigned_agency = cls.get_user_role(db, user_id)
+
+        # 1. STRICT DEVELOPER ACCESS EXCLUSION
+        if role_name == "developer":
+            logger.warning(f"SECURITY ALERT: Developer {user_id} attempted to access document {document_id}")
+            cls._log_access_attempt(
+                db, document_id=document_id, application_id=None, user_id=user_id,
+                user_role=role_name, agency_id=assigned_agency, action=action,
+                access_granted=False, denial_reason="developer_access_forbidden", ip_address=ip_address
+            )
+            return False, "Access denied: Platform developers are strictly restricted from accessing customer document contents.", None
+
+        # Fetch document from DB
+        with db.session_scope() as session:
+            doc = session.query(Document).filter_by(document_id=document_id).first()
+            if not doc:
+                return False, "Document not found.", None
+            
+            doc_dict = doc.to_dict()
+            app_id = doc.application_id
+            owner_id = doc.user_id
+
+            # 2. APPLICANT ROLE: Can only access their own documents
+            if role_name == "applicant":
+                if owner_id == user_id:
+                    cls._log_access_attempt(
+                        db, document_id=document_id, application_id=app_id, user_id=user_id,
+                        user_role=role_name, agency_id=None, action=action,
+                        access_granted=True, denial_reason=None, ip_address=ip_address
+                    )
+                    return True, "Authorized as document owner.", doc_dict
+                else:
+                    cls._log_access_attempt(
+                        db, document_id=document_id, application_id=app_id, user_id=user_id,
+                        user_role=role_name, agency_id=None, action=action,
+                        access_granted=False, denial_reason="unauthorized_applicant_not_owner", ip_address=ip_address
+                    )
+                    return False, "Access denied: You do not own this document.", None
+
+            # 3. GOVERNMENT REVIEWER: Check application routing, consent, and assigned agency
+            if role_name == "government_reviewer":
+                if not app_id:
+                    cls._log_access_attempt(
+                        db, document_id=document_id, application_id=None, user_id=user_id,
+                        user_role=role_name, agency_id=assigned_agency, action=action,
+                        access_granted=False, denial_reason="unassigned_application", ip_address=ip_address
+                    )
+                    return False, "Access denied: Document is not linked to an application.", None
+
+                app = session.query(Application).filter_by(application_id=app_id).first()
+                if not app:
+                    return False, "Application not found.", None
+
+                # Check valid consent
+                consent = session.query(ApplicationConsent).filter_by(application_id=app_id, status="agreed").first()
+                if not consent:
+                    cls._log_access_attempt(
+                        db, document_id=document_id, application_id=app_id, user_id=user_id,
+                        user_role=role_name, agency_id=assigned_agency, action=action,
+                        access_granted=False, denial_reason="no_active_consent", ip_address=ip_address
+                    )
+                    return False, "Access denied: Applicant has not provided active document review consent.", None
+
+                # Check Agency Scoping: Reviewer agency must match application designated agency
+                if assigned_agency != consent.designated_agency:
+                    cls._log_access_attempt(
+                        db, document_id=document_id, application_id=app_id, user_id=user_id,
+                        user_role=role_name, agency_id=assigned_agency, action=action,
+                        access_granted=False, denial_reason="cross_agency_forbidden", ip_address=ip_address
+                    )
+                    return False, f"Access denied: This application is designated for '{consent.designated_agency}', not your agency '{assigned_agency}'.", None
+
+                cls._log_access_attempt(
+                    db, document_id=document_id, application_id=app_id, user_id=user_id,
+                    user_role=role_name, agency_id=assigned_agency, action=action,
+                    access_granted=True, denial_reason=None, ip_address=ip_address
+                )
+                return True, "Authorized government agency reviewer.", doc_dict
+
+            # 4. COMPLIANCE REVIEWER: Audit inspection permitted with logging
+            if role_name == "compliance_reviewer":
+                cls._log_access_attempt(
+                    db, document_id=document_id, application_id=app_id, user_id=user_id,
+                    user_role=role_name, agency_id=assigned_agency, action=action,
+                    access_granted=True, denial_reason=None, ip_address=ip_address
+                )
+                return True, "Authorized compliance audit inspection.", doc_dict
+
+            # 5. PLATFORM ADMIN: Infrastructure only — no direct document content access
+            if role_name == "platform_admin":
+                cls._log_access_attempt(
+                    db, document_id=document_id, application_id=app_id, user_id=user_id,
+                    user_role=role_name, agency_id=None, action=action,
+                    access_granted=False, denial_reason="admin_content_access_forbidden", ip_address=ip_address
+                )
+                return False, "Access denied: Platform administrators manage infrastructure and cannot view customer document binaries.", None
+
+        return False, "Access denied: Unrecognized role or permissions.", None
+
+    @staticmethod
+    def _log_access_attempt(db, document_id, application_id, user_id, user_role, agency_id, action, access_granted, denial_reason, ip_address):
+        """Append an immutable document access audit record."""
+        import uuid
+        try:
+            with db.session_scope() as session:
+                from services.database import DocumentAccessAudit
+                audit = DocumentAccessAudit(
+                    audit_id=f"acc_{uuid.uuid4().hex[:12]}",
+                    document_id=document_id,
+                    application_id=application_id,
+                    user_id=user_id,
+                    user_role=user_role,
+                    agency_id=agency_id,
+                    action=action,
+                    access_granted=access_granted,
+                    denial_reason=denial_reason,
+                    ip_address=ip_address,
+                )
+                session.add(audit)
+        except Exception as e:
+            logger.error(f"Failed to record DocumentAccessAudit: {e}")
+

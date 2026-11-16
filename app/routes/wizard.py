@@ -159,6 +159,32 @@ def _missing_mandatory(doc_type: str, fields: Dict[str, str]) -> List[str]:
     return [label for label, aliases in groups.items() if not any(str(fields.get(a, "")).strip() for a in aliases)]
 
 
+def _is_valid_expiry_date(expiry_date: str) -> Optional[bool]:
+    """Check if an expiry date is in the future. Returns False if expired, True if valid, None if unparseable."""
+    from datetime import datetime, date
+    import calendar
+    if not expiry_date or not str(expiry_date).strip():
+        return None
+    val = str(expiry_date).strip()
+    for fmt in [
+        "%Y-%m-%d", "%d/%m/%Y", "%d.%m.%Y", "%d-%m-%Y",
+        "%d %b %Y", "%d %B %Y", "%Y/%m/%d", "%d-%b-%Y",
+        "%d-%B-%Y", "%Y.%m.%d", "%d %b, %Y", "%b %d, %Y"
+    ]:
+        try:
+            return datetime.strptime(val, fmt).date() > date.today()
+        except ValueError:
+            pass
+    for fmt in ["%m/%Y", "%B %Y", "%b %Y", "%m-%Y", "%Y-%m"]:
+        try:
+            dt = datetime.strptime(val, fmt)
+            last_day = date(dt.year, dt.month, calendar.monthrange(dt.year, dt.month)[1])
+            return last_day >= date.today()
+        except ValueError:
+            pass
+    return None
+
+
 def _canonical(fields: Dict[str, str]) -> Dict[str, str]:
     """Add the canonical keys the validation agent reads, keeping the originals."""
     out = dict(fields)
@@ -275,7 +301,8 @@ def _canonical(fields: Dict[str, str]) -> Dict[str, str]:
 
     # Passport type
     put("passport_type", "type", "doc_type")
-    if not str(out.get("passport_type", "")).strip() and "passport" in str(out.get("document_type", "")).lower():
+    if not str(out.get("passport_type", "")).strip():
+        # Passports default to standard Type 'P' (ordinary passport)
         out["passport_type"] = "P"
 
     return out
@@ -615,9 +642,20 @@ async def upload_wizard_document(
     if applicant_name and extracted_fields:
         from services.security import validate_applicant_name_match
         doc_kind = _kind(doc_type)
+
+        # For passports and international documents, combine given name(s) and surname if full_name is missing
+        if doc_kind == "passport" or not (extracted_fields.get("full_name") or extracted_fields.get("name")):
+            given = (extracted_fields.get("given_name") or extracted_fields.get("given_names") or "").strip()
+            sur = (extracted_fields.get("surname") or extracted_fields.get("last_name") or "").strip()
+            if given and sur:
+                # Store full combined name so validation and downstream review have complete legal name
+                extracted_fields.setdefault("full_name", f"{given} {sur}")
+                extracted_fields.setdefault("name", f"{given} {sur}")
+
         doc_name_field = (
             extracted_fields.get("full_name")
             or extracted_fields.get("name")
+            or (f"{extracted_fields.get('given_name', '')} {extracted_fields.get('surname', '')}".strip() if extracted_fields.get("given_name") and extracted_fields.get("surname") else "")
             or extracted_fields.get("surname")
             or extracted_fields.get("given_name")
             or extracted_fields.get("given_names")
@@ -646,6 +684,40 @@ async def upload_wizard_document(
                     f"you provided ({applicant_name!r}). Please check your document or update your name.",
                     {"name_match": False, "doc_name": doc_name_field},
                 )
+
+    # Check document expiry date: expired documents must be rejected and old versions purged
+    expiry_val = extracted_fields.get("expiry_date") or extracted_fields.get("date_of_expiry")
+    if expiry_val:
+        expiry_status = _is_valid_expiry_date(expiry_val)
+        if expiry_status is False:
+            logger.warning("Rejected expired document %s for session %s (expiry: %s)", doc_type, session_id[:8], expiry_val)
+            # Delete old document if it existed in the session, DB or storage
+            old_docs = [d for d in session.documents if d.doc_type == doc_type]
+            for od in old_docs:
+                if storage and od.file_url:
+                    try:
+                        storage.delete_file(od.file_url)
+                    except Exception:
+                        pass
+                if db:
+                    try:
+                        with db.session_scope() as db_sess:
+                            from services.database import Document as DBDocument
+                            scoped_h = db.scoped_hash(user_id, od.sha256) if od.sha256 else None
+                            if scoped_h:
+                                db_sess.query(DBDocument).filter(
+                                    (DBDocument.content_hash == scoped_h) | (DBDocument.object_name == od.file_url)
+                                ).delete(synchronize_session=False)
+                            elif od.file_url:
+                                db_sess.query(DBDocument).filter(DBDocument.object_name == od.file_url).delete(synchronize_session=False)
+                    except Exception:
+                        pass
+            session.documents = [d for d in session.documents if d.doc_type != doc_type]
+            return _reject(
+                session, doc_type, "document_expired",
+                f"Your {_pretty(doc_type)} has expired (expiry date: {expiry_val}). Please provide a valid, unexpired document. Any previous expired document has been deleted from the system.",
+                {"expired": True, "expiry_date": expiry_val}
+            )
 
     # 5. Decide based on quality, missing fields, and confidence score thresholds
     reason, message = None, None
@@ -778,7 +850,16 @@ async def upload_wizard_document(
         raise HTTPException(status_code=500, detail="I couldn't save your document. Please try again.")
 
     try:
+        # Delete any previously superseded storage files for this document type
+        old_superseded = [d.file_url for d in session.documents if d.doc_type == doc_type and d.file_url]
         doc = mgr.add_document(session_id, object_name, file.filename or safe_name, doc_type, sha256=sha256, user_id=user_id)
+        if old_superseded and storage:
+            for old_f in old_superseded:
+                if old_f != object_name:
+                    try:
+                        storage.delete_file(old_f)
+                    except Exception:
+                        pass
         if escalated:
             session.metadata["needs_human_review"] = True
             session.metadata.setdefault("escalations", []).append({"doc_type": doc_type, "reason": reason})
@@ -1617,8 +1698,48 @@ async def _extract_fields_from_document(gen_service, file_content: bytes, doc_ty
             if "glasses" in cleaned and "glasses_requirement" not in cleaned:
                 cleaned["glasses_requirement"] = cleaned["glasses"]
 
-        completeness = (len(cleaned) / len(schema)) if schema else (1.0 if cleaned else 0.0)
-        return (cleaned, round(min(completeness, 1.0), 2), len(cleaned) > 0)
+        # Calculate extraction accuracy / confidence score:
+        # Evaluates how many expected schema fields appear correctly and pass semantic/format validation
+        from datetime import datetime, date
+        valid_count = 0
+        total_expected = len(schema) if schema else len(cleaned)
+
+        def is_field_valid(k: str, val: str) -> bool:
+            v = val.strip()
+            if not v or v.lower() in ("none", "null", "n/a", "unknown"):
+                return False
+            # Date validation
+            if "date" in k or "dob" in k:
+                parsed_date = False
+                for dfmt in [
+                    "%Y-%m-%d", "%d/%m/%Y", "%d.%m.%Y", "%d-%m-%Y",
+                    "%d %b %Y", "%d %B %Y", "%Y/%m/%d", "%d-%b-%Y",
+                    "%d-%B-%Y", "%Y.%m.%d", "%d %b, %Y", "%b %d, %Y"
+                ]:
+                    try:
+                        datetime.strptime(v, dfmt)
+                        parsed_date = True
+                        break
+                    except ValueError:
+                        pass
+                return parsed_date
+            # Gender / sex validation
+            if k in ("gender", "sex"):
+                return v.upper() in ("M", "F", "MALE", "FEMALE", "OTHER")
+            # Text/ID fields should have reasonable length
+            return len(v) >= 2
+
+        if schema:
+            for sk in schema.keys():
+                if sk in cleaned and is_field_valid(sk, cleaned[sk]):
+                    valid_count += 1
+            confidence_score = valid_count / total_expected if total_expected > 0 else 0.0
+        else:
+            valid_count = sum(1 for k, v in cleaned.items() if is_field_valid(k, v))
+            confidence_score = (valid_count / total_expected) if total_expected > 0 else (1.0 if cleaned else 0.0)
+
+        confidence_score = round(min(max(confidence_score, 0.0), 1.0), 2)
+        return (cleaned, confidence_score, len(cleaned) > 0)
 
     except Exception as e:
         logger.error("Extraction error: %s: %s", type(e).__name__, e)

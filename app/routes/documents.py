@@ -520,12 +520,21 @@ async def delete_document(document_id: str, token: Optional[str] = Query(None, a
 # --- View Document (Inline preview using MinIO/storage) ---
 @router.get("/documents/{document_id}/view")
 async def view_document(document_id: str, token: Optional[str] = Query(None, alias="token")):
-    """View one of the caller's own documents inline with presigned URL or inline stream."""
+    """View a document with strict RBAC: owner applicant or authorized agency reviewer. Developers forbidden."""
     state = get_state()
+    db = state.get("database")
     user_id = _require_user_id(state, token)
-    doc = _owned_document(state, document_id, user_id)
+    
+    # Enforce strict RBAC and developer access restrictions
+    from services.security import DocumentAccessControl
+    auth_ok, reason, doc = DocumentAccessControl.authorize_document_access(
+        db, user_id=user_id, document_id=document_id, action="view"
+    )
+    if not auth_ok:
+        raise HTTPException(status_code=403, detail=reason)
+
     storage = state.get("storage")
-    if not doc.get("object_name") or not storage:
+    if not doc or not doc.get("object_name") or not storage:
         raise HTTPException(status_code=404, detail="Document not found")
     
     # Try generating a direct MinIO presigned URL
@@ -553,12 +562,21 @@ async def view_document(document_id: str, token: Optional[str] = Query(None, ali
 # --- Download Document ---
 @router.get("/documents/{document_id}/download")
 async def download_document(document_id: str, token: Optional[str] = Query(None, alias="token")):
-    """Download one of the caller's own documents."""
+    """Download a document with strict RBAC: owner applicant or authorized agency reviewer. Developers forbidden."""
     state = get_state()
+    db = state.get("database")
     user_id = _require_user_id(state, token)
-    doc = _owned_document(state, document_id, user_id)
+
+    # Enforce strict RBAC and developer access restrictions
+    from services.security import DocumentAccessControl
+    auth_ok, reason, doc = DocumentAccessControl.authorize_document_access(
+        db, user_id=user_id, document_id=document_id, action="download"
+    )
+    if not auth_ok:
+        raise HTTPException(status_code=403, detail=reason)
+
     storage = state.get("storage")
-    if not doc.get("object_name") or not storage:
+    if not doc or not doc.get("object_name") or not storage:
         raise HTTPException(status_code=404, detail="Document not found")
     try:
         data = storage.download_file(doc["object_name"])
@@ -573,12 +591,21 @@ async def download_document(document_id: str, token: Optional[str] = Query(None,
 # --- Presigned URL ---
 @router.get("/documents/{document_id}/presigned-url")
 async def get_presigned_url(document_id: str, token: Optional[str] = Query(None, alias="token")):
-    """Short-lived download link for one of the caller's own documents (10 minutes)."""
+    """Short-lived download link with strict RBAC. Developers forbidden."""
     state = get_state()
+    db = state.get("database")
     user_id = _require_user_id(state, token)
-    doc = _owned_document(state, document_id, user_id)
+
+    # Enforce strict RBAC and developer access restrictions
+    from services.security import DocumentAccessControl
+    auth_ok, reason, doc = DocumentAccessControl.authorize_document_access(
+        db, user_id=user_id, document_id=document_id, action="presigned_url"
+    )
+    if not auth_ok:
+        raise HTTPException(status_code=403, detail=reason)
+
     storage = state.get("storage")
-    if not doc.get("object_name") or not storage:
+    if not doc or not doc.get("object_name") or not storage:
         raise HTTPException(status_code=404, detail="Document not found")
     try:
         url = storage.generate_presigned_url(doc["object_name"], expires=timedelta(minutes=10))

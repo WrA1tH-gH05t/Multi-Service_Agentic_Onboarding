@@ -60,6 +60,17 @@ class UserRegistrationRequest(BaseModel):
     full_name: Optional[str] = None
     birthday: Optional[str] = None
     gender: Optional[str] = None
+    accept_terms: bool = False  # Mandatory acceptance of Terms & Conditions
+    role: Optional[str] = "applicant"  # applicant | government_reviewer | developer | platform_admin
+    agency_id: Optional[str] = None    # for government_reviewer role
+
+
+class DocumentReviewConsentRequest(BaseModel):
+    """Request schema for providing application-specific document review consent."""
+    application_id: str
+    agreed: bool = False
+    consent_version: str = "1.0"
+    withdrawal_reason: Optional[str] = None
 
 
 class FAQRequest(BaseModel):

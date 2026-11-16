@@ -282,6 +282,12 @@ if "user_email" not in st.session_state:
 if "user_username" not in st.session_state:
     st.session_state.user_username = None
 
+if "user_role" not in st.session_state:
+    st.session_state.user_role = "applicant"
+
+if "user_agency" not in st.session_state:
+    st.session_state.user_agency = None
+
 # ============================================================
 # API helpers
 # ============================================================
@@ -342,16 +348,29 @@ def login_user(username: str, password: str) -> dict:
         return {"success": False, "error": str(e)}
     return {"success": False, "error": "Login failed"}
 
-def signup_user(username: str, password: str, email: str) -> dict:
+def signup_user(username: str, password: str, email: str, accept_terms: bool = False, role: str = "applicant", agency_id: str = None) -> dict:
     """Register a new user account via the backend authentication service."""
     try:
         resp = requests.post(
             f"{API_BASE}/auth/signup",
-            json={"username": username, "password": password, "email": email},
+            json={
+                "username": username,
+                "password": password,
+                "email": email,
+                "accept_terms": accept_terms,
+                "role": role,
+                "agency_id": agency_id
+            },
             timeout=10
         )
         if resp.status_code == 200:
             return resp.json()
+        else:
+            try:
+                err_data = resp.json()
+                return {"success": False, "error": err_data.get("detail", "Signup failed")}
+            except Exception:
+                return {"success": False, "error": resp.text}
     except Exception as e:
         return {"success": False, "error": str(e)}
     return {"success": False, "error": "Signup failed"}
@@ -444,8 +463,8 @@ with st.sidebar:
     
     page = st.radio(
         "",
-        ["🏠 Home", "💬 Chat", "📁 Documents", "📤 Upload", "📋 Applications", "🏆 Golden Dataset", "🔐 Login"],
-        index=["🏠 Home", "💬 Chat", "📁 Documents", "📤 Upload", "📋 Applications", "🏆 Golden Dataset", "🔐 Login"].index(st.session_state.sidebar_page) if st.session_state.sidebar_page in ["🏠 Home", "💬 Chat", "📁 Documents", "📤 Upload", "📋 Applications", "🏆 Golden Dataset", "🔐 Login"] else 0,
+        ["🏠 Home", "💬 Chat", "📁 Documents", "📤 Upload", "📋 Applications", "🏛️ Agency Review", "📜 Legal Policies", "🏆 Golden Dataset", "🔐 Login"],
+        index=["🏠 Home", "💬 Chat", "📁 Documents", "📤 Upload", "📋 Applications", "🏛️ Agency Review", "📜 Legal Policies", "🏆 Golden Dataset", "🔐 Login"].index(st.session_state.sidebar_page) if st.session_state.sidebar_page in ["🏠 Home", "💬 Chat", "📁 Documents", "📤 Upload", "📋 Applications", "🏛️ Agency Review", "📜 Legal Policies", "🏆 Golden Dataset", "🔐 Login"] else 0,
         label_visibility="collapsed"
     )
     
@@ -471,12 +490,16 @@ with st.sidebar:
         st.caption(f"{len(docs)} documents")
     
     if st.session_state.user_id:
-        st.caption(f"Logged in as: {st.session_state.user_username or st.session_state.user_id}")
+        role_label = f" ({st.session_state.user_role.replace('_', ' ').title()})" if st.session_state.user_role else ""
+        agency_label = f" [{st.session_state.user_agency}]" if st.session_state.user_agency else ""
+        st.caption(f"Logged in: **{st.session_state.user_username or st.session_state.user_id}**{role_label}{agency_label}")
         if st.button("Logout", type="secondary", use_container_width=True):
             st.session_state.user_id = None
             st.session_state.user_token = None
             st.session_state.user_email = None
             st.session_state.user_username = None
+            st.session_state.user_role = "applicant"
+            st.session_state.user_agency = None
             st.rerun()
 
 # ============================================================
@@ -756,6 +779,170 @@ elif page == "📋 Applications":
 </div>
 ''', unsafe_allow_html=True)
 
+                # Application-Specific Document Review Consent Flow
+                app_id = app.get("id") or app.get("application_id")
+                app_status = app.get("status", "")
+
+                with st.expander(f"🛡️ Document Review Consent & Routing - App #{app_id}", expanded=(app_status in ("incomplete", "needs_review", "complete", "validating"))):
+                    # Fetch consent info
+                    consent_resp = None
+                    try:
+                        c_get = requests.get(f"{API_BASE}/applications/{app_id}/consent-info", headers={"token": st.session_state.user_token or ""}, params={"token": st.session_state.user_token or ""}, timeout=5)
+                        if c_get.status_code == 200:
+                            consent_resp = c_get.json().get("data", {})
+                    except Exception:
+                        pass
+
+                    if consent_resp:
+                        st.markdown(f"### {consent_resp.get('consent_screen_title', 'DOCUMENT REVIEW CONSENT')}")
+                        st.info(f"**Designated Reviewing Body**: {consent_resp.get('designated_agency_name')} ({consent_resp.get('designated_agency_id')})\n\n{consent_resp.get('designated_agency_description')}")
+                        st.markdown(consent_resp.get("consent_text", ""))
+
+                        st.markdown("---")
+                        st.markdown(f"**Legal References:** [Terms & Conditions]({API_BASE}/policies/terms) | [Privacy Policy]({API_BASE}/policies/privacy)")
+
+                        curr_consent = consent_resp.get("current_consent_status")
+                        if curr_consent == "agreed":
+                            st.success(f"✅ Document Review Consent has been granted. Application routed to {consent_resp.get('designated_agency_name')}.")
+                            if st.button(f"Withdraw Consent for #{app_id}", key=f"withdraw_{app_id}", type="secondary"):
+                                w_res = requests.post(
+                                    f"{API_BASE}/applications/{app_id}/withdraw-consent",
+                                    headers={"token": st.session_state.user_token or ""},
+                                    params={"token": st.session_state.user_token or ""},
+                                    json={"withdrawal_reason": "Applicant exercised statutory withdrawal right."},
+                                    timeout=10
+                                )
+                                if w_res.status_code == 200:
+                                    st.warning("Consent withdrawn. Application processing halted.")
+                                    st.rerun()
+                                else:
+                                    st.error(f"Withdrawal failed: {w_res.text}")
+                        elif curr_consent == "declined" or app_status == "rejected_consent_declined":
+                            st.error("❌ Document Review Consent was declined. This application is closed and staged document binaries were purged. A new application is required.")
+                        elif curr_consent == "withdrawn" or app_status == "cancelled_consent_withdrawn":
+                            st.warning("⚠️ Consent has been formally withdrawn. This application is cancelled.")
+                        else:
+                            st.warning("⚠️ Pending Document Review Authorization: Before your application can proceed to government inspection, you must provide your explicit consent.")
+                            user_consented = st.checkbox(
+                                consent_resp.get("checkbox_wording", "I authorize Docintake to make the documents submitted with this specific application available to the designated authorized reviewers."),
+                                value=False,
+                                key=f"consent_check_{app_id}"
+                            )
+                            c1, c2 = st.columns(2)
+                            with c1:
+                                if st.button("Agree and Continue", key=f"btn_agree_{app_id}", type="primary", use_container_width=True):
+                                    if not user_consented:
+                                        st.error("Please actively check the consent checkbox to agree and continue.")
+                                    else:
+                                        with st.spinner("Authorizing and routing application..."):
+                                            agree_resp = requests.post(
+                                                f"{API_BASE}/applications/{app_id}/consent",
+                                                headers={"token": st.session_state.user_token or ""},
+                                                params={"token": st.session_state.user_token or ""},
+                                                json={"application_id": app_id, "agreed": True, "consent_version": "1.0"},
+                                                timeout=10
+                                            )
+                                            if agree_resp.status_code == 200:
+                                                st.success("Consent recorded! Application routed to agency review.")
+                                                st.rerun()
+                                            else:
+                                                st.error(f"Error submitting consent: {agree_resp.text}")
+                            with c2:
+                                if st.button("Decline Consent", key=f"btn_decline_{app_id}", type="secondary", use_container_width=True):
+                                    with st.spinner("Closing application and purging staged files..."):
+                                        dec_resp = requests.post(
+                                            f"{API_BASE}/applications/{app_id}/consent",
+                                            headers={"token": st.session_state.user_token or ""},
+                                            params={"token": st.session_state.user_token or ""},
+                                            json={"application_id": app_id, "agreed": False, "consent_version": "1.0"},
+                                            timeout=10
+                                        )
+                                        if dec_resp.status_code == 200:
+                                            st.warning("Consent declined. Application closed and temporary files purged.")
+                                            st.rerun()
+                                        else:
+                                            st.error(f"Error declining consent: {dec_resp.text}")
+                    else:
+                        st.caption("Consent information currently loading...")
+
+# Agency Review Page (Government Reviewer Portal)
+elif page == "🏛️ Agency Review":
+    st.markdown('<h2 style="color:#e4e6eb">🏛️ Government Agency Review Portal</h2>', unsafe_allow_html=True)
+    st.caption("Secure document inspection portal for authorized government bodies.")
+
+    if not st.session_state.user_id:
+        st.info("🔐 Please sign in with an authorized Government Reviewer account.")
+    elif st.session_state.user_role == "developer":
+        st.error("🚫 Access Forbidden: Application Developers are strictly prohibited from accessing customer document review portals.")
+    elif st.session_state.user_role != "government_reviewer":
+        st.warning(f"⚠️ Access Restricted: Current role is '{st.session_state.user_role}'. This portal is restricted exclusively to authorized Government Agency Reviewers.")
+    else:
+        st.markdown(f"**Assigned Agency:** `{st.session_state.user_agency or 'Unassigned'}`")
+        try:
+            resp = requests.get(
+                f"{API_BASE}/agency/applications",
+                headers={"token": st.session_state.user_token or ""},
+                params={"token": st.session_state.user_token or ""},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                apps = data.get("data", [])
+                st.caption(f"Showing {len(apps)} applications designated for {data.get('agency_id')}.")
+                if not apps:
+                    st.info("📭 No applications currently awaiting review for your agency queue.")
+                else:
+                    for a in apps:
+                        with st.expander(f"📋 Application #{a['application_id']} - {a['applicant_name']} ({a['service_id']})"):
+                            st.write(f"**Applicant:** {a['applicant_name']}")
+                            st.write(f"**Service:** {a['service_id']}")
+                            st.write(f"**Status:** {a['status']}")
+                            st.write(f"**Created:** {a.get('created_at', 'N/A')}")
+                            st.markdown("---")
+                            st.markdown("#### Authorized Documents")
+                            for d in a.get("documents", []):
+                                col_d1, col_d2 = st.columns([3, 1])
+                                with col_d1:
+                                    st.write(f"📄 **{d['filename']}** ({d['document_type']}) - {format_size(d['file_size'])}")
+                                with col_d2:
+                                    doc_url = f"{API_BASE}/documents/{d['document_id']}/view?token={st.session_state.user_token}"
+                                    st.markdown(f"[👁️ Inspect Document]({doc_url})")
+            else:
+                st.error(f"Failed to fetch agency applications: {resp.text}")
+        except Exception as e:
+            st.error(f"Error connecting to review queue: {e}")
+
+# Legal Policies Page
+elif page == "📜 Legal Policies":
+    st.markdown('<h2 style="color:#e4e6eb">📜 Legal Policies & Compliance Framework</h2>', unsafe_allow_html=True)
+    st.caption("Formal legal drafts and statutory data protection disclosures for Docintake.")
+
+    tab1, tab2 = st.tabs(["📄 Terms & Conditions", "🛡️ Privacy Policy"])
+
+    with tab1:
+        st.markdown("### Docintake Terms & Conditions and Service Policy (v1.0 DRAFT)")
+        st.markdown("""
+        - **Company Name:** Docintake
+        - **Registered Address:** N/A
+        - **Jurisdiction:** United Arab Emirates
+        - **Support Email:** `[SUPPORT EMAIL PLACEHOLDER]`
+        - **Document Status:** `DRAFT — PENDING LEGAL APPROVAL`
+        """)
+        st.markdown(f"[📥 Download Official PDF Document (v1.0 DRAFT)]({API_BASE}/policies/terms/download)")
+        st.markdown(f"[🌐 Open Full In-App HTML Policy View]({API_BASE}/policies/terms)")
+
+    with tab2:
+        st.markdown("### Docintake Privacy Policy & Data Protection Framework (v1.0 DRAFT)")
+        st.markdown("""
+        - **Private On-Premise Infrastructure:** MinIO object storage & PostgreSQL database.
+        - **Zero Cloud Leakage:** Documents are never sent to external third-party public AI APIs.
+        - **Developer Restriction:** Developers strictly prohibited from customer document binaries.
+        - **Government Agency Routing:** Compartmentalized access by assigned agency with immutable audit logging.
+        - **Privacy Inquiries:** `[PRIVACY CONTACT PLACEHOLDER]`
+        """)
+        st.markdown(f"[📥 Download Official PDF Document (v1.0 DRAFT)]({API_BASE}/policies/privacy/download)")
+        st.markdown(f"[🌐 Open Full In-App HTML Policy View]({API_BASE}/policies/privacy)")
+
 # Golden Dataset page
 elif page == "🏆 Golden Dataset":
     render_golden_dataset_page()
@@ -793,6 +980,56 @@ elif page == "🔐 Login":
     email = st.text_input("Email", key="login_email", help="Used for account identification")
     password = st.text_input("Password", type="password", key="login_password")
     
+    accept_terms = False
+    selected_role = "applicant"
+    selected_agency = None
+
+    if action == "Sign Up":
+        # Role selection
+        st.markdown("---")
+        st.markdown("**Account Role & Review Scope**")
+        role_display = st.selectbox(
+            "Select Account Role",
+            ["Applicant (Standard Onboarding)", "Government Agency Reviewer", "Platform Developer (Restricted Content Access)", "Platform Administrator", "Compliance Reviewer"],
+            index=0,
+            key="signup_role_display"
+        )
+        role_map = {
+            "Applicant (Standard Onboarding)": "applicant",
+            "Government Agency Reviewer": "government_reviewer",
+            "Platform Developer (Restricted Content Access)": "developer",
+            "Platform Administrator": "platform_admin",
+            "Compliance Reviewer": "compliance_reviewer"
+        }
+        selected_role = role_map[role_display]
+
+        if selected_role == "government_reviewer":
+            agency_map = {
+                "Roads & Transport Authority (RTA) - Mobility / Rental": "mobility_rta",
+                "Identity & Onboarding Review Authority - Basic Registration": "identity_authority",
+                "Cross-Border Inspection Authority - Premium / Cross Border": "crossborder_authority"
+            }
+            agency_choice = st.selectbox("Assigned Government Agency", list(agency_map.keys()), key="signup_agency_choice")
+            selected_agency = agency_map[agency_choice]
+            st.caption(f"Reviewer permissions will be restricted exclusively to applications routed to {agency_choice}.")
+
+        if selected_role == "developer":
+            st.info("⚠️ Developer Notice: Developers have access to logs, metrics, code, and synthetic tests. Access to real customer document binaries and extractions is strictly prohibited by security policy.")
+
+        st.markdown("---")
+        st.markdown("**Legal Policies & Terms of Service**")
+        st.markdown("""
+        Please review the formal legal drafts before creating your account:
+        - 📄 [View / Download Terms & Conditions (PDF)]({api}/policies/terms/download) | [HTML View]({api}/policies/terms)
+        - 📄 [View / Download Privacy Policy (PDF)]({api}/policies/privacy/download) | [HTML View]({api}/policies/privacy)
+        """.format(api=API_BASE))
+
+        accept_terms = st.checkbox(
+            "I have read and agree to the Docintake Terms & Conditions.",
+            value=False,
+            key="signup_accept_terms"
+        )
+
     if st.button("Submit", type="primary", use_container_width=True):
         if not username or not password:
             st.error("Please enter username and password")
@@ -808,6 +1045,8 @@ elif page == "🔐 Login":
                         st.session_state.user_token = data.get("token")
                         st.session_state.user_email = data.get("email", username)
                         st.session_state.user_username = data.get("username", username)
+                        st.session_state.user_role = data.get("role", "applicant")
+                        st.session_state.user_agency = data.get("agency_id", None)
                         st.success("Login successful!")
                         st.rerun()
                     else:
@@ -816,6 +1055,9 @@ elif page == "🔐 Login":
                     # Sign Up: validate all fields
                     errors = []
                     
+                    if not accept_terms:
+                        errors.append("You must read and agree to the Docintake Terms & Conditions to register.")
+
                     # Validate username
                     valid, msg = validate_username_format(username)
                     if not valid:
@@ -834,10 +1076,24 @@ elif page == "🔐 Login":
                     if errors:
                         st.error("Validation errors:\n- " + "\n- ".join(errors))
                     else:
-                        result = signup_user(username, password, email)
+                        result = signup_user(
+                            username=username,
+                            password=password,
+                            email=email,
+                            accept_terms=accept_terms,
+                            role=selected_role,
+                            agency_id=selected_agency if selected_role == "government_reviewer" else None
+                        )
                         
                         if result.get("success"):
-                            st.success("Account created! You can now login.")
+                            data = result.get("data", {})
+                            st.session_state.user_id = data.get("user_id")
+                            st.session_state.user_token = data.get("token")
+                            st.session_state.user_email = data.get("email", email)
+                            st.session_state.user_username = data.get("username", username)
+                            st.session_state.user_role = data.get("role", selected_role)
+                            st.session_state.user_agency = data.get("agency_id", None)
+                            st.success("Account created successfully! Terms & Conditions acceptance recorded.")
                             st.rerun()
                         else:
                             error_msg = result.get('error', result.get('detail', 'Unknown error'))

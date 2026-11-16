@@ -575,13 +575,17 @@ class ValidationAgent:
             return True, False
 
         # Name subset check: e.g. Passport contains [Given, Middle, Surname] while ID contains [Given, Surname]
+        # or National ID repeats/includes patronymic names: if confidence and core name tokens match (given name + surname), treat as match
         if set1 and set2 and (set1.issubset(set2) or set2.issubset(set1)):
+            # If both contain at least 2 common tokens (e.g. given name + surname), it is an identity match
+            if len(set1.intersection(set2)) >= 2:
+                return True, False
             return False, True
 
-        # High token overlap check (>= 66% common tokens)
+        # High token overlap check (>= 60% common tokens)
         intersection = set1.intersection(set2)
         if len(intersection) >= 2 and (len(intersection) / max(len(set1), len(set2)) >= 0.60):
-            return False, True
+            return True, False
 
         return False, False
 

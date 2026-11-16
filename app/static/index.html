@@ -1525,7 +1525,7 @@
             );
         }
 
-        function WizardUpload({ docs, uploaded, busy, onFile, isId, pretty, onCancel }) {
+        function WizardUpload({ docs, uploaded, busy, onFile, isId, pretty, onCancel, isCancelled }) {
             // Map each required doc type to a wizard step key
             const docToStepKey = (d) => {
                 if (/driving.?licen/i.test(d)) return 'license_upload';
@@ -1661,11 +1661,15 @@
                         <div style={{ fontSize: '12px', color: '#888' }}>
                             You can drag files directly into the upload zone, or click to browse.
                         </div>
-                        {onCancel && (
+                        {isCancelled ? (
+                            <button className="btn btn-ghost" disabled style={{ color: '#888', fontSize: '12px', padding: '4px 8px', cursor: 'not-allowed', opacity: 0.6 }}>
+                                Canceled
+                            </button>
+                        ) : onCancel ? (
                             <button className="btn btn-ghost" style={{ color: '#ef4444', fontSize: '12px', padding: '4px 8px' }} onClick={onCancel}>
                                 Cancel application
                             </button>
-                        )}
+                        ) : null}
                     </div>
                 </WizardCardShell>
             );
@@ -1852,8 +1856,9 @@
             );
         }
 
-        function WizardReview({ name, docs, mask, pretty, disabled, onConfirm, onReplace, onRestart, onEdit, onCancel }) {
+        function WizardReview({ name, docs, mask, pretty, disabled, onConfirm, onRestart, onEdit, onCancel, isCancelled, isConfirmed }) {
             const [shown, setShown] = useState({});
+            const [agreedTerms, setAgreedTerms] = useState(false);
             const [editingField, setEditingField] = useState(null);
             const [editingRawKey, setEditingRawKey] = useState(null);
             const [editValue, setEditValue] = useState('');
@@ -1861,6 +1866,7 @@
             const toggle = k => setShown(p => ({ ...p, [k]: !p[k] }));
 
             const startEdit = (fieldKey, rawKey, currentValue) => {
+                if (isConfirmed) return;
                 setEditingField(fieldKey);
                 setEditingRawKey(rawKey);
                 setEditValue(currentValue);
@@ -1905,7 +1911,9 @@
                         <div key={d.docType} style={{ marginTop: '16px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                                 <strong style={{ fontSize: '14px' }}>{pretty(d.docType)}</strong>
-                                <button className="btn btn-ghost" disabled={disabled} onClick={() => onReplace(d.docType)} style={{ padding: '2px 8px', fontSize: '12px' }}>Replace</button>
+                                {!isConfirmed && (
+                                    <button className="btn btn-ghost" disabled={disabled} onClick={() => onReplace(d.docType)} style={{ padding: '2px 8px', fontSize: '12px' }}>Replace</button>
+                                )}
                             </div>
 
                             {/* Show check results */}
@@ -1933,7 +1941,7 @@
                                     driving_license: ['license_no', 'license_number', 'issue_date', 'expiry_date', 'traffic_code_no', 'traffic_code', 'licensing_authority'],
                                     passport: ['passport_number', 'country_code', 'type', 'date_of_issue', 'date_of_expiry', 'issue_date', 'expiry_date']
                                 };
-                                const isDocLocked = (dt.includes('passport') && lockedKeys.passport.includes(k.toLowerCase())) ||
+                                const isDocLocked = isConfirmed || (dt.includes('passport') && lockedKeys.passport.includes(k.toLowerCase())) ||
                                                     ((dt.includes('driving') || dt.includes('license')) && lockedKeys.driving_license.includes(k.toLowerCase())) ||
                                                     (lockedKeys.national_id.includes(k.toLowerCase()));
                                 const fieldLabel = (() => {
@@ -1998,17 +2006,61 @@
                     ))}
 
                     {/* Edit instructions */}
-                    <div style={{ fontSize: '11px', color: '#666', marginTop: '12px', fontStyle: 'italic' }}>
-                        💡 Tip: Click ✏️ next to any field to edit it, or type "My DOB is wrong, it is actually DD/MM/YYYY" in the chat.
+                    {!isConfirmed && (
+                        <div style={{ fontSize: '11px', color: '#666', marginTop: '12px', fontStyle: 'italic' }}>
+                            💡 Tip: Click ✏️ next to any field to edit it, or type "My DOB is wrong, it is actually DD/MM/YYYY" in the chat.
+                        </div>
+                    )}
+
+                    {/* Legal consent and terms checkmark */}
+                    <div style={{ marginTop: '14px', padding: '10px 12px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', border: '1px solid var(--border-medium, #333)' }}>
+                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: isConfirmed ? 'default' : 'pointer', fontSize: '13px', color: 'var(--text-normal, #ccc)', lineHeight: '1.4' }}>
+                            <input
+                                type="checkbox"
+                                checked={isConfirmed ? true : agreedTerms}
+                                disabled={isConfirmed}
+                                onChange={e => {
+                                    if (!isConfirmed) setAgreedTerms(e.target.checked);
+                                }}
+                                style={{ marginTop: '3px', cursor: isConfirmed ? 'not-allowed' : 'pointer' }}
+                            />
+                            <span>
+                                I confirm the information above is accurate and agree to the <a href="/static/policies/Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent, #b8a47a)', textDecoration: 'underline', fontWeight: '500' }}>DOCINTAKE Terms &amp; Conditions and Service Policy</a> and <a href="/static/policies/Docintake_Privacy_Policy_v1.0_DRAFT.pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent, #b8a47a)', textDecoration: 'underline', fontWeight: '500' }}>DOCINTAKE Privacy Policy and Data Protection Framework</a>.
+                            </span>
+                        </label>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap' }}>
-                        <button className="btn btn-primary" disabled={disabled} onClick={onConfirm}>Confirm and submit</button>
-                        <button className="btn btn-secondary" disabled={disabled} onClick={onRestart}>Start over</button>
-                        {onCancel && (
-                            <button className="btn btn-ghost" style={{ color: '#ef4444' }} disabled={disabled} onClick={onCancel}>
-                                Cancel application
-                            </button>
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {isConfirmed ? (
+                            <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 16px',
+                                borderRadius: '8px',
+                                background: 'rgba(106, 169, 135, 0.15)',
+                                border: '1px solid var(--accent, #6aa987)',
+                                color: 'var(--accent, #6aa987)',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                letterSpacing: '0.04em'
+                            }}>
+                                ✓ Reviewed
+                            </span>
+                        ) : (
+                            <React.Fragment>
+                                <button className="btn btn-primary" disabled={disabled || !agreedTerms} onClick={onConfirm}>Confirm and submit</button>
+                                <button className="btn btn-secondary" disabled={disabled} onClick={onRestart}>Start over</button>
+                                {isCancelled ? (
+                                    <button className="btn btn-ghost" disabled style={{ color: '#888', cursor: 'not-allowed', opacity: 0.6 }}>
+                                        Canceled
+                                    </button>
+                                ) : onCancel ? (
+                                    <button className="btn btn-ghost" style={{ color: '#ef4444' }} disabled={disabled} onClick={onCancel}>
+                                        Cancel application
+                                    </button>
+                                ) : null}
+                            </React.Fragment>
                         )}
                     </div>
                 </WizardCardShell>
@@ -2342,6 +2394,11 @@
                         return;
                     }
 
+                    if (authMode === 'register' && !authData.accept_terms) {
+                        setAuthError('Please agree to the Terms & Conditions and Privacy Policy to create your account.');
+                        return;
+                    }
+
                     const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
                     const emailVal = (authData.email || '').trim() || (authData.username.includes('@') ? authData.username.trim() : `${authData.username.trim()}@example.com`);
                     const body = authMode === 'login'
@@ -2353,7 +2410,8 @@
                             name: authData.full_name || authData.name || authData.username.trim(),
                             full_name: authData.full_name || authData.name || authData.username.trim(),
                             birthday: authData.birthday,
-                            gender: authData.gender
+                            gender: authData.gender,
+                            accept_terms: !!authData.accept_terms
                         };
 
                     const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -2560,8 +2618,11 @@
                     const isComingSoon = matchedSvcObj && matchedSvcObj.status && matchedSvcObj.status !== 'available';
 
                     const wantsApply = !isComingSoon && (data.intent === 'apply' || /\b(apply|application|register|registration|sign ?up|enrol+)\b/i.test(userMessage));
-                    const asksServices = !isComingSoon && (!!matchedService || /\b(services?|offer(ed)?|available|requirements?|eligib\w+)\b/i.test(userMessage));
-                    if ((wantsApply || asksServices) && !(wizardStep && wizardStep !== 'success')) {
+                    // Don't offer to start an application when the user is merely asking for details or what services DocIntake offers
+                    const asksMoreDetails = /details|more info|tell me more|know more/i.test(userMessage) || /details\?/i.test(responseText);
+                    const asksServices = !isComingSoon && !asksMoreDetails && (!!matchedService || /\b(services?|offer(ed)?|available|requirements?|eligib\w+)\b/i.test(userMessage));
+                    const alreadyAskedInResponse = /would you like (me )?to (start|apply)/i.test(responseText) || /would you like to start the application/i.test(responseText);
+                    if ((wantsApply || asksServices) && !(wizardStep && wizardStep !== 'success') && !alreadyAskedInResponse) {
                         offerApplication(matchedService, wantsApply);
                     }
                 } catch (e) {
@@ -2673,6 +2734,9 @@
             const startApplication = (serviceId) => {
                 setShowServicesPage(false);
                 setShowDocumentsPage(false);
+                setShowApplicationsPage(false);
+                setShowAccountPage(false);
+                setShowApplicationFlow(false);
                 if (!getToken()) {
                     pendingApplyRef.current = serviceId || 'any';
                     addMessage('assistant', 'Please sign in to start an application. I will continue right here once you are in.');
@@ -3013,6 +3077,7 @@
                             method: 'POST'
                         }).catch(() => {});
                     }
+                    setMessages(prev => prev.map(m => (m.type === 'wizard_upload' || m.type === 'wizard_review') ? { ...m, cancelled: true } : m));
                     setWizardStep(null);
                     setWizardDocs([]);
                     setWizardService(null);
@@ -3086,11 +3151,12 @@
                 if (msg.type === 'wizard_services') return <WizardServices services={services} onPick={startWizardService} />;
                 if (msg.type === 'wizard_upload') {
                     return <WizardUpload docs={wizardRequiredDocs()} uploaded={wizardDocs} busy={wizardBusy}
-                        onFile={wizardUploadDocument} isId={isIdDocument} pretty={prettyDoc} onCancel={wizardCancel} />;
+                        onFile={wizardUploadDocument} isId={isIdDocument} pretty={prettyDoc} onCancel={wizardCancel} isCancelled={!!msg.cancelled} />;
                 }
                 if (msg.type === 'wizard_review') {
+                    const isConfirmed = wizardStep === 'submitting' || wizardStep === 'success';
                     return <WizardReview name={wizardName} docs={wizardDocs} mask={maskWizardValue} pretty={prettyDoc}
-                        disabled={wizardStep !== 'review'} onConfirm={wizardSubmitReview} onReplace={wizardReplaceDoc} onRestart={wizardRestart} onEdit={wizardEditField} onCancel={wizardCancel} />;
+                        disabled={wizardStep !== 'review' || !!msg.cancelled} onConfirm={wizardSubmitReview} onRestart={wizardRestart} onEdit={wizardEditField} onCancel={wizardCancel} isCancelled={!!msg.cancelled} isConfirmed={isConfirmed} />;
                 }
                 if (msg.type === 'wizard_success') {
                     return <SuccessResult
@@ -4343,6 +4409,19 @@
                                             <option value="Other">Other</option>
                                         </select>
                                     </div>
+                                    <div style={{ marginTop: '14px', marginBottom: '14px', padding: '10px 12px', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', border: '1px solid var(--border-medium, #333)' }}>
+                                        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '8px', cursor: 'pointer', fontSize: '13px', color: 'var(--text-normal, #ccc)', lineHeight: '1.4' }}>
+                                            <input
+                                                type="checkbox"
+                                                checked={!!authData.accept_terms}
+                                                onChange={e => setAuthData({...authData, accept_terms: e.target.checked})}
+                                                style={{ marginTop: '3px', cursor: 'pointer' }}
+                                            />
+                                            <span>
+                                                I have read and agree to the <a href="/static/policies/Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent, #b8a47a)', textDecoration: 'underline', fontWeight: '500' }}>DOCINTAKE Terms &amp; Conditions and Service Policy</a> and <a href="/static/policies/Docintake_Privacy_Policy_v1.0_DRAFT.pdf" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent, #b8a47a)', textDecoration: 'underline', fontWeight: '500' }}>DOCINTAKE Privacy Policy and Data Protection Framework</a>.
+                                            </span>
+                                        </label>
+                                    </div>
                                 </React.Fragment>
                             )}
 
@@ -4707,7 +4786,7 @@
                             display: 'inline-block',
                             boxShadow: '0 0 8px var(--accent)'
                         }}></span>
-                        <span>TASK 1 • v2.2</span>
+                        <span>TASK 1 • v2.4.0</span>
                     </div>
                 </div>
             );

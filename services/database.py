@@ -413,6 +413,175 @@ class IdempotencyKey(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+# ── Legal, Privacy, Agency Routing & Consent Models ──────────────────
+
+class PolicyDocument(Base):
+    """Stores formal legal policy documents and versions."""
+    __tablename__ = "policy_documents"
+
+    policy_id = Column(String(50), primary_key=True)  # terms_and_conditions, privacy_policy
+    title = Column(String(255), nullable=False)
+    version = Column(String(20), nullable=False)      # e.g. 1.0
+    status = Column(String(50), default="DRAFT — PENDING LEGAL APPROVAL")
+    effective_date = Column(String(50), default="Pending Approval")
+    content_hash = Column(String(64), nullable=False) # SHA-256
+    pdf_filename = Column(String(255), nullable=False)
+    content_markdown = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    def to_dict(self):
+        return {
+            "policy_id": self.policy_id,
+            "title": self.title,
+            "version": self.version,
+            "status": self.status,
+            "effective_date": self.effective_date,
+            "content_hash": self.content_hash,
+            "pdf_filename": self.pdf_filename,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class UserTermsAcceptance(Base):
+    """Stores explicit user acceptance of Terms & Conditions during account registration."""
+    __tablename__ = "user_terms_acceptances"
+
+    acceptance_id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.user_id"), nullable=False, index=True)
+    policy_id = Column(String(50), nullable=False)
+    version = Column(String(20), nullable=False)
+    content_hash = Column(String(64), nullable=False)
+    accepted = Column(Boolean, default=True, nullable=False)
+    accepted_at = Column(DateTime, server_default=func.now(), nullable=False)
+    ip_address = Column(String(50), nullable=True)
+    user_agent = Column(String(255), nullable=True)
+
+    user = relationship("User")
+
+    def to_dict(self):
+        return {
+            "acceptance_id": self.acceptance_id,
+            "user_id": self.user_id,
+            "policy_id": self.policy_id,
+            "version": self.version,
+            "content_hash": self.content_hash,
+            "accepted": self.accepted,
+            "accepted_at": self.accepted_at.isoformat() if self.accepted_at else None,
+        }
+
+
+class GovernmentAgency(Base):
+    """Government agencies configured for service application review routing."""
+    __tablename__ = "government_agencies"
+
+    agency_id = Column(String(50), primary_key=True) # mobility_rta, identity_authority, crossborder_authority
+    name = Column(String(255), nullable=False)
+    service_id = Column(String(100), nullable=False, index=True)
+    description = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    def to_dict(self):
+        return {
+            "agency_id": self.agency_id,
+            "name": self.name,
+            "service_id": self.service_id,
+            "description": self.description,
+        }
+
+
+class UserRole(Base):
+    """Role-based access control assignments with agency scoping."""
+    __tablename__ = "user_roles"
+
+    role_id = Column(String(36), primary_key=True)
+    user_id = Column(String(36), ForeignKey("users.user_id"), nullable=False, index=True)
+    role_name = Column(String(50), nullable=False) # applicant, government_reviewer, compliance_reviewer, platform_admin, developer
+    agency_id = Column(String(50), ForeignKey("government_agencies.agency_id"), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User")
+    agency = relationship("GovernmentAgency")
+
+    def to_dict(self):
+        return {
+            "role_id": self.role_id,
+            "user_id": self.user_id,
+            "role_name": self.role_name,
+            "agency_id": self.agency_id,
+        }
+
+
+class ApplicationConsent(Base):
+    """Application-specific document review consent record."""
+    __tablename__ = "application_consents"
+
+    consent_id = Column(String(36), primary_key=True)
+    application_id = Column(String(36), ForeignKey("applications.application_id"), nullable=False, index=True)
+    user_id = Column(String(36), ForeignKey("users.user_id"), nullable=False, index=True)
+    service_id = Column(String(100), nullable=False)
+    designated_agency = Column(String(50), nullable=False)
+    status = Column(String(30), nullable=False) # agreed, declined, withdrawn
+    consent_text_version = Column(String(20), default="1.0")
+    consent_text = Column(Text, nullable=False)
+    staged_documents_scope = Column(JSON, nullable=True) # list of document IDs / hashes authorized
+    agreed_at = Column(DateTime, nullable=True)
+    declined_at = Column(DateTime, nullable=True)
+    withdrawn_at = Column(DateTime, nullable=True)
+    withdrawal_reason = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    application = relationship("Application")
+    user = relationship("User")
+
+    def to_dict(self):
+        return {
+            "consent_id": self.consent_id,
+            "application_id": self.application_id,
+            "user_id": self.user_id,
+            "service_id": self.service_id,
+            "designated_agency": self.designated_agency,
+            "status": self.status,
+            "consent_text_version": self.consent_text_version,
+            "agreed_at": self.agreed_at.isoformat() if self.agreed_at else None,
+            "declined_at": self.declined_at.isoformat() if self.declined_at else None,
+            "withdrawn_at": self.withdrawn_at.isoformat() if self.withdrawn_at else None,
+            "withdrawal_reason": self.withdrawal_reason,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class DocumentAccessAudit(Base):
+    """Immutable audit trail for every customer document inspection or download attempt."""
+    __tablename__ = "document_access_audits"
+
+    audit_id = Column(String(36), primary_key=True)
+    document_id = Column(String(36), ForeignKey("documents.document_id"), nullable=True, index=True)
+    application_id = Column(String(36), nullable=True, index=True)
+    user_id = Column(String(36), ForeignKey("users.user_id"), nullable=True, index=True)
+    user_role = Column(String(50), nullable=False)
+    agency_id = Column(String(50), nullable=True)
+    action = Column(String(50), nullable=False) # view, download, presigned_url, list
+    access_granted = Column(Boolean, nullable=False)
+    denial_reason = Column(String(255), nullable=True) # developer_access_forbidden, cross_agency_forbidden, unauthenticated, unauthorized_user
+    ip_address = Column(String(50), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    def to_dict(self):
+        return {
+            "audit_id": self.audit_id,
+            "document_id": self.document_id,
+            "application_id": self.application_id,
+            "user_id": self.user_id,
+            "user_role": self.user_role,
+            "agency_id": self.agency_id,
+            "action": self.action,
+            "access_granted": self.access_granted,
+            "denial_reason": self.denial_reason,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 # ──────────────────────────────────────────────────────────────────────
 #  Engine & Session management
 # ──────────────────────────────────────────────────────────────────────
@@ -504,6 +673,53 @@ class DatabaseService:
             logger.debug(f"Column check/migration on users table: {e}")
 
         self.SessionLocal = sessionmaker(bind=self.engine)
+
+        # Seed default policies and government agency routing if not already present
+        try:
+            with self.session_scope() as session:
+                # 1. Seed policy documents
+                terms_pdf = "docs/Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf"
+                terms_hash = hashlib.sha256(open(terms_pdf, "rb").read()).hexdigest() if os.path.exists(terms_pdf) else "terms_v1_draft_hash"
+                if not session.query(PolicyDocument).filter_by(policy_id="terms_and_conditions").first():
+                    session.add(PolicyDocument(
+                        policy_id="terms_and_conditions",
+                        title="Docintake Terms & Conditions and Service Policy",
+                        version="1.0",
+                        status="DRAFT — PENDING LEGAL APPROVAL",
+                        effective_date="Pending Approval",
+                        content_hash=terms_hash,
+                        pdf_filename="Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf",
+                    ))
+                
+                priv_pdf = "docs/Docintake_Privacy_Policy_v1.0_DRAFT.pdf"
+                priv_hash = hashlib.sha256(open(priv_pdf, "rb").read()).hexdigest() if os.path.exists(priv_pdf) else "privacy_v1_draft_hash"
+                if not session.query(PolicyDocument).filter_by(policy_id="privacy_policy").first():
+                    session.add(PolicyDocument(
+                        policy_id="privacy_policy",
+                        title="Docintake Privacy Policy and Data Protection Framework",
+                        version="1.0",
+                        status="DRAFT — PENDING LEGAL APPROVAL",
+                        effective_date="Pending Approval",
+                        content_hash=priv_hash,
+                        pdf_filename="Docintake_Privacy_Policy_v1.0_DRAFT.pdf",
+                    ))
+
+                # 2. Seed government agencies
+                agencies = [
+                    ("identity_authority", "Identity & Onboarding Review Authority", "basic_registration", "Responsible for identity onboarding review and document completeness inspection."),
+                    ("crossborder_authority", "Cross-Border Inspection Authority", "premium_crossborder", "Responsible for dual-document national ID and passport cross-verification."),
+                    ("mobility_rta", "Roads & Transport Authority (RTA) Review Branch", "mobility_rental", "Responsible for driving licence review and vehicle rental onboarding eligibility.")
+                ]
+                for aid, aname, asvc, adesc in agencies:
+                    if not session.query(GovernmentAgency).filter_by(agency_id=aid).first():
+                        session.add(GovernmentAgency(
+                            agency_id=aid,
+                            name=aname,
+                            service_id=asvc,
+                            description=adesc
+                        ))
+        except Exception as e:
+            logger.warning(f"Error seeding default legal policies/agencies: {e}")
 
         logger.info("Database tables created/verified")
 

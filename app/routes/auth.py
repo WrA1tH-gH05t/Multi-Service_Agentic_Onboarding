@@ -34,12 +34,20 @@ async def login(req: AuthenticationRequest):
     user = state["auth"].validate_token(token)
     # Track last login in database
     pending_apps = []
+    user_role = "applicant"
+    assigned_agency = None
     if db and user:
         try:
             with db.session_scope() as session:
+                from services.database import UserRole
                 db_user = session.query(User).filter_by(username=req.username).first()
                 if db_user:
                     db_user.last_login = datetime.now(timezone.utc)
+                ur = session.query(UserRole).filter_by(user_id=user.user_id).first()
+                if ur:
+                    user_role = ur.role_name
+                    assigned_agency = ur.agency_id
+
             # Find any pending applications
             all_apps = db.get_user_applications(user.user_id)
             pending_apps = [a for a in all_apps if a.get("status") in ("incomplete", "in_progress", "pending", "collecting")]
@@ -53,15 +61,25 @@ async def login(req: AuthenticationRequest):
             "username": getattr(user, "username", req.username),
             "email": user.email if hasattr(user, "email") else req.username,
             "full_name": getattr(user, "full_name", None) or getattr(user, "username", req.username),
+            "role": user_role,
+            "agency_id": assigned_agency,
             "pending_applications": pending_apps
         }
     }
 
 @router.post("/auth/register")
 async def register(req: UserRegistrationRequest):
-    """Register a new user account and automatically issue a session token."""
+    """Register a new user account with mandatory Terms & Conditions acceptance and issue a session token."""
     state = get_state()
     db = state.get("database")
+
+    # MANDATORY: Terms & Conditions Acceptance Check
+    if not req.accept_terms:
+        raise HTTPException(
+            status_code=400,
+            detail="Registration requires explicit acceptance of the Docintake Terms & Conditions."
+        )
+
     full_name = req.full_name or req.name or req.username
     birthday = req.birthday
     gender = req.gender
@@ -74,10 +92,11 @@ async def register(req: UserRegistrationRequest):
     if not success:
         raise HTTPException(status_code=400, detail=message)
 
-    # Persist user to database (Phase 3)
+    # Persist user and terms acceptance to database
     if db:
         try:
             with db.session_scope() as session:
+                from services.database import PolicyDocument, UserTermsAcceptance, UserRole
                 if not session.query(User).filter_by(user_id=user.user_id).first():
                     db_user = User(
                         user_id=user.user_id,
@@ -89,20 +108,57 @@ async def register(req: UserRegistrationRequest):
                         gender=gender,
                     )
                     session.add(db_user)
+                    session.flush()
+
+                # Record immutable Terms & Conditions acceptance
+                terms_policy = session.query(PolicyDocument).filter_by(policy_id="terms_and_conditions").first()
+                policy_version = terms_policy.version if terms_policy else "1.0"
+                content_hash = terms_policy.content_hash if terms_policy else "default_terms_hash"
+
+                acceptance = UserTermsAcceptance(
+                    acceptance_id=f"term_{secrets.token_hex(8)}",
+                    user_id=user.user_id,
+                    policy_id="terms_and_conditions",
+                    version=policy_version,
+                    content_hash=content_hash,
+                    accepted=True,
+                    accepted_at=datetime.now(timezone.utc),
+                    user_agent="Docintake Onboarding Client",
+                )
+                session.add(acceptance)
+
+                # Assign role if specified
+                user_role = req.role if req.role in ("applicant", "government_reviewer", "developer", "platform_admin", "compliance_reviewer") else "applicant"
+                role_rec = UserRole(
+                    role_id=f"role_{secrets.token_hex(8)}",
+                    user_id=user.user_id,
+                    role_name=user_role,
+                    agency_id=req.agency_id if user_role == "government_reviewer" else None,
+                )
+                session.add(role_rec)
+
         except Exception as e:
-            logger.warning(f"Failed to persist user to DB: {e}")
+            logger.warning(f"Failed to persist user or terms acceptance to DB: {e}")
 
     # Automatically authenticate newly registered user
     _, _, token = state["auth"].authenticate(req.username, req.password)
 
     # Check for pending applications if any match this user's identity details
     pending_apps = []
+    role_name = "applicant"
+    assigned_agency = None
     if db and user:
         try:
             all_apps = db.get_user_applications(user.user_id)
             pending_apps = [a for a in all_apps if a.get("status") in ("incomplete", "in_progress", "pending", "collecting")]
+            with db.session_scope() as session:
+                from services.database import UserRole
+                ur = session.query(UserRole).filter_by(user_id=user.user_id).first()
+                if ur:
+                    role_name = ur.role_name
+                    assigned_agency = ur.agency_id
         except Exception as e:
-            logger.warning(f"Failed to query pending apps: {e}")
+            logger.warning(f"Failed to query pending apps or role: {e}")
 
     return {
         "success": True,
@@ -112,6 +168,9 @@ async def register(req: UserRegistrationRequest):
             "email": user.email,
             "username": user.username,
             "full_name": full_name,
+            "role": role_name,
+            "agency_id": assigned_agency,
+            "terms_accepted": True,
             "token": token,
             "pending_applications": pending_apps
         }

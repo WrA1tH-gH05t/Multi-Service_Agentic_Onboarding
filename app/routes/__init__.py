@@ -14,6 +14,8 @@ from .validation import router as validation_router
 from .golden import router as golden_router
 from .health import router as health_router
 from .audit import router as audit_router
+from .policies import router as policies_router
+from .consent import router as consent_router
 
 # Root API router (mounted at /api/v1 in main.py)
 router = APIRouter()
@@ -31,3 +33,5 @@ router.include_router(validation_router)
 router.include_router(golden_router)
 router.include_router(health_router)
 router.include_router(audit_router)
+router.include_router(policies_router)
+router.include_router(consent_router)
