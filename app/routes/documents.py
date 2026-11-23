@@ -458,6 +458,14 @@ async def list_documents(token: Optional[str] = Query(None, alias="token")):
                         except Exception:
                             pass
 
+                    child_profile_id = None
+                    applicant_type = "adult"
+                    applicant_name = None
+                    if d.application:
+                        child_profile_id = d.application.child_profile_id
+                        applicant_type = d.application.applicant_type or ("child_dependent" if child_profile_id else "adult")
+                        applicant_name = d.application.applicant_name
+
                     docs.append({
                         "id": d.document_id,
                         "filename": d.filename,
@@ -469,6 +477,9 @@ async def list_documents(token: Optional[str] = Query(None, alias="token")):
                         "document_type": d.document_type,
                         "service_id": service_id,
                         "service_name": service_name,
+                        "child_profile_id": child_profile_id,
+                        "applicant_type": applicant_type,
+                        "applicant_name": applicant_name,
                         "minio_url": minio_url,
                         "extracted_fields": {k: v for k, v in d.extracted_fields.items() if not k.startswith("_")} if isinstance(d.extracted_fields, dict) else {},
                         "extraction_confidence": d.extraction_confidence or 0.0,

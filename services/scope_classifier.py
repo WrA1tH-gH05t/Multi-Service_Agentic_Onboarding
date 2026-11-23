@@ -129,6 +129,8 @@ class ScopeClassifier:
         r"\b(login|sign\s+in|sign\s+up|register|authentication|account\s+functionality|reset\s+password|logout)\b",
         # Policies and compliance
         r"\b(privacy\s+policy|terms\s+and\s+conditions|terms\s+of\s+service|consent|data\s+retention|gdpr|legal\s+policy)\b",
+        # Child Dependent Profiles and Guardian Management
+        r"\b(child|children|dependent|dependents|guardian|guardians|minor|minors|parent|parents|caregiver|child\s+profile|dependent\s+profile|article\s+7|parental\s+consent)\b",
         # Catalog questions
         r"\b(what\s+services\s+(do\s+you|does\s+docintake)\s+offer|what\s+services\s+are\s+available|available\s+services|list\s+services|service\s+catalog)\b",
         r"\b(renew\s+my\s+passport|passport\s+renewal)\b",
@@ -138,7 +140,7 @@ class ScopeClassifier:
 
     # Anchors that indicate legitimate DocIntake domain grounding
     IN_SCOPE_ANCHORS = [
-        r"\b(docintake|service|services|document|documents|doc|docs|id|passport|licen[sc]e|apply|application|onboard|onboarding|verify|verification|validate|validation|upload|uploaded|file|files|status|track|tracking|account|login|register|registration|terms|privacy|policy)\b"
+        r"\b(docintake|service|services|document|documents|doc|docs|id|passport|licen[sc]e|apply|application|onboard|onboarding|verify|verification|validate|validation|upload|uploaded|file|files|status|track|tracking|account|login|register|registration|terms|privacy|policy|child|children|dependent|guardian|minor|profile)\b"
     ]
 
     @classmethod

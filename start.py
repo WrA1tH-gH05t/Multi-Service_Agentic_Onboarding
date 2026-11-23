@@ -147,10 +147,28 @@ def ensure_ollama():
         logger.warning("Ollama did not respond within 15 seconds. Continuing anyway...")
 
 
+def print_banner() -> None:
+    """Print the service access banner so the user knows where everything is."""
+    banner = """
+╔══════════════════════════════════════════════════════════════════════╗
+║              DOCINTAKE — SERVICE ACCESS LINKS                        ║
+╠══════════════════════════════════════════════════════════════════════╣
+║  Web UI             →  http://127.0.0.1:8000                         ║
+║  PostgreSQL DB      →  postgresql://intake:***@localhost:5432/doc_intake ║
+║  MinIO Storage API  →  http://127.0.0.1:9000                         ║
+║  MinIO Web Console  →  http://127.0.0.1:9001                         ║
+║    Bucket: onboarding-docs   User: minioadmin                        ║
+║  Ollama API         →  http://127.0.0.1:11434                        ║
+╚══════════════════════════════════════════════════════════════════════╝
+"""
+    print(banner, flush=True)
+
+
 def run_server() -> None:
     """Ensure prerequisite services are running and start Uvicorn ASGI server."""
     ensure_docker()
     ensure_ollama()
+    print_banner()
 
     import uvicorn
     from app.main import app

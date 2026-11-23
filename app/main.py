@@ -227,6 +227,22 @@ async def lifespan(app: FastAPI):
     if storage is not None:
         app_state["storage_task"] = asyncio.create_task(_storage_watchdog())
 
+    # Print service access links once the app is fully loaded
+    print(
+        "\n"
+        "╔══════════════════════════════════════════════════════════════════════╗\n"
+        "║              DOCINTAKE — SERVICE ACCESS LINKS                        ║\n"
+        "╠══════════════════════════════════════════════════════════════════════╣\n"
+        "║  Web UI             →  http://127.0.0.1:8000                         ║\n"
+        "║  PostgreSQL DB      →  postgresql://intake:***@localhost:5432/doc_intake ║\n"
+        "║  MinIO Storage API  →  http://127.0.0.1:9000                         ║\n"
+        "║  MinIO Web Console  →  http://127.0.0.1:9001                         ║\n"
+        "║    Bucket: onboarding-docs   User: minioadmin                        ║\n"
+        "║  Ollama API         →  http://127.0.0.1:11434                        ║\n"
+        "╚══════════════════════════════════════════════════════════════════════╝\n",
+        flush=True
+    )
+
     yield
 
     logger.info("Shutting down services...")

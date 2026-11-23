@@ -290,7 +290,9 @@ class GenerationService:
                 "messages": messages,
                 "stream": False,
                 "options": {
-                    "temperature": 0.3,
+                    "temperature": 0.55,
+                    "top_p": 0.9,
+                    "repeat_penalty": 1.15,
                     "num_predict": 512,
                     "num_ctx": 8192,
                 }

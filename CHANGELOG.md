@@ -1,5 +1,31 @@
 # CHANGELOG — Multi-Service Agentic Onboarding System
 
+## [v2.5.0] — 2026-11-23 (Slightly Major Update: Child Dependent Profiles, Statutory 3-Tier Consent Architecture & Unified Legal Policy v1.1)
+
+### Major Changes
+- **Child Dependent Profiles & Parent/Guardian Management**:
+  - Implemented parent/guardian account governance under UAE Federal Decree-Law No. 25 of 2025 (Article 84 age-of-majority enforcement).
+  - Added full lifecycle management for child dependent profiles with age-band safeguards: `<13` (Child Digital Safety protections), `13–17` (adolescent safeguards), and `18+` (automatic adulthood transition with cessation of guardian authority).
+  - Complete document and application data isolation per child dependent profile across database records and MinIO storage paths.
+  - Dedicated guardian verification workflows distinguishing legal parents from court-appointed guardians/caregivers.
+- **Three-Event Statutory Consent Architecture**:
+  - Integrated a formal three-tier consent framework:
+    - **Consent Event A**: General Platform Terms and Privacy Policy acceptance upon user registration.
+    - **Consent Event B**: Explicit, verifiable parental consent under Article 7 of UAE Federal Decree-Law No. 26 of 2025 prior to collecting or processing any child personal data.
+    - **Consent Event C**: Application-specific document review consent per submission before forwarding dossiers to designated government reviewing bodies.
+  - Added dynamic consent withdrawal with automated purging of temporary staged documents and in-memory extraction data upon revoked consent.
+- **Unified Terms & Conditions v1.1 & Policy Gap Closure**:
+  - Consolidated the official `Docintake_Terms_and_Conditions_v1.1_DRAFT` (both Markdown master and 10-page ReportLab PDF), seamlessly bridging all operational specifications from v1.0.
+  - Codified active service SLAs (Basic Registration: 1–2 days, Premium: 3–5 days, Mobility: same-day), demonstrator coming-soon catalog entries, strict unexpired document requirements with auto-purge, and zero-routine developer document access controls.
+  - Synchronized in-app HTML policies (`/policies/terms` and `/policies/privacy`).
+- **Autonomous Service Orchestration on Startup**:
+  - Enhanced `start.py` with proactive health checks that automatically launch Docker Desktop, start compose containers (`docker compose up -d`), and spawn the Ollama background daemon if not already online.
+  - Cleaned up obsolete one-time migration and debug scripts from the repository.
+- **UI Version Indicator**:
+  - Updated the persistent bottom-right status tag to `TASK 1 • v2.5.0`.
+
+---
+
 ## [v2.4.2] — 2026-11-16 (Patch Release: Model Scope Boundary Enforcement & Out-of-Scope Leakage Prevention)
 
 ### Bug Fixes

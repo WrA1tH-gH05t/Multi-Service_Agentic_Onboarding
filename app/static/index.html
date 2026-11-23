@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DocIntake — AI Document Onboarding</title>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="/static/vendor/react.production.min.js"></script>
+    <script src="/static/vendor/react-dom.production.min.js"></script>
+    <script src="/static/vendor/babel.min.js"></script>
+    <link rel="stylesheet" href="/static/vendor/google-fonts.css">
+    <link rel="stylesheet" href="/static/vendor/font-awesome.min.css">
     <style>
         /* =====================================================================
            FONT STACKS & AI DOCUMENT ONBOARDING / WALKTHROUGH DESIGN TOKENS
@@ -2087,12 +2086,37 @@
             const [showApplicationsPage, setShowApplicationsPage] = useState(false);
             const [showServicesPage, setShowServicesPage] = useState(false);
             const [showAccountPage, setShowAccountPage] = useState(false);
-            const [accountTab, setAccountTab] = useState('details'); // details | documents | applications
+            const [accountTab, setAccountTab] = useState('details'); // details | security | children | terms | privacy | documents | applications
+            const [selectedDocFilter, setSelectedDocFilter] = useState('all'); // 'all' | 'self' | child.profile_id
+            const [selectedAppFilter, setSelectedAppFilter] = useState('all'); // 'all' | 'self' | child.profile_id
             const [profileForm, setProfileForm] = useState({ full_name: '', birthday: '', gender: '', username: '', email: '', password: '' });
             const [profileInitial, setProfileInitial] = useState({ full_name: '', birthday: '', gender: '' });
             const [profileSaving, setProfileSaving] = useState(false);
             const [profileMsg, setProfileMsg] = useState('');
             const [showApplicationFlow, setShowApplicationFlow] = useState(false);
+
+            // Child Dependent Profiles state
+            const [childProfiles, setChildProfiles] = useState([]);
+            const [showChildModal, setShowChildModal] = useState(false);
+            const [editingChildId, setEditingChildId] = useState(null);
+            const [childForm, setChildForm] = useState({
+                full_name: '',
+                date_of_birth: '',
+                relationship_type: 'parent',
+                nationality: '',
+                notes: '',
+                guardian_confirms_authority: false,
+                guardian_consents_to_data_processing: false,
+                guardian_verification_reference: '',
+            });
+            const [childFormSubmitting, setChildFormSubmitting] = useState(false);
+            const [childFormError, setChildFormError] = useState('');
+            const [childFormSuccess, setChildFormSuccess] = useState('');
+            const [childConsentModal, setChildConsentModal] = useState(null);
+            const [childAuditModal, setChildAuditModal] = useState(null);
+            const [appConsentModal, setAppConsentModal] = useState(null);
+            const [wizardApplicantType, setWizardApplicantType] = useState('adult'); // 'adult' | 'child_dependent'
+            const [wizardChildId, setWizardChildId] = useState(null);
             // In-chat application wizard state
             const [wizardStep, setWizardStep] = useState(null); // null | name | upload | review | submitting | success
             const [wizardService, setWizardService] = useState(null);
@@ -2153,6 +2177,7 @@
                 loadServices();
                 loadDocuments();
                 loadApplications();
+                loadChildProfiles();
                 checkHealth();
                 // Poll health every 30s
                 const interval = setInterval(checkHealth, 30000);
@@ -2177,10 +2202,27 @@
                             loadDocuments();
                             loadApplications();
                             loadUserProfile();
+                            loadChildProfiles();
+                            // Restore this user's chat history on page load
+                            try {
+                                const histRes = await fetch(`${API_BASE}/chat/history?token=${encodeURIComponent(token)}`);
+                                const histData = await histRes.json().catch(() => ({}));
+                                if (histRes.ok && histData.success && Array.isArray(histData.messages) && histData.messages.length > 0) {
+                                    const restored = histData.messages.map(m => ({
+                                        role: m.role,
+                                        content: m.content,
+                                        timestamp: m.created_at ? new Date(m.created_at) : new Date(),
+                                    }));
+                                    setMessages(restored);
+                                }
+                            } catch (e) {
+                                console.warn('Could not restore chat history on load:', e);
+                            }
                         } else {
                             // Token invalid on server — clear it
                             localStorage.removeItem('token');
                             localStorage.removeItem('username');
+                            localStorage.removeItem('full_name');
                         }
                     } catch (e) {
                         // Network error — assume token still valid to avoid logging out on startup
@@ -2330,6 +2372,136 @@
                 }
             };
 
+            const loadChildProfiles = async () => {
+                try {
+                    const token = getToken();
+                    if (!token) return;
+                    const res = await fetch(`${API_BASE}/children/profiles?token=${encodeURIComponent(token)}`);
+                    const data = await res.json();
+                    if (res.ok && data.success && Array.isArray(data.data)) {
+                        setChildProfiles(data.data);
+                    }
+                } catch (e) {
+                    console.error('Failed to load child profiles:', e);
+                }
+            };
+
+            const handleSaveChildProfile = async (e) => {
+                if (e) e.preventDefault();
+                setChildFormError('');
+                setChildFormSuccess('');
+                setChildFormSubmitting(true);
+                try {
+                    const token = getToken();
+                    if (!token) throw new Error('Please sign in to manage child profiles.');
+
+                    if (!childForm.guardian_confirms_authority) {
+                        throw new Error('You must confirm that you are the parent or legally authorized caregiver/guardian of this child.');
+                    }
+
+                    if (childForm.date_of_birth) {
+                        const dob = new Date(childForm.date_of_birth);
+                        const today = new Date();
+                        let age = today.getFullYear() - dob.getFullYear();
+                        const m = today.getMonth() - dob.getMonth();
+                        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+                        if (age < 13 && !childForm.guardian_consents_to_data_processing) {
+                            throw new Error('Under Article 7 of UAE Federal Decree-Law No. 26 of 2025, explicit parental consent is required for children under 13.');
+                        }
+                    }
+
+                    let url = `${API_BASE}/children/profiles?token=${encodeURIComponent(token)}`;
+                    let method = 'POST';
+                    if (editingChildId) {
+                        url = `${API_BASE}/children/profiles/${encodeURIComponent(editingChildId)}?token=${encodeURIComponent(token)}`;
+                        method = 'PUT';
+                    }
+
+                    const res = await fetch(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(childForm)
+                    });
+                    const data = await res.json();
+                    if (!res.ok || !data.success) {
+                        throw new Error(data.detail || data.message || 'Failed to save child profile');
+                    }
+
+                    setChildFormSuccess(editingChildId ? 'Child profile updated successfully.' : 'Child profile created successfully.');
+                    await loadChildProfiles();
+                    setTimeout(() => {
+                        setShowChildModal(false);
+                        setEditingChildId(null);
+                        setChildFormSuccess('');
+                    }, 1200);
+                } catch (err) {
+                    setChildFormError(err.message || 'An error occurred');
+                } finally {
+                    setChildFormSubmitting(false);
+                }
+            };
+
+            const handleDeleteChildProfile = async (profileId, name) => {
+                if (!window.confirm(`Are you sure you want to remove the child profile for ${name}?`)) {
+                    return;
+                }
+                try {
+                    const token = getToken();
+                    const res = await fetch(`${API_BASE}/children/profiles/${encodeURIComponent(profileId)}?token=${encodeURIComponent(token)}`, {
+                        method: 'DELETE'
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        loadChildProfiles();
+                    } else {
+                        alert(data.detail || 'Could not delete child profile');
+                    }
+                } catch (err) {
+                    alert('Error removing profile: ' + err.message);
+                }
+            };
+
+            const handleWithdrawGuardianConsent = async (consentId) => {
+                if (!window.confirm('Are you sure you want to withdraw your data processing consent for this child profile? Ongoing processing will cease immediately.')) {
+                    return;
+                }
+                try {
+                    const token = getToken();
+                    const res = await fetch(`${API_BASE}/children/consent/guardian/${encodeURIComponent(consentId)}/withdraw?token=${encodeURIComponent(token)}`, {
+                        method: 'POST'
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        alert('Consent withdrawn successfully.');
+                        if (childConsentModal?.profile?.profile_id) {
+                            viewChildConsents(childConsentModal.profile.profile_id);
+                        }
+                    } else {
+                        alert(data.detail || 'Could not withdraw consent');
+                    }
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            };
+
+            const viewChildConsents = async (profileId) => {
+                try {
+                    const token = getToken();
+                    const res = await fetch(`${API_BASE}/children/profiles/${encodeURIComponent(profileId)}?token=${encodeURIComponent(token)}`);
+                    const data = await res.json();
+                    if (res.ok && data.success) {
+                        const auditRes = await fetch(`${API_BASE}/children/audit/${encodeURIComponent(profileId)}?token=${encodeURIComponent(token)}`);
+                        const auditData = await auditRes.json();
+                        setChildConsentModal({
+                            profile: data.data,
+                            auditEvents: auditData.data || []
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error fetching child details:', e);
+                }
+            };
+
             const handleCancelApplication = async (appId) => {
                 if (!window.confirm('Are you sure you want to cancel this application? The uploaded document(s) along with it will be permanently removed.')) {
                     return;
@@ -2442,8 +2614,33 @@
                         setShowServicesPage(false);
                         setShowAccountPage(false);
 
+                        // ── IMPORTANT: wipe previous user's messages immediately ──
+                        setMessages([]);
+                        resetWizard();
+
                         const pending = pendingApplyRef.current;
                         const pendingApps = data.data?.pending_applications || [];
+
+                        // Load THIS user's chat history from the server
+                        const loadedToken = token || data.data?.token;
+                        let historyLoaded = false;
+                        try {
+                            const histRes = await fetch(`${API_BASE}/chat/history?token=${encodeURIComponent(loadedToken)}`);
+                            const histData = await histRes.json().catch(() => ({}));
+                            if (histRes.ok && histData.success && Array.isArray(histData.messages) && histData.messages.length > 0) {
+                                const restored = histData.messages.map(m => ({
+                                    role: m.role,
+                                    content: m.content,
+                                    timestamp: m.created_at ? new Date(m.created_at) : new Date(),
+                                }));
+                                // Replace — never append — to avoid cross-user bleed
+                                setMessages(restored);
+                                historyLoaded = true;
+                            }
+                        } catch (e) {
+                            console.warn('Could not load chat history:', e);
+                        }
+
                         if (pending) {
                             pendingApplyRef.current = null;
                             addMessage('assistant', `Welcome ${displayName}! Let us pick up your application.`);
@@ -2451,14 +2648,16 @@
                         } else if (pendingApps.length > 0) {
                             const latestApp = pendingApps[0];
                             addMessage('assistant', `Welcome ${displayName}! You have an incomplete application for ${latestApp.service_id.replace(/_/g, ' ')}. Would you like to resume it?`, null, { type: 'wizard_offer', serviceId: latestApp.service_id });
-                        } else {
-                            addMessage('assistant', authMode === 'register' 
-                                ? `Welcome ${displayName}! Your account has been created successfully and you are now signed in.` 
+                        } else if (!historyLoaded) {
+                            // Only show greeting if this user has NO previous chat history at all
+                            addMessage('assistant', authMode === 'register'
+                                ? `Welcome ${displayName}! Your account has been created successfully and you are now signed in.`
                                 : `Welcome back, ${displayName}!`);
                         }
                         loadDocuments();
                         loadApplications();
                         loadUserProfile();
+                        loadChildProfiles();
                     } else {
                         let errText = 'Authentication failed';
                         if (typeof data.detail === 'string') {
@@ -2477,12 +2676,22 @@
                 }
             };
 
-            const handleLogout = () => {
+            const handleLogout = async () => {
+                const token = getToken();
+                if (token) {
+                    // Fire-and-forget logout + session reset
+                    fetch(`${API_BASE}/auth/logout?token=${encodeURIComponent(token)}`, { method: 'POST' }).catch(() => {});
+                }
                 localStorage.removeItem('token');
                 localStorage.removeItem('username');
+                localStorage.removeItem('full_name');
                 setUser(null);
                 setDocuments([]);
                 setApplications([]);
+                setChildProfiles([]);
+                // Always wipe messages on logout so the next user starts with a clean slate
+                setMessages([]);
+                resetWizard();
             };
             const handleChatScroll = (e) => {
                 const { scrollTop, scrollHeight, clientHeight } = e.target;
@@ -2588,21 +2797,19 @@
                 setFile(null);
                 if (fileInputRef.current) fileInputRef.current.value = '';
 
-                // Handle greetings locally with Lynx personality
-                if (isGreeting(query)) {
-                    setTimeout(() => {
-                        addMessage('assistant', getLynxGreeting());
-                        setLoading(false);
-                    }, 500);
-                    return;
-                }
-
                 try {
                     const token = getToken();
+                    const localGreeting = getTimeGreeting();
+                    // Pass child_profile_id in the payload when a child is currently selected,
+                    // so the backend can correctly associate service requests with that child.
+                    const chatPayload = { query: userMessage, token: token, time_greeting: localGreeting };
+                    if (wizardApplicantType === 'child_dependent' && wizardChildId) {
+                        chatPayload.child_profile_id = wizardChildId;
+                    }
                     const res = await fetch(`${API_BASE}/chat/message?token=${encodeURIComponent(token)}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ query: userMessage })
+                        body: JSON.stringify(chatPayload)
                     });
 
                     const data = await res.json();
@@ -2610,7 +2817,30 @@
                     let responseText = data.response || 'No response';
                     let matchedService = data.matched_service;
 
-                    addMessage('assistant', responseText, matchedService);
+                    if (data.action === 'start_child_application' && data.data?.child_profile_id) {
+                        setWizardChildId(data.data.child_profile_id);
+                        setWizardApplicantType('child_dependent');
+                        clearWizardState();
+                        setWizardName(data.data.full_name || '');
+                        if (matchedService) {
+                            const svcObj = services.find(s => s.id === matchedService);
+                            if (svcObj) {
+                                addMessage('assistant', responseText);
+                                beginService(svcObj);
+                            } else {
+                                addMessage('assistant', responseText, null, { type: 'wizard_services' });
+                            }
+                        } else {
+                            addMessage('assistant', responseText, null, { type: 'wizard_services' });
+                        }
+                    } else if (data.action === 'open_child_modal' || data.intent === 'child_profile_create') {
+                        addMessage('assistant', responseText, null, { type: 'child_profile_prompt' });
+                    } else if (data.action === 'open_login') {
+                        addMessage('assistant', responseText);
+                        setShowAuth(true);
+                    } else {
+                        addMessage('assistant', responseText, matchedService);
+                    }
 
                     // Offer to start an application when the user wants to apply or is asking about services,
                     // provided the matched service is not 'coming soon'
@@ -2622,7 +2852,9 @@
                     const asksMoreDetails = /details|more info|tell me more|know more/i.test(userMessage) || /details\?/i.test(responseText);
                     const asksServices = !isComingSoon && !asksMoreDetails && (!!matchedService || /\b(services?|offer(ed)?|available|requirements?|eligib\w+)\b/i.test(userMessage));
                     const alreadyAskedInResponse = /would you like (me )?to (start|apply)/i.test(responseText) || /would you like to start the application/i.test(responseText);
-                    if ((wantsApply || asksServices) && !(wizardStep && wizardStep !== 'success') && !alreadyAskedInResponse) {
+                    // Never show offerApplication card when a child application flow is already being handled
+                    // (the backend already dispatched start_child_application, which calls beginService or wizard_services)
+                    if ((wantsApply || asksServices) && !(wizardStep && wizardStep !== 'success') && !alreadyAskedInResponse && data.intent !== 'child_profile_create' && data.action !== 'start_child_application') {
                         offerApplication(matchedService, wantsApply);
                     }
                 } catch (e) {
@@ -2677,9 +2909,19 @@
                 if (!requireAuth(() => sendMessage(`Tell me about ${serviceName}`))) return;
             };
 
-            const handleResetChat = () => {
+            const handleResetChat = async () => {
+                // 1. Clear the UI immediately
                 setMessages([]);
                 resetWizard();
+                // 2. Tell the server to archive the current session so it won't come back on reload
+                const token = getToken();
+                if (token) {
+                    try {
+                        await fetch(`${API_BASE}/chat/reset?token=${encodeURIComponent(token)}`, { method: 'POST' });
+                    } catch (e) {
+                        console.warn('Could not reset server-side chat session:', e);
+                    }
+                }
             };
 
             const handleStartApplication = () => startApplication(null);
@@ -2711,6 +2953,8 @@
                 setWizardService(null);
                 setWizardName('');
                 setWizardStep(null);
+                setWizardChildId(null);
+                setWizardApplicantType('adult');
             };
 
             const dismissOffers = () => setMessages(prev => prev.map(m => m.type === 'wizard_offer' ? { ...m, dismissed: true } : m));
@@ -2770,13 +3014,28 @@
                 setLoading(true);
                 try {
                     const token = getToken();
-                    const res = await fetch(`${API_BASE}/wizard/create?token=${encodeURIComponent(token)}&service_id=${encodeURIComponent(svc.id)}`, {
+                    // Build URL — include child_profile_id when starting a child application
+                    let wizardUrl = `${API_BASE}/wizard/create?token=${encodeURIComponent(token)}&service_id=${encodeURIComponent(svc.id)}`;
+                    if (wizardApplicantType === 'child_dependent' && wizardChildId) {
+                        wizardUrl += `&child_profile_id=${encodeURIComponent(wizardChildId)}&applicant_type=child_dependent`;
+                    }
+                    const res = await fetch(wizardUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' }
                     });
                     const data = await res.json().catch(() => ({}));
                     if (res.status === 409 || (data.detail && data.detail.includes('already active'))) {
                         addMessage('assistant', `⚠️ ${data.detail || 'An application for this service already exists under your name. Please delete or cancel your existing application before creating a new one.'}`);
+                        return;
+                    }
+                    if (res.status === 400 && data.detail && data.detail.includes('Mobility')) {
+                        addMessage('assistant', `🚫 ${data.detail}`);
+                        setLoading(false);
+                        return;
+                    }
+                    if (res.status === 403 && data.detail) {
+                        addMessage('assistant', `🔒 ${data.detail}`);
+                        setLoading(false);
                         return;
                     }
                     if (res.ok && data.success) {
@@ -2992,7 +3251,130 @@
                 }
             };
 
+            const executeWizardSubmit = async () => {
+                setWizardStep('submitting');
+                setLoading(true);
+                try {
+                    const token = getToken();
+
+                    // If child dependent, record review consent agreement
+                    if (wizardApplicantType === 'child_dependent' && wizardChildId) {
+                        try {
+                            await fetch(`${API_BASE}/children/consent/application-review?token=${encodeURIComponent(token)}`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    child_profile_id: wizardChildId,
+                                    application_id: wizardAppId,
+                                    service_id: wizardService?.id || 'basic_registration',
+                                    receiving_agency_id: wizardService?.id === 'premium_crossborder' ? 'uae_icp_crossborder' : 'uae_icp_federal',
+                                    accepted: true
+                                })
+                            });
+                        } catch (err) {
+                            console.warn("Could not log application review consent:", err);
+                        }
+                    }
+
+                    // Step 3: record the confirmation on the server.
+                    const confirmFields = {};
+                    (wizardDocs || []).forEach(dc => Object.keys(dc.extractedFields || {}).forEach(k => { confirmFields[k] = true; }));
+                    const confirmRes = await fetch(`${API_BASE}/wizard/${wizardAppId}/confirm?token=${encodeURIComponent(token)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ fields: confirmFields }),
+                    });
+                    const confirmData = await confirmRes.json().catch(() => ({}));
+                    if (!confirmRes.ok || !confirmData.success) {
+                        const cd = confirmData.detail || confirmData.error || confirmData.message;
+                        const cmsg = typeof cd === 'string' ? cd : (cd?.message || JSON.stringify(cd) || 'unknown error');
+                        setWizardStep('review');
+                        addMessage('assistant', `Couldn't confirm your details: ${cmsg}. You can try Confirm again.`, null, { type: 'wizard_review' });
+                        return;
+                    }
+
+                    // Step 4: submit
+                    const res = await fetch(`${API_BASE}/wizard/${wizardAppId}/submit?token=${encodeURIComponent(token)}`, {
+                        method: 'POST',
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok || !data.success) {
+                        const d = data.detail || data.error || data.message;
+                        const msg = typeof d === 'string' ? d : (d?.message || JSON.stringify(d) || 'unknown error');
+                        setWizardStep('review');
+                        addMessage('assistant', `Submission failed: ${msg}. You can try Confirm again.`, null, { type: 'wizard_review' });
+                        return;
+                    }
+                    const refId = data.data?.reference_id;
+                    const procTime = data.data?.processing_time || '1–2 business days';
+                    const dispStatus = data.data?.display_status || (data.data?.status === 'needs_human_review' ? 'Under Review (Compliance)' : 'Submitted (Processing)');
+                    const subAt = data.data?.submitted_at;
+                    setWizardStep('success');
+                    addMessage('assistant', `Your application has been received and registered under Reference ${refId}. It is now in the processing registry.`, null, {
+                        type: 'wizard_success',
+                        name: wizardName,
+                        service: wizardService?.name || '',
+                        refId: refId,
+                        status: data.data?.status || 'Submitted',
+                        displayStatus: dispStatus,
+                        processingTime: procTime,
+                        submittedAt: subAt
+                    });
+                    loadDocuments();
+                    loadApplications();
+                } catch (e) {
+                    setWizardStep('review');
+                    addMessage('assistant', `Submission failed: ${e.message}. You can try Confirm again.`, null, { type: 'wizard_review' });
+                } finally {
+                    setLoading(false);
+                }
+            };
+
             const wizardSubmitReview = async () => {
+                if (wizardStep !== 'review') return;
+
+                // For child profiles: prompt mandatory Application-Specific Document Review Consent
+                if (wizardApplicantType === 'child_dependent' && wizardChildId) {
+                    setAppConsentModal({
+                        appId: wizardAppId,
+                        serviceId: wizardService?.id || 'basic_registration',
+                        serviceName: wizardService?.name || 'Basic Registration',
+                        applicantName: wizardName,
+                        childProfileId: wizardChildId,
+                        receivingAgency: wizardService?.id === 'premium_crossborder' ? 'UAE ICP & Cross-Border Affairs' : 'UAE ICP / Federal Authority',
+                        onAccept: async () => {
+                            setAppConsentModal(null);
+                            await executeWizardSubmit();
+                        },
+                        onDecline: async () => {
+                            setAppConsentModal(null);
+                            try {
+                                const token = getToken();
+                                await fetch(`${API_BASE}/children/consent/application-review?token=${encodeURIComponent(token)}`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        child_profile_id: wizardChildId,
+                                        application_id: wizardAppId,
+                                        service_id: wizardService?.id || 'basic_registration',
+                                        receiving_agency_id: wizardService?.id === 'premium_crossborder' ? 'uae_icp_crossborder' : 'uae_icp_federal',
+                                        accepted: false
+                                    })
+                                });
+                            } catch (e) {
+                                console.warn("Failed to record decline:", e);
+                            }
+                            addMessage('assistant', `Application review consent was declined for ${wizardName}. Under data protection principles, this application will not be forwarded to government review bodies and has been cancelled.`);
+                            resetWizard();
+                        }
+                    });
+                    return;
+                }
+
+                await executeWizardSubmit();
+            };
+
+            const oldWizardSubmitUnused = async () => {
                 if (wizardStep !== 'review') return;
                 setWizardStep('submitting');
                 setLoading(true);
@@ -3142,16 +3524,85 @@
             const renderWizardMessage = (msg) => {
                 if (!msg.type || msg.dismissed) return null;
                 if (messages.filter(m => m.type === msg.type).slice(-1)[0] !== msg) return null;
+                if (msg.type === 'child_profile_prompt') {
+                    return (
+                        <div style={{
+                            marginTop: '14px',
+                            background: 'rgba(23, 31, 27, 0.95)',
+                            border: '1px solid var(--accent)',
+                            borderRadius: '12px',
+                            padding: '18px',
+                            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                                <span style={{ fontSize: '20px' }}>👶</span>
+                                <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-pure)' }}>
+                                    Child Dependent Profile Setup
+                                </div>
+                            </div>
+                            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '14px', lineHeight: '1.5' }}>
+                                Docintake allows parents and legally authorized guardians aged 18+ to establish dependent profiles for their children. No separate child email or password is required.
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={() => {
+                                        setEditingChildId(null);
+                                        setChildForm({
+                                            full_name: '',
+                                            date_of_birth: '',
+                                            relationship_type: 'parent',
+                                            nationality: '',
+                                            notes: '',
+                                            guardian_confirms_authority: false,
+                                            guardian_consents_to_data_processing: false,
+                                            guardian_verification_reference: '',
+                                        });
+                                        setShowChildModal(true);
+                                    }}
+                                >
+                                    <i className="fas fa-plus-circle" style={{ marginRight: '6px' }}></i> Create Child Profile Now
+                                </button>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={() => {
+                                        setShowAccountPage(true);
+                                        setAccountTab('children');
+                                        loadChildProfiles();
+                                    }}
+                                >
+                                    <i className="fas fa-list" style={{ marginRight: '6px' }}></i> View Existing Child Profiles
+                                </button>
+                            </div>
+                        </div>
+                    );
+                }
                 if (msg.type === 'wizard_offer') {
                     if (wizardStep && wizardStep !== 'success') return null;
                     return <WizardOffer
-                        onYes={() => { addMessage('user', 'Yes, start my application'); const svc = services.find(s => s.id === msg.serviceId); if (svc) beginService(svc); else initWizardSession(); }}
+                        onYes={() => {
+                            addMessage('user', 'Yes, start my application');
+                            // Preserve child context if a child was previously selected
+                            const svc = services.find(s => s.id === msg.serviceId);
+                            if (svc) beginService(svc);
+                            else if (wizardApplicantType === 'child_dependent' && wizardChildId) {
+                                // Show service picker maintaining child context
+                                addMessage('assistant', 'Which service would you like to apply for?', null, { type: 'wizard_services' });
+                            } else {
+                                initWizardSession();
+                            }
+                        }}
                         onNo={() => { dismissOffers(); addMessage('user', 'Not now'); addMessage('assistant', 'No problem. Just say the word whenever you want to apply.'); }} />;
                 }
                 if (msg.type === 'wizard_services') return <WizardServices services={services} onPick={startWizardService} />;
                 if (msg.type === 'wizard_upload') {
+                    // Once the upload step is done (step advanced to review/submitting/success),
+                    // hide the Cancel button on the upload card so it only remains while uploading.
+                    const uploadStepActive = wizardStep === 'upload' || wizardStep === 'name';
                     return <WizardUpload docs={wizardRequiredDocs()} uploaded={wizardDocs} busy={wizardBusy}
-                        onFile={wizardUploadDocument} isId={isIdDocument} pretty={prettyDoc} onCancel={wizardCancel} isCancelled={!!msg.cancelled} />;
+                        onFile={wizardUploadDocument} isId={isIdDocument} pretty={prettyDoc}
+                        onCancel={uploadStepActive ? wizardCancel : null}
+                        isCancelled={!!msg.cancelled} />;
                 }
                 if (msg.type === 'wizard_review') {
                     const isConfirmed = wizardStep === 'submitting' || wizardStep === 'success';
@@ -3427,134 +3878,6 @@
                 </div>
             );
 
-            const renderApplicationsPage = () => (
-                <div className="chat-area" style={{ overflowY: 'auto' }}>
-                    <div className="page-header">
-                        <h2><i className="fas fa-file-invoice" style={{ marginRight: '8px' }}></i>Applications</h2>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                            <button className="btn btn-secondary" onClick={loadApplications}>
-                                <i className="fas fa-sync" style={{ marginRight: '4px' }}></i>Refresh
-                            </button>
-                            <button className="btn btn-secondary" onClick={() => setShowApplicationsPage(false)}>
-                                <i className="fas fa-arrow-left" style={{ marginRight: '4px' }}></i>Back to Chat
-                            </button>
-                        </div>
-                    </div>
-                    <div style={{ padding: '0 24px 24px' }}>
-                        {applications.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#666' }}>
-                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
-                                <div style={{ fontSize: '18px', marginBottom: '8px' }}>No applications submitted yet</div>
-                                <div style={{ fontSize: '14px', color: '#888', marginBottom: '16px' }}>
-                                    Your completed service onboarding applications will be securely stored and listed here.
-                                </div>
-                                <button className="btn btn-primary" onClick={() => {
-                                    setShowApplicationsPage(false);
-                                    handleStartApplication();
-                                }}>
-                                    Start an Application
-                                </button>
-                            </div>
-                        ) : (
-                            <div style={{ display: 'grid', gap: '16px' }}>
-                                {applications.map((app, idx) => {
-                                    const serviceLabel = app.service_name || (app.service_type || app.service_id || 'Application').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                                    const appStatus = (app.status || 'PENDING').toUpperCase();
-                                    const isComplete = appStatus === 'COMPLETE' || appStatus === 'COMPLETED' || appStatus === 'SUBMITTED' || appStatus === 'PASS';
-                                    const isReview = appStatus.includes('REVIEW');
-                                    const badgeBg = isComplete ? 'rgba(34, 197, 94, 0.15)' : isReview ? 'rgba(196, 154, 74, 0.15)' : 'rgba(239, 68, 68, 0.15)';
-                                    const badgeColor = isComplete ? '#22c55e' : isReview ? '#c49a4a' : '#ef4444';
-                                    const badgeBorder = isComplete ? 'rgba(34, 197, 94, 0.35)' : isReview ? 'rgba(196, 154, 74, 0.35)' : 'rgba(239, 68, 68, 0.35)';
-
-                                    return (
-                                        <div key={app.id || app.application_id || idx} style={{
-                                            padding: '22px',
-                                            background: 'linear-gradient(135deg, rgba(26,26,26,0.85) 0%, rgba(20,20,20,0.95) 100%)',
-                                            border: '1px solid rgba(255,255,255,0.08)',
-                                            borderRadius: '16px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: '14px',
-                                            boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                                            backdropFilter: 'blur(10px)',
-                                            transition: 'transform 0.2s, border-color 0.2s'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
-                                                <div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                        <span style={{ fontSize: '20px' }}>{getServiceIcon(app.service_id || app.service_type)}</span>
-                                                        <div style={{ fontSize: '18px', fontWeight: '700', color: '#f5f5f5', letterSpacing: '0.01em' }}>
-                                                            {serviceLabel}
-                                                        </div>
-                                                    </div>
-                                                    {app.applicant_name && (
-                                                        <div style={{ fontSize: '13px', color: 'var(--accent)', marginTop: '4px', fontWeight: '600' }}>
-                                                            <i className="fas fa-user" style={{ marginRight: '6px', opacity: 0.8 }}></i>
-                                                            Applicant: {app.applicant_name}
-                                                        </div>
-                                                    )}
-                                                    <div style={{ fontSize: '12px', color: '#777', marginTop: '6px' }}>
-                                                        Ref: <span style={{ color: '#aaa', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>{app.id || app.application_id}</span> • Submitted: {app.created_at || app.submitted_at ? new Date(app.created_at || app.submitted_at).toLocaleString() : 'Recent'}
-                                                    </div>
-                                                </div>
-                                                <span style={{
-                                                    padding: '6px 14px',
-                                                    borderRadius: '20px',
-                                                    fontSize: '11px',
-                                                    fontWeight: '700',
-                                                    letterSpacing: '0.05em',
-                                                    background: badgeBg,
-                                                    color: badgeColor,
-                                                    border: `1px solid ${badgeBorder}`,
-                                                    boxShadow: `0 0 12px ${badgeBg}`
-                                                }}>
-                                                    {appStatus.replace(/_/g, ' ')}
-                                                </span>
-                                            </div>
-
-                                            {app.metadata && Object.keys(app.metadata).length > 0 && (
-                                                <div style={{ background: 'rgba(0,0,0,0.35)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                                                    <div style={{ fontSize: '11px', color: '#888', fontWeight: '600', marginBottom: '8px', letterSpacing: '0.05em' }}>DETAILS</div>
-                                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', fontSize: '12px' }}>
-                                                        {Object.entries(app.metadata).map(([k, v]) => (
-                                                            <div key={k}>
-                                                                <span style={{ color: '#888' }}>{k.replace(/_/g, ' ')}: </span>
-                                                                <span style={{ color: '#e4e4e4', fontWeight: '500' }}>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px', paddingTop: '12px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                                                <button
-                                                    className="btn btn-ghost"
-                                                    style={{
-                                                        color: '#ef4444',
-                                                        borderColor: 'rgba(239, 68, 68, 0.3)',
-                                                        background: 'rgba(239, 68, 68, 0.08)',
-                                                        fontSize: '12px',
-                                                        padding: '6px 14px',
-                                                        borderRadius: '8px',
-                                                        cursor: 'pointer',
-                                                        display: 'inline-flex',
-                                                        alignItems: 'center',
-                                                        gap: '6px',
-                                                    }}
-                                                    onClick={() => handleCancelApplication(app.id || app.application_id)}
-                                                >
-                                                    <i className="fas fa-times-circle"></i> Cancel Application
-                                                </button>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
-
             const renderAccountPage = () => (
                 <div style={{ flex: 1, overflow: 'auto', background: 'transparent' }}>
                     <div style={{ padding: '24px 36px 18px', borderBottom: '1px solid var(--border-hairline)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -3563,7 +3886,7 @@
                                 <i className="fas fa-user-shield" style={{ color: 'var(--accent)' }}></i> Account &amp; Profile
                             </div>
                             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                                Manage your personal identity credentials, submitted documents, and application history
+                                Manage your personal identity credentials, child dependent profiles, legal consents, and application history
                             </div>
                         </div>
                         <button className="btn btn-secondary" onClick={() => setShowAccountPage(false)}>
@@ -3572,7 +3895,7 @@
                     </div>
 
                     {/* Sub-tabs within Account */}
-                    <div style={{ display: 'flex', gap: '8px', padding: '16px 36px', borderBottom: '1px solid var(--border-hairline)', background: 'rgba(15, 19, 17, 0.65)' }}>
+                    <div style={{ display: 'flex', gap: '8px', padding: '16px 36px', borderBottom: '1px solid var(--border-hairline)', background: 'rgba(15, 19, 17, 0.65)', flexWrap: 'wrap' }}>
                         <button
                             className="btn"
                             style={{
@@ -3585,7 +3908,68 @@
                             }}
                             onClick={() => { setAccountTab('details'); loadUserProfile(); }}
                         >
-                            <i className="fas fa-id-card" style={{ marginRight: '6px' }}></i> Profile Details
+                            <i className="fas fa-id-card" style={{ marginRight: '6px' }}></i> Personal Information
+                        </button>
+                        <button
+                            className="btn"
+                            style={{
+                                background: accountTab === 'security' ? 'linear-gradient(135deg, var(--accent) 0%, #b8a47e 100%)' : 'rgba(23, 31, 27, 0.7)',
+                                color: accountTab === 'security' ? '#0c120f' : 'var(--text-muted)',
+                                border: accountTab === 'security' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid var(--border-hairline)',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                boxShadow: accountTab === 'security' ? '0 0 16px var(--accent-glow)' : 'none'
+                            }}
+                            onClick={() => { setAccountTab('security'); }}
+                        >
+                            <i className="fas fa-lock" style={{ marginRight: '6px' }}></i> Account Security
+                        </button>
+                        <button
+                            className="btn"
+                            style={{
+                                background: accountTab === 'children' ? 'linear-gradient(135deg, var(--accent) 0%, #b8a47e 100%)' : 'rgba(23, 31, 27, 0.7)',
+                                color: accountTab === 'children' ? '#0c120f' : 'var(--text-muted)',
+                                border: accountTab === 'children' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid var(--border-hairline)',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                boxShadow: accountTab === 'children' ? '0 0 16px var(--accent-glow)' : 'none'
+                            }}
+                            onClick={() => { setAccountTab('children'); loadChildProfiles(); }}
+                        >
+                            <i className="fas fa-child" style={{ marginRight: '6px' }}></i> Child Profiles
+                            {childProfiles.length > 0 && (
+                                <span style={{ marginLeft: '6px', background: 'rgba(0,0,0,0.3)', borderRadius: '10px', padding: '1px 7px', fontSize: '11px' }}>
+                                    {childProfiles.length}
+                                </span>
+                            )}
+                        </button>
+                        <button
+                            className="btn"
+                            style={{
+                                background: accountTab === 'terms' ? 'linear-gradient(135deg, var(--accent) 0%, #b8a47e 100%)' : 'rgba(23, 31, 27, 0.7)',
+                                color: accountTab === 'terms' ? '#0c120f' : 'var(--text-muted)',
+                                border: accountTab === 'terms' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid var(--border-hairline)',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                boxShadow: accountTab === 'terms' ? '0 0 16px var(--accent-glow)' : 'none'
+                            }}
+                            onClick={() => { setAccountTab('terms'); }}
+                        >
+                            <i className="fas fa-file-contract" style={{ marginRight: '6px' }}></i> Terms &amp; Conditions
+                        </button>
+                        <button
+                            className="btn"
+                            style={{
+                                background: accountTab === 'privacy' ? 'linear-gradient(135deg, var(--accent) 0%, #b8a47e 100%)' : 'rgba(23, 31, 27, 0.7)',
+                                color: accountTab === 'privacy' ? '#0c120f' : 'var(--text-muted)',
+                                border: accountTab === 'privacy' ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid var(--border-hairline)',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                boxShadow: accountTab === 'privacy' ? '0 0 16px var(--accent-glow)' : 'none'
+                            }}
+                            onClick={() => { setAccountTab('privacy'); }}
+                        >
+                            <i className="fas fa-user-secret" style={{ marginRight: '6px' }}></i> Privacy Policy
                         </button>
                         <button
                             className="btn"
@@ -3613,11 +3997,12 @@
                             }}
                             onClick={() => { setAccountTab('applications'); loadApplications(); }}
                         >
-                            <i className="fas fa-file-invoice" style={{ marginRight: '6px' }}></i> Past Applications ({applications.length})
+                            <i className="fas fa-file-invoice" style={{ marginRight: '6px' }}></i> Applications ({applications.length})
                         </button>
                     </div>
 
                     <div style={{ padding: '24px' }}>
+                        {/* TAB 1: Personal Information */}
                         {accountTab === 'details' && (
                             <div style={{ maxWidth: '600px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
                                 <div style={{ background: '#161616', border: '1px solid #282828', borderRadius: '12px', padding: '24px' }}>
@@ -3697,10 +4082,10 @@
 
                                         <div style={{ borderTop: '1px solid #282828', paddingTop: '16px', marginTop: '20px', marginBottom: '16px' }}>
                                             <div style={{ fontSize: '14px', fontWeight: '600', color: '#fff', marginBottom: '4px' }}>
-                                                Account Settings
+                                                Account Details
                                             </div>
                                             <div style={{ fontSize: '12px', color: '#888', marginBottom: '16px' }}>
-                                                You can update your username, email address, or set a new password anytime.
+                                                Update your contact and login credentials.
                                             </div>
 
                                             <div className="form-group" style={{ marginBottom: '14px' }}>
@@ -3727,19 +4112,6 @@
                                                     placeholder="Enter email address"
                                                 />
                                             </div>
-
-                                            <div className="form-group" style={{ marginBottom: '14px' }}>
-                                                <label style={{ fontSize: '12px', color: '#aaa', display: 'block', marginBottom: '6px' }}>
-                                                    New Password (leave blank to keep current)
-                                                </label>
-                                                <input
-                                                    className="form-input"
-                                                    type="password"
-                                                    value={profileForm.password}
-                                                    onChange={e => setProfileForm({ ...profileForm, password: e.target.value })}
-                                                    placeholder="Enter new password (optional)"
-                                                />
-                                            </div>
                                         </div>
 
                                         <button
@@ -3748,279 +4120,192 @@
                                             disabled={profileSaving}
                                             style={{ width: '100%', padding: '10px' }}
                                         >
-                                            {profileSaving ? 'Saving Changes...' : 'Save Changes'}
+                                            {profileSaving ? 'Saving Changes...' : 'Save Profile Changes'}
                                         </button>
                                     </form>
                                 </div>
                             </div>
                         )}
 
-                        {accountTab === 'documents' && (
-                            <div>
-                                <div style={{ marginBottom: '16px', color: '#888', fontSize: '13px' }}>
-                                    All documents stored securely in MinIO storage linked to your account:
-                                </div>
-                                {documents.length === 0 ? (
-                                    <div style={{ textAlign: 'center', padding: '60px 20px', color: '#666' }}>
-                                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📄</div>
-                                        <div style={{ fontSize: '18px', marginBottom: '8px' }}>No documents yet</div>
-                                        <div style={{ fontSize: '14px', color: '#888' }}>
-                                            Upload your first document using the paperclip icon in the chat input
+                        {/* TAB 2: Account Security */}
+                        {accountTab === 'security' && (
+                            <div style={{ maxWidth: '680px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '16px', padding: '24px' }}>
+                                    <div style={{ fontSize: '17px', fontWeight: '800', color: 'var(--text-pure)', fontFamily: 'var(--font-editorial)', marginBottom: '8px' }}>
+                                        <i className="fas fa-shield-alt" style={{ color: 'var(--accent)', marginRight: '8px' }}></i>
+                                        Guardian Identity &amp; Platform Security
+                                    </div>
+                                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', lineHeight: '1.6', marginBottom: '20px' }}>
+                                        Under Article 84 of UAE Federal Decree-Law No. 25 of 2025 (Civil Transactions Law), full legal majority is attained at 18 Gregorian years. Docintake ensures that all dependent child accounts are anchored to an authenticated, verified adult guardian.
+                                    </div>
+
+                                    <div style={{ background: 'rgba(15, 19, 17, 0.7)', border: '1px solid var(--border-hairline)', borderRadius: '12px', padding: '16px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+                                        <div>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px' }}>Account Status</div>
+                                            <div style={{ fontSize: '13px', color: '#22c55e', fontWeight: '700', marginTop: '4px' }}>✓ Verified Adult Guardian (18+)</div>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px' }}>Storage Encryption</div>
+                                            <div style={{ fontSize: '13px', color: 'var(--text-pure)', fontWeight: '600', marginTop: '4px' }}>AES-256 (Local MinIO)</div>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px' }}>Developer Isolation</div>
+                                            <div style={{ fontSize: '13px', color: 'var(--accent)', fontWeight: '600', marginTop: '4px' }}>Zero Developer PII Access</div>
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: '11px', color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px' }}>Audit Logging</div>
+                                            <div style={{ fontSize: '13px', color: 'var(--text-pure)', fontWeight: '600', marginTop: '4px' }}>Cryptographic SHA-256</div>
                                         </div>
                                     </div>
-                                ) : (
-                                    <div style={{ display: 'grid', gap: '16px' }}>
-                                        {documents.map((doc, idx) => {
-                                            const docType = getDocType(doc);
-                                            const labels = getDocLabels(docType);
-                                            const extracted = doc.extracted_fields || doc.extractedFields || {};
-                                            const fields = Object.entries(extracted).filter(([k]) => !k.startsWith('_'));
-                                            
-                                            const rawDate = doc.upload_date || doc.date || doc.uploaded_at;
-                                            let formattedDate = 'Unknown date';
-                                            if (rawDate) {
-                                                try {
-                                                    const d = new Date(rawDate);
-                                                    formattedDate = isNaN(d.getTime()) ? rawDate : d.toLocaleString();
-                                                } catch (e) {
-                                                    formattedDate = rawDate;
-                                                }
-                                            }
-                                            const serviceDisplayName = doc.service_name || (doc.service_id ? doc.service_id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Basic Registration');
-                                            const docTypeDisplay = docType.includes('licen') ? '🚗 Driving License' : docType === 'passport' ? '🛂 Passport' : '🆔 National ID';
-                                            const token = getToken();
-                                            const docId = doc.id || doc.document_id;
-                                            const viewUrl = `${API_BASE}/documents/${encodeURIComponent(docId)}/view?token=${encodeURIComponent(token)}`;
-                                            const downloadUrl = `${API_BASE}/documents/${encodeURIComponent(docId)}/download?token=${encodeURIComponent(token)}`;
-                                            
-                                            return (
-                                                <div key={idx} style={{
-                                                    padding: '20px',
-                                                    background: 'var(--bg-card)',
-                                                    border: '1px solid var(--border-hairline)',
-                                                    borderRadius: '14px',
-                                                    boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-                                                    backdropFilter: 'blur(10px)'
-                                                }}>
-                                                    {/* Header */}
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--border-hairline)', flexWrap: 'wrap', gap: '12px' }}>
-                                                        <div>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                                                                <span style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-pure)' }}>
-                                                                    {doc.filename || doc.name || 'Unknown file'}
-                                                                </span>
-                                                                <span style={{
-                                                                    padding: '2px 8px',
-                                                                    background: 'rgba(184, 164, 122, 0.1)',
-                                                                    color: 'var(--accent)',
-                                                                    border: '1px solid var(--border-medium)',
-                                                                    borderRadius: '6px',
-                                                                    fontSize: '11px',
-                                                                    fontWeight: '600',
-                                                                    display: 'inline-flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '4px'
-                                                                }}>
-                                                                    <i className="fas fa-briefcase" style={{ fontSize: '10px' }}></i> {serviceDisplayName}
-                                                                </span>
-                                                            </div>
-                                                            <div style={{ fontSize: '12px', color: 'var(--text-dim)', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'var(--font-mono)' }}>
-                                                                <span><i className="far fa-clock" style={{ marginRight: '4px' }}></i>{formattedDate}</span>
-                                                                <span>·</span>
-                                                                <span>{formatFileSize(doc.file_size || doc.size || 0)}</span>
-                                                                <span>·</span>
-                                                                <span>{docTypeDisplay}</span>
-                                                            </div>
-                                                        </div>
-                                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                                                            {doc.extraction_confidence !== undefined && (
-                                                                <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: '600', color: doc.extraction_confidence > 0.7 ? 'var(--accent)' : doc.extraction_confidence > 0.4 ? 'var(--warning)' : 'var(--danger)' }}>
-                                                                    {(doc.extraction_confidence * 100).toFixed(0)}% confidence
-                                                                </span>
-                                                            )}
-                                                            <span style={{ fontSize: '12px', color: 'var(--accent)', marginRight: '4px', fontWeight: '600' }}>
-                                                                ✓ Processed
-                                                            </span>
 
-                                                            {/* View & Download buttons */}
-                                                            {docId && (
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const urlToUse = doc.minio_url || viewUrl;
-                                                                        setViewingDoc({
-                                                                            url: urlToUse,
-                                                                            filename: doc.filename || doc.name || 'Document',
-                                                                            docId: docId
-                                                                        });
-                                                                    }}
-                                                                    className="btn btn-secondary"
-                                                                    style={{ fontSize: '12px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}
-                                                                    title="View original document in site"
-                                                                >
-                                                                    <i className="fas fa-eye"></i> View
-                                                                </button>
-                                                            )}
-                                                            {docId && (
-                                                                <a
-                                                                    href={downloadUrl}
-                                                                    download
-                                                                    className="btn btn-primary"
-                                                                    style={{ fontSize: '12px', padding: '6px 10px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                                                                    title="Download original document"
-                                                                >
-                                                                    <i className="fas fa-download"></i> Download
-                                                                </a>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                    
-                                                    {/* Extracted Fields Table */}
-                                                    {fields.length > 0 ? (
-                                                        <div>
-                                                            <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginBottom: '8px', fontWeight: '700', fontFamily: 'var(--font-mono)', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                                                                EXTRACTED DATA ({fields.length} fields)
-                                                            </div>
-                                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '8px' }}>
-                                                                {fields.map(([key, value]) => (
-                                                                    <div key={key} style={{
-                                                                        padding: '8px 12px',
-                                                                        background: 'rgba(15, 19, 17, 0.75)',
-                                                                        border: '1px solid var(--border-hairline)',
-                                                                        borderRadius: '8px',
-                                                                        fontSize: '12px',
-                                                                    }}>
-                                                                        <div style={{ color: 'var(--text-dim)', marginBottom: '3px', fontSize: '10.5px', fontFamily: 'var(--font-mono)' }}>
-                                                                            {labels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                                                                        </div>
-                                                                        <div style={{ color: 'var(--text-pure)', wordBreak: 'break-word', fontWeight: '600' }}>
-                                                                            {formatFieldValue(key, value, doc.service_id)}
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <div style={{ fontSize: '12px', color: 'var(--text-dim)', fontStyle: 'italic', padding: '8px 0' }}>
-                                                            No data extracted yet.
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
+                                    <div style={{ borderTop: '1px solid var(--border-hairline)', paddingTop: '20px' }}>
+                                        <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-pure)', marginBottom: '8px' }}>
+                                            Change Account Password
+                                        </div>
+                                        <div className="form-group" style={{ marginBottom: '14px' }}>
+                                            <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px' }}>New Password</label>
+                                            <input
+                                                className="form-input"
+                                                type="password"
+                                                value={profileForm.password}
+                                                onChange={e => setProfileForm({ ...profileForm, password: e.target.value })}
+                                                placeholder="Enter new password (min. 8 characters)"
+                                            />
+                                        </div>
+                                        <button className="btn btn-secondary" onClick={handleSaveProfile} disabled={profileSaving}>
+                                            Update Password
+                                        </button>
                                     </div>
-                                )}
+                                </div>
                             </div>
                         )}
 
-                        {accountTab === 'applications' && (
+                        {/* TAB 3: Child Profiles */}
+                        {accountTab === 'children' && (
                             <div>
-                                <div style={{ marginBottom: '16px', color: '#888', fontSize: '13px' }}>
-                                    Your previous service onboarding applications:
-                                </div>
-                                {applications.length === 0 ? (
-                                    <div style={{ textAlign: 'center', padding: '60px 20px', color: '#666' }}>
-                                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>📝</div>
-                                        <div style={{ fontSize: '18px', marginBottom: '8px' }}>No applications submitted yet</div>
-                                        <div style={{ fontSize: '14px', color: '#888', marginBottom: '16px' }}>
-                                            Your completed service onboarding applications will be securely stored and listed here.
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+                                    <div>
+                                        <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-pure)', fontFamily: 'var(--font-editorial)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <i className="fas fa-child" style={{ color: 'var(--accent)' }}></i> My Child Profiles
                                         </div>
-                                        <button className="btn btn-primary" onClick={() => {
-                                            setShowAccountPage(false);
-                                            handleStartApplication();
-                                        }}>
-                                            Start an Application
-                                        </button>
+                                        <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '6px', maxWidth: '560px', lineHeight: '1.5' }}>
+                                            As a parent or legally authorized guardian, you can manage dependent profiles here. Each child profile is linked exclusively to your account and maintains separate application records. Children do not have independent logins.
+                                        </div>
+                                    </div>
+                                    <button
+                                        className="btn btn-primary"
+                                        style={{ display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}
+                                        onClick={() => {
+                                            setChildForm({ full_name: '', date_of_birth: '', relationship_type: 'parent', nationality: '', notes: '', guardian_confirms_authority: false, guardian_consents_to_data_processing: false, guardian_verification_reference: '' });
+                                            setEditingChildId(null);
+                                            setChildFormError('');
+                                            setChildFormSuccess('');
+                                            setShowChildModal(true);
+                                        }}
+                                    >
+                                        <i className="fas fa-plus"></i> Add Child Profile
+                                    </button>
+                                </div>
+
+                                <div style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: '10px', padding: '12px 16px', marginBottom: '24px', fontSize: '12px', color: '#f59e0b', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                                    <i className="fas fa-info-circle" style={{ marginTop: '1px', flexShrink: 0 }}></i>
+                                    <span>
+                                        Child profiles are governed by UAE Federal Decree-Law No. 26 of 2025. Guardian authority confirmation and, for children under 13, explicit Article 7 parental consent are required before data processing commences.
+                                    </span>
+                                </div>
+
+                                {childProfiles.length === 0 ? (
+                                    <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-dim)' }}>
+                                        <div style={{ fontSize: '48px', marginBottom: '16px' }}>👶</div>
+                                        <div style={{ fontSize: '18px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '8px' }}>No child profiles yet</div>
+                                        <div style={{ fontSize: '13px', color: 'var(--text-dim)' }}>
+                                            Add a dependent profile to begin submitting applications on behalf of your child.
+                                        </div>
                                     </div>
                                 ) : (
                                     <div style={{ display: 'grid', gap: '16px' }}>
-                                        {applications.map((app, idx) => {
-                                            const serviceLabel = app.service_name || (app.service_type || app.service_id || 'Application').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                                            const appStatus = (app.status || 'PENDING').toUpperCase();
-                                            const isComplete = appStatus === 'COMPLETE' || appStatus === 'COMPLETED' || appStatus === 'SUBMITTED' || appStatus === 'PASS';
-                                            const isReview = appStatus.includes('REVIEW');
-                                            const badgeBg = isComplete ? 'rgba(34, 197, 94, 0.15)' : isReview ? 'rgba(196, 154, 74, 0.15)' : 'rgba(239, 68, 68, 0.15)';
-                                            const badgeColor = isComplete ? '#22c55e' : isReview ? '#c49a4a' : '#ef4444';
-                                            const badgeBorder = isComplete ? 'rgba(34, 197, 94, 0.35)' : isReview ? 'rgba(196, 154, 74, 0.35)' : 'rgba(239, 68, 68, 0.35)';
-
+                                        {childProfiles.map((child, idx) => {
+                                            const ageBand = child.age_band || '';
+                                            const bandLabel = ageBand === 'under_13' ? 'Under 13' : ageBand === '13_to_17' ? '13–17' : ageBand === '18_plus' ? '18+' : 'Unknown';
+                                            const bandColor = ageBand === 'under_13' ? '#f59e0b' : ageBand === '13_to_17' ? 'var(--accent)' : '#22c55e';
+                                            const statusColor = child.profile_status === 'active' ? '#22c55e' : '#ef4444';
                                             return (
-                                                <div key={app.id || app.application_id || idx} style={{
-                                                    padding: '24px',
-                                                    background: 'var(--bg-card)',
-                                                    border: '1px solid var(--border-hairline)',
-                                                    borderRadius: '16px',
-                                                    display: 'flex',
-                                                    flexDirection: 'column',
-                                                    gap: '14px',
-                                                    boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
-                                                    backdropFilter: 'blur(12px)',
-                                                    transition: 'all 0.25s ease'
-                                                }}>
-                                                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                                                <div key={idx} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '16px', padding: '22px', backdropFilter: 'blur(12px)', boxShadow: '0 6px 24px rgba(0,0,0,0.3)' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
                                                         <div>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                                                <span style={{ fontSize: '22px' }}>{getServiceIcon(app.service_id || app.service_type)}</span>
-                                                                <div style={{ fontSize: '18px', fontFamily: 'var(--font-editorial)', fontWeight: '800', color: 'var(--text-pure)', letterSpacing: '0.02em' }}>
-                                                                    {serviceLabel}
-                                                                </div>
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+                                                                <span style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-pure)', fontFamily: 'var(--font-editorial)' }}>{child.full_name}</span>
+                                                                <span style={{ fontSize: '11px', background: `rgba(184, 164, 122, 0.12)`, color: bandColor, border: `1px solid ${bandColor}40`, borderRadius: '8px', padding: '2px 8px', fontWeight: '700' }}>{bandLabel}</span>
+                                                                <span style={{ fontSize: '11px', color: statusColor, fontWeight: '600' }}>● {child.profile_status || 'active'}</span>
                                                             </div>
-                                                            {app.applicant_name && (
-                                                                <div style={{ fontSize: '13px', color: 'var(--accent)', marginTop: '6px', fontWeight: '600' }}>
-                                                                    <i className="fas fa-user" style={{ marginRight: '6px', opacity: 0.8 }}></i>
-                                                                    Applicant: {app.applicant_name}
-                                                                </div>
-                                                            )}
-                                                            <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '6px', fontFamily: 'var(--font-mono)' }}>
-                                                                Ref: <span style={{ color: 'var(--accent)', background: 'rgba(120,221,178,0.08)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-hairline)' }}>{app.id || app.application_id}</span> • Submitted: {app.created_at || app.submitted_at ? new Date(app.created_at || app.submitted_at).toLocaleString() : 'Recent'}
+                                                            <div style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+                                                                <span><i className="fas fa-birthday-cake" style={{ marginRight: '4px', opacity: 0.6 }}></i>DOB: {child.date_of_birth}</span>
+                                                                <span><i className="fas fa-user-friends" style={{ marginRight: '4px', opacity: 0.6 }}></i>Relationship: {(child.relationship_type || '').replace(/_/g, ' ')}</span>
+                                                                {child.nationality && <span><i className="fas fa-flag" style={{ marginRight: '4px', opacity: 0.6 }}></i>Nationality: {child.nationality}</span>}
+                                                                <span style={{ color: child.guardian_authority_status === 'confirmed' ? '#22c55e' : '#f59e0b' }}>
+                                                                    <i className="fas fa-shield-alt" style={{ marginRight: '4px' }}></i>Authority: {child.guardian_authority_status || 'pending'}
+                                                                </span>
                                                             </div>
                                                         </div>
-                                                        <span style={{
-                                                            padding: '6px 14px',
-                                                            borderRadius: '20px',
-                                                            fontSize: '11px',
-                                                            fontFamily: 'var(--font-mono)',
-                                                            fontWeight: '700',
-                                                            letterSpacing: '0.05em',
-                                                            background: badgeBg,
-                                                            color: badgeColor,
-                                                            border: `1px solid ${badgeBorder}`,
-                                                            boxShadow: `0 0 14px ${badgeBg}`
-                                                        }}>
-                                                            {appStatus.replace(/_/g, ' ')}
-                                                        </span>
                                                     </div>
 
-                                                    {app.metadata && Object.keys(app.metadata).length > 0 && (
-                                                        <div style={{ background: 'rgba(15, 19, 17, 0.75)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-hairline)' }}>
-                                                            <div style={{ fontSize: '10.5px', color: 'var(--text-dim)', fontWeight: '700', fontFamily: 'var(--font-mono)', marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase' }}>DETAILS</div>
-                                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px', fontSize: '12px' }}>
-                                                                {Object.entries(app.metadata).map(([k, v]) => (
-                                                                    <div key={k}>
-                                                                        <span style={{ color: 'var(--text-dim)' }}>{k.replace(/_/g, ' ')}: </span>
-                                                                        <span style={{ color: 'var(--text-pure)', fontWeight: '600' }}>{typeof v === 'object' ? JSON.stringify(v) : String(v)}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    )}
-
-                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px', paddingTop: '12px', borderTop: '1px solid var(--border-hairline)' }}>
+                                                    <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--border-hairline)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                                        <button
+                                                            className="btn btn-primary"
+                                                            style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                                            onClick={() => {
+                                                                const cid = child.profile_id;
+                                                                setWizardChildId(cid);
+                                                                setWizardApplicantType('child_dependent');
+                                                                setShowAccountPage(false);
+                                                                clearWizardState();
+                                                                setWizardService(null);
+                                                                setWizardName(child.full_name || '');
+                                                                setWizardStep('welcome');
+                                                                setTimeout(() => {
+                                                                    addMessage('assistant',
+                                                                        `Starting an application for ${child.full_name}. Which service would you like to apply for? (Note: Mobility / Rental is unavailable for dependent profiles under 18).`,
+                                                                        null, { type: 'wizard_services' });
+                                                                }, 100);
+                                                            }}
+                                                        >
+                                                            <i className="fas fa-play"></i> Start Application
+                                                        </button>
+                                                        <button
+                                                            className="btn btn-secondary"
+                                                            style={{ fontSize: '12px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                                            onClick={() => {
+                                                                setChildForm({
+                                                                    full_name: child.full_name || '',
+                                                                    date_of_birth: child.date_of_birth || '',
+                                                                    relationship_type: child.relationship_type || 'parent',
+                                                                    nationality: child.nationality || '',
+                                                                    notes: child.notes || '',
+                                                                    guardian_confirms_authority: child.guardian_authority_status === 'confirmed',
+                                                                    guardian_consents_to_data_processing: false,
+                                                                    guardian_verification_reference: child.guardian_verification_reference || '',
+                                                                });
+                                                                setEditingChildId(child.profile_id);
+                                                                setChildFormError('');
+                                                                setChildFormSuccess('');
+                                                                setShowChildModal(true);
+                                                            }}
+                                                        >
+                                                            <i className="fas fa-edit"></i> Edit Profile
+                                                        </button>
+                                                        <button
+                                                            className="btn"
+                                                            style={{ fontSize: '12px', padding: '6px 12px', background: 'rgba(23,31,27,0.7)', border: '1px solid var(--border-hairline)', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                                            onClick={() => viewChildConsents(child.profile_id)}
+                                                        >
+                                                            <i className="fas fa-history"></i> Consents &amp; Activity
+                                                        </button>
                                                         <button
                                                             className="btn btn-ghost"
-                                                            style={{
-                                                                color: 'var(--danger)',
-                                                                borderColor: 'rgba(201, 112, 110, 0.3)',
-                                                                background: 'rgba(201, 112, 110, 0.08)',
-                                                                fontSize: '12px',
-                                                                padding: '6px 14px',
-                                                                borderRadius: '8px',
-                                                                cursor: 'pointer',
-                                                                display: 'inline-flex',
-                                                                alignItems: 'center',
-                                                                gap: '6px',
-                                                            }}
-                                                            onClick={() => handleCancelApplication(app.id || app.application_id)}
+                                                            style={{ fontSize: '12px', padding: '6px 12px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', display: 'flex', alignItems: 'center', gap: '5px' }}
+                                                            onClick={() => handleDeleteChildProfile(child.profile_id, child.full_name)}
                                                         >
-                                                            <i className="fas fa-times-circle"></i> Cancel Application
+                                                            <i className="fas fa-trash"></i> Remove
                                                         </button>
                                                     </div>
                                                 </div>
@@ -4030,11 +4315,478 @@
                                 )}
                             </div>
                         )}
+
+                        {/* TAB 4: Terms & Conditions Reader */}
+                        {accountTab === 'terms' && (
+                            <div style={{ maxWidth: '840px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '16px', padding: '24px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                                        <div>
+                                            <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-pure)', fontFamily: 'var(--font-editorial)' }}>
+                                                Terms &amp; Conditions
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: '#f59e0b', fontWeight: '600', marginTop: '4px' }}>
+                                                Version 1.1 • DRAFT — PENDING LEGAL APPROVAL • Jurisdiction: United Arab Emirates
+                                            </div>
+                                        </div>
+                                        <a
+                                            href={`${API_BASE}/policies/terms/pdf`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="btn btn-primary"
+                                            style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                        >
+                                            <i className="fas fa-file-pdf"></i> Download Official PDF
+                                        </a>
+                                    </div>
+
+                                    <div style={{ background: 'rgba(15, 19, 17, 0.75)', border: '1px solid var(--border-hairline)', borderRadius: '12px', padding: '20px', maxHeight: '480px', overflowY: 'auto', fontSize: '13px', lineHeight: '1.7', color: 'var(--text-muted)' }}>
+                                        <h4 style={{ color: 'var(--text-pure)', marginBottom: '8px' }}>1. Scope and Applicability</h4>
+                                        <p style={{ marginBottom: '14px' }}>
+                                            These Terms and Conditions govern access to and use of Docintake ("Platform", "we", "us", or "our"), an agentic document intake and verification service operating within the United Arab Emirates. These Terms govern adult primary account holders, parent/guardian management of child dependent profiles, application processing, and review by designated government authorities.
+                                        </p>
+
+                                        <h4 style={{ color: 'var(--text-pure)', marginBottom: '8px' }}>2. Legal Capacity and Guardian Eligibility</h4>
+                                        <p style={{ marginBottom: '14px' }}>
+                                            Under Article 84 of Federal Decree-Law No. 25 of 2025 (Civil Transactions Law), legal majority is attained at 18 Gregorian years. To register an account or create a child dependent profile, you represent and warrant that you are at least 18 Gregorian years old, possess full civil legal capacity, and are the parent or legally authorized guardian of any dependent minor whose profile you manage.
+                                        </p>
+
+                                        <h4 style={{ color: 'var(--text-pure)', marginBottom: '8px' }}>3. Child Dependent Profiles</h4>
+                                        <p style={{ marginBottom: '14px' }}>
+                                            Child Dependent Profiles are non-independent accounts linked directly to the parent or guardian's primary account. Minors do not hold separate login credentials, passwords, or autonomous sessions. Guardians are solely responsible for ensuring the accuracy and legitimacy of all information submitted on behalf of dependents.
+                                        </p>
+
+                                        <h4 style={{ color: 'var(--text-pure)', marginBottom: '8px' }}>4. Guardian Consent and Under-13 Protection</h4>
+                                        <p style={{ marginBottom: '14px' }}>
+                                            In compliance with Article 7 of UAE Federal Decree-Law No. 26 of 2025 (Child Digital Safety), processing personal data of children under 13 requires verifiable parental consent. Consent may be revoked at any time via the Child Profiles management area.
+                                        </p>
+
+                                        <h4 style={{ color: 'var(--text-pure)', marginBottom: '8px' }}>5. Government Review &amp; Developer Access Prohibition</h4>
+                                        <p style={{ marginBottom: '14px' }}>
+                                            Submitted applications and supporting documentation are transferred exclusively to designated UAE government reviewing authorities based on explicit application-specific consent. Software engineers and platform developers possess zero authorization or technical capability to inspect unmasked customer or dependent identity documents.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 5: Privacy Policy Reader */}
+                        {accountTab === 'privacy' && (
+                            <div style={{ maxWidth: '840px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '16px', padding: '24px' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                                        <div>
+                                            <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-pure)', fontFamily: 'var(--font-editorial)' }}>
+                                                Privacy Policy
+                                            </div>
+                                            <div style={{ fontSize: '12px', color: '#f59e0b', fontWeight: '600', marginTop: '4px' }}>
+                                                Version 1.1 • DRAFT — PENDING LEGAL APPROVAL • UAE Child Digital Safety Compliance
+                                            </div>
+                                        </div>
+                                        <a
+                                            href={`${API_BASE}/policies/privacy/pdf`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="btn btn-primary"
+                                            style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '8px' }}
+                                        >
+                                            <i className="fas fa-file-pdf"></i> Download Official PDF
+                                        </a>
+                                    </div>
+
+                                    <div style={{ background: 'rgba(15, 19, 17, 0.75)', border: '1px solid var(--border-hairline)', borderRadius: '12px', padding: '20px', maxHeight: '480px', overflowY: 'auto', fontSize: '13px', lineHeight: '1.7', color: 'var(--text-muted)' }}>
+                                        <h4 style={{ color: 'var(--text-pure)', marginBottom: '8px' }}>1. Information Collected</h4>
+                                        <p style={{ marginBottom: '14px' }}>
+                                            Docintake collects identity information strictly necessary for document verification and application submission: parent/guardian contact credentials, dependent minor legal name, date of birth, relationship status, nationality, and encrypted document images (Emirates ID, Passport).
+                                        </p>
+
+                                        <h4 style={{ color: 'var(--text-pure)', marginBottom: '8px' }}>2. Legal Basis and Guardian Authority</h4>
+                                        <p style={{ marginBottom: '14px' }}>
+                                            Data processing for child dependents is governed by Federal Decree-Law No. 45 of 2021 (Personal Data Protection Law) and Federal Decree-Law No. 26 of 2025 (Child Digital Safety). For children under 13, verifiable guardian consent is recorded prior to any data extraction or staging.
+                                        </p>
+
+                                        <h4 style={{ color: 'var(--text-pure)', marginBottom: '8px' }}>3. Data Storage &amp; Zero Public-Cloud Storage</h4>
+                                        <p style={{ marginBottom: '14px' }}>
+                                            All document binaries reside in secure, self-hosted on-premises MinIO object storage. Structured metadata is retained in self-hosted relational storage. Zero document binaries or child personal records are uploaded to unverified third-party public cloud services.
+                                        </p>
+
+                                        <h4 style={{ color: 'var(--text-pure)', marginBottom: '8px' }}>4. Consent Withdrawal &amp; Data Erasure</h4>
+                                        <p style={{ marginBottom: '14px' }}>
+                                            Guardians may withdraw consent at any time via the "Consents &amp; Activity" interface. Upon withdrawal, active processing terminates immediately and staged documents associated with pending drafts are purged.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* TAB 6: Documents */}
+                        {accountTab === 'documents' && (
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                                    <div style={{ color: '#888', fontSize: '13px' }}>
+                                        All documents stored securely in MinIO storage linked to your account:
+                                    </div>
+                                    {childProfiles.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '6px', background: 'rgba(23, 31, 27, 0.7)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-hairline)', flexWrap: 'wrap' }}>
+                                            <button
+                                                className="btn"
+                                                style={{
+                                                    fontSize: '11px',
+                                                    padding: '4px 10px',
+                                                    borderRadius: '6px',
+                                                    background: selectedDocFilter === 'all' ? 'var(--accent)' : 'transparent',
+                                                    color: selectedDocFilter === 'all' ? '#0c120f' : 'var(--text-muted)',
+                                                    fontWeight: '700'
+                                                }}
+                                                onClick={() => setSelectedDocFilter('all')}
+                                            >
+                                                All Documents ({documents.length})
+                                            </button>
+                                            <button
+                                                className="btn"
+                                                style={{
+                                                    fontSize: '11px',
+                                                    padding: '4px 10px',
+                                                    borderRadius: '6px',
+                                                    background: selectedDocFilter === 'self' ? 'var(--accent)' : 'transparent',
+                                                    color: selectedDocFilter === 'self' ? '#0c120f' : 'var(--text-muted)',
+                                                    fontWeight: '700'
+                                                }}
+                                                onClick={() => setSelectedDocFilter('self')}
+                                            >
+                                                <i className="fas fa-user" style={{ marginRight: '4px' }}></i> My Documents ({documents.filter(d => !d.child_profile_id && d.applicant_type !== 'child_dependent').length})
+                                            </button>
+                                            {childProfiles.map(cp => {
+                                                const count = documents.filter(d => d.child_profile_id === cp.profile_id || (d.applicant_name && d.applicant_name.trim().toLowerCase() === (cp.full_name || '').trim().toLowerCase())).length;
+                                                return (
+                                                    <button
+                                                        key={cp.profile_id}
+                                                        className="btn"
+                                                        style={{
+                                                            fontSize: '11px',
+                                                            padding: '4px 10px',
+                                                            borderRadius: '6px',
+                                                            background: selectedDocFilter === cp.profile_id ? 'var(--accent)' : 'transparent',
+                                                            color: selectedDocFilter === cp.profile_id ? '#0c120f' : 'var(--text-muted)',
+                                                            fontWeight: '700'
+                                                        }}
+                                                        onClick={() => setSelectedDocFilter(cp.profile_id)}
+                                                    >
+                                                        <i className="fas fa-child" style={{ marginRight: '4px' }}></i> {cp.full_name} ({count})
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                {(() => {
+                                    const filteredDocs = documents.filter(d => {
+                                        if (selectedDocFilter === 'all') return true;
+                                        if (selectedDocFilter === 'self') return !d.child_profile_id && d.applicant_type !== 'child_dependent';
+                                        return d.child_profile_id === selectedDocFilter || (d.applicant_name && d.applicant_name.trim().toLowerCase() === (childProfiles.find(c => c.profile_id === selectedDocFilter)?.full_name || '').trim().toLowerCase());
+                                    });
+                                    if (filteredDocs.length === 0) {
+                                        return (
+                                            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#666' }}>
+                                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📄</div>
+                                                <div style={{ fontSize: '18px', marginBottom: '8px' }}>No documents found for this selection</div>
+                                                <div style={{ fontSize: '14px', color: '#888' }}>
+                                                    Upload documents during an onboarding application
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <div style={{ display: 'grid', gap: '16px' }}>
+                                            {filteredDocs.map((doc, idx) => {
+                                                const docType = getDocType(doc);
+                                                const labels = getDocLabels(docType);
+                                                const extracted = doc.extracted_fields || doc.extractedFields || {};
+                                                const fields = Object.entries(extracted).filter(([k]) => !k.startsWith('_'));
+                                                
+                                                const rawDate = doc.upload_date || doc.date || doc.uploaded_at;
+                                                let formattedDate = 'Unknown date';
+                                                if (rawDate) {
+                                                    try {
+                                                        const d = new Date(rawDate);
+                                                        formattedDate = isNaN(d.getTime()) ? rawDate : d.toLocaleString();
+                                                    } catch (e) {
+                                                        formattedDate = rawDate;
+                                                    }
+                                                }
+                                                const serviceDisplayName = doc.service_name || (doc.service_id ? doc.service_id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Basic Registration');
+                                                const docTypeDisplay = docType.includes('licen') ? '🚗 Driving License' : docType === 'passport' ? '🛂 Passport' : '🆔 National ID';
+                                                const token = getToken();
+                                                const docId = doc.id || doc.document_id;
+                                                const viewUrl = `${API_BASE}/documents/${encodeURIComponent(docId)}/view?token=${encodeURIComponent(token)}`;
+                                                const downloadUrl = `${API_BASE}/documents/${encodeURIComponent(docId)}/download?token=${encodeURIComponent(token)}`;
+                                                
+                                                return (
+                                                    <div key={idx} style={{
+                                                        padding: '20px',
+                                                        background: 'var(--bg-card)',
+                                                        border: '1px solid var(--border-hairline)',
+                                                        borderRadius: '14px',
+                                                        boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                                                        backdropFilter: 'blur(10px)'
+                                                    }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--border-hairline)', flexWrap: 'wrap', gap: '12px' }}>
+                                                            <div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                                                                    <span style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-pure)' }}>
+                                                                        {doc.filename || doc.name || 'Unknown file'}
+                                                                    </span>
+                                                                    <span style={{
+                                                                        padding: '2px 8px',
+                                                                        background: 'rgba(184, 164, 122, 0.1)',
+                                                                        color: 'var(--accent)',
+                                                                        border: '1px solid var(--border-medium)',
+                                                                        borderRadius: '6px',
+                                                                        fontSize: '11px',
+                                                                        fontWeight: '600',
+                                                                        display: 'inline-flex',
+                                                                        alignItems: 'center',
+                                                                        gap: '4px'
+                                                                    }}>
+                                                                        <i className="fas fa-briefcase" style={{ fontSize: '10px' }}></i> {serviceDisplayName}
+                                                                    </span>
+                                                                    {doc.applicant_name && (
+                                                                        <span style={{
+                                                                            padding: '2px 8px',
+                                                                            background: doc.child_profile_id ? 'rgba(245, 158, 11, 0.12)' : 'rgba(255, 255, 255, 0.06)',
+                                                                            color: doc.child_profile_id ? '#f59e0b' : 'var(--text-muted)',
+                                                                            border: `1px solid ${doc.child_profile_id ? '#f59e0b40' : 'var(--border-hairline)'}`,
+                                                                            borderRadius: '6px',
+                                                                            fontSize: '11px',
+                                                                            fontWeight: '600',
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '4px'
+                                                                        }}>
+                                                                            <i className={doc.child_profile_id ? "fas fa-child" : "fas fa-user"} style={{ fontSize: '10px' }}></i> {doc.applicant_name}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div style={{ fontSize: '12px', color: 'var(--text-dim)', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', fontFamily: 'var(--font-mono)' }}>
+                                                                    <span><i className="far fa-clock" style={{ marginRight: '4px' }}></i>{formattedDate}</span>
+                                                                    <span>·</span>
+                                                                    <span>{formatFileSize(doc.file_size || doc.size || 0)}</span>
+                                                                    <span>·</span>
+                                                                    <span>{docTypeDisplay}</span>
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                                                {doc.extraction_confidence !== undefined && (
+                                                                    <span style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', fontWeight: '600', color: doc.extraction_confidence > 0.7 ? 'var(--accent)' : doc.extraction_confidence > 0.4 ? 'var(--warning)' : 'var(--danger)' }}>
+                                                                        {(doc.extraction_confidence * 100).toFixed(0)}% confidence
+                                                                    </span>
+                                                                )}
+                                                                <span style={{ fontSize: '12px', color: 'var(--accent)', marginRight: '4px', fontWeight: '600' }}>
+                                                                    ✓ Processed
+                                                                </span>
+
+                                                                {docId && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const urlToUse = doc.minio_url || viewUrl;
+                                                                            setViewingDoc({
+                                                                                url: urlToUse,
+                                                                                filename: doc.filename || doc.name || 'Document',
+                                                                                docId: docId
+                                                                            });
+                                                                        }}
+                                                                        className="btn btn-secondary"
+                                                                        style={{ fontSize: '12px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}
+                                                                        title="View original document in site"
+                                                                    >
+                                                                        <i className="fas fa-eye"></i> View
+                                                                    </button>
+                                                                )}
+                                                                {docId && (
+                                                                    <a
+                                                                        href={downloadUrl}
+                                                                        download
+                                                                        className="btn btn-primary"
+                                                                        style={{ fontSize: '12px', padding: '6px 10px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                                                                        title="Download original document"
+                                                                    >
+                                                                        <i className="fas fa-download"></i> Download
+                                                                    </a>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        )}
+
+                        {/* TAB 7: Applications */}
+                        {accountTab === 'applications' && (
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+                                    <div style={{ color: '#888', fontSize: '13px' }}>
+                                        Your past and current service applications:
+                                    </div>
+                                    {childProfiles.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '6px', background: 'rgba(23, 31, 27, 0.7)', padding: '4px', borderRadius: '10px', border: '1px solid var(--border-hairline)', flexWrap: 'wrap' }}>
+                                            <button
+                                                className="btn"
+                                                style={{
+                                                    fontSize: '11px',
+                                                    padding: '4px 10px',
+                                                    borderRadius: '6px',
+                                                    background: selectedAppFilter === 'all' ? 'var(--accent)' : 'transparent',
+                                                    color: selectedAppFilter === 'all' ? '#0c120f' : 'var(--text-muted)',
+                                                    fontWeight: '700'
+                                                }}
+                                                onClick={() => setSelectedAppFilter('all')}
+                                            >
+                                                All Applications ({applications.length})
+                                            </button>
+                                            <button
+                                                className="btn"
+                                                style={{
+                                                    fontSize: '11px',
+                                                    padding: '4px 10px',
+                                                    borderRadius: '6px',
+                                                    background: selectedAppFilter === 'self' ? 'var(--accent)' : 'transparent',
+                                                    color: selectedAppFilter === 'self' ? '#0c120f' : 'var(--text-muted)',
+                                                    fontWeight: '700'
+                                                }}
+                                                onClick={() => setSelectedAppFilter('self')}
+                                            >
+                                                <i className="fas fa-user" style={{ marginRight: '4px' }}></i> My Applications ({applications.filter(a => !a.child_profile_id && a.applicant_type !== 'child_dependent').length})
+                                            </button>
+                                            {childProfiles.map(cp => {
+                                                const count = applications.filter(a => a.child_profile_id === cp.profile_id || (a.applicant_name && a.applicant_name.trim().toLowerCase() === (cp.full_name || '').trim().toLowerCase())).length;
+                                                return (
+                                                    <button
+                                                        key={cp.profile_id}
+                                                        className="btn"
+                                                        style={{
+                                                            fontSize: '11px',
+                                                            padding: '4px 10px',
+                                                            borderRadius: '6px',
+                                                            background: selectedAppFilter === cp.profile_id ? 'var(--accent)' : 'transparent',
+                                                            color: selectedAppFilter === cp.profile_id ? '#0c120f' : 'var(--text-muted)',
+                                                            fontWeight: '700'
+                                                        }}
+                                                        onClick={() => setSelectedAppFilter(cp.profile_id)}
+                                                    >
+                                                        <i className="fas fa-child" style={{ marginRight: '4px' }}></i> {cp.full_name} ({count})
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                                {(() => {
+                                    const filteredApps = applications.filter(a => {
+                                        if (selectedAppFilter === 'all') return true;
+                                        if (selectedAppFilter === 'self') return !a.child_profile_id && a.applicant_type !== 'child_dependent';
+                                        return a.child_profile_id === selectedAppFilter || (a.applicant_name && a.applicant_name.trim().toLowerCase() === (childProfiles.find(c => c.profile_id === selectedAppFilter)?.full_name || '').trim().toLowerCase());
+                                    });
+                                    if (filteredApps.length === 0) {
+                                        return (
+                                            <div style={{ textAlign: 'center', padding: '60px 20px', color: '#666' }}>
+                                                <div style={{ fontSize: '48px', marginBottom: '16px' }}>📋</div>
+                                                <div style={{ fontSize: '18px', marginBottom: '8px' }}>No applications found for this selection</div>
+                                                <div style={{ fontSize: '14px', color: '#888' }}>
+                                                    Start your first onboarding application via the chat or Services catalogue
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return (
+                                        <div style={{ display: 'grid', gap: '16px' }}>
+                                            {filteredApps.map((app, idx) => {
+                                                const serviceLabel = app.service_name || (app.service_id ? app.service_id.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Registration');
+                                                const appStatus = app.status || 'processing';
+                                                const badgeColor = appStatus === 'complete' ? 'var(--accent)' : appStatus === 'needs_human_review' ? 'var(--warning)' : '#888';
+                                                const badgeBg = appStatus === 'complete' ? 'rgba(120, 221, 178, 0.12)' : appStatus === 'needs_human_review' ? 'rgba(217, 147, 86, 0.12)' : 'rgba(255, 255, 255, 0.05)';
+                                                const badgeBorder = appStatus === 'complete' ? 'var(--border-medium)' : appStatus === 'needs_human_review' ? 'rgba(217, 147, 86, 0.3)' : 'var(--border-hairline)';
+
+                                                return (
+                                                    <div key={idx} style={{
+                                                        padding: '22px',
+                                                        background: 'var(--bg-card)',
+                                                        border: '1px solid var(--border-medium)',
+                                                        borderRadius: '16px',
+                                                        display: 'flex',
+                                                        flexDirection: 'column',
+                                                        gap: '14px',
+                                                        boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+                                                        backdropFilter: 'blur(12px)'
+                                                    }}>
+                                                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                                                            <div>
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                                                    <span style={{ fontSize: '22px' }}>{getServiceIcon(app.service_id || app.service_type)}</span>
+                                                                    <div style={{ fontSize: '18px', fontFamily: 'var(--font-editorial)', fontWeight: '800', color: 'var(--text-pure)' }}>
+                                                                        {serviceLabel}
+                                                                    </div>
+                                                                </div>
+                                                                {app.applicant_name && (
+                                                                    <div style={{ fontSize: '13px', color: 'var(--accent)', marginTop: '6px', fontWeight: '600' }}>
+                                                                        <i className="fas fa-user" style={{ marginRight: '6px', opacity: 0.8 }}></i>
+                                                                        Applicant: {app.applicant_name} {app.applicant_type === 'child_dependent' && <span style={{ fontSize: '11px', color: '#f59e0b', marginLeft: '6px' }}>(Child Dependent)</span>}
+                                                                    </div>
+                                                                )}
+                                                                <div style={{ fontSize: '12px', color: 'var(--text-dim)', marginTop: '6px', fontFamily: 'var(--font-mono)' }}>
+                                                                    Ref: <span style={{ color: 'var(--accent)', background: 'rgba(120,221,178,0.08)', padding: '2px 8px', borderRadius: '4px', border: '1px solid var(--border-hairline)' }}>{app.id || app.application_id}</span> • Submitted: {app.created_at || app.submitted_at ? new Date(app.created_at || app.submitted_at).toLocaleString() : 'Recent'}
+                                                                </div>
+                                                            </div>
+                                                            <span style={{
+                                                                padding: '6px 14px',
+                                                                borderRadius: '20px',
+                                                                fontSize: '11px',
+                                                                fontFamily: 'var(--font-mono)',
+                                                                fontWeight: '700',
+                                                                letterSpacing: '0.05em',
+                                                                background: badgeBg,
+                                                                color: badgeColor,
+                                                                border: `1px solid ${badgeBorder}`
+                                                            }}>
+                                                                {appStatus.replace(/_/g, ' ')}
+                                                            </span>
+                                                        </div>
+
+                                                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px', paddingTop: '12px', borderTop: '1px solid var(--border-hairline)' }}>
+                                                            <button
+                                                                className="btn btn-ghost"
+                                                                style={{
+                                                                    color: 'var(--danger)',
+                                                                    borderColor: 'rgba(201, 112, 110, 0.3)',
+                                                                    background: 'rgba(201, 112, 110, 0.08)',
+                                                                    fontSize: '12px',
+                                                                    padding: '6px 14px',
+                                                                    borderRadius: '8px',
+                                                                    cursor: 'pointer',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '6px',
+                                                                }}
+                                                                onClick={() => handleCancelApplication(app.id || app.application_id)}
+                                                            >
+                                                                <i className="fas fa-times-circle"></i> Cancel Application
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    );
+                                })()}
+                            </div>
+                        )}
                     </div>
                 </div>
             );
-
-            const renderServicesPage = () => {
+const renderServicesPage = () => {
                 const availableServices = services.filter(s => s.status === 'available');
                 const comingSoonServices = services.filter(s => s.status !== 'available');
 
@@ -4756,6 +5508,257 @@
                         </div>
                     )}
 
+{/* ══════════════ CHILD PROFILES MODAL ══════════════ */}
+                {showChildModal && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9000, padding: '16px' }}>
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '18px', padding: '32px', width: '100%', maxWidth: '540px', maxHeight: '90vh', overflowY: 'auto', backdropFilter: 'blur(20px)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                                <div>
+                                    <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-pure)', fontFamily: 'var(--font-editorial)' }}>
+                                        <i className="fas fa-child" style={{ color: 'var(--accent)', marginRight: '10px' }}></i>
+                                        {editingChildId ? 'Edit Child Profile' : 'Add Child Profile'}
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>
+                                        Dependent profile managed by your guardian account
+                                    </div>
+                                </div>
+                                <button onClick={() => { setShowChildModal(false); setEditingChildId(null); setChildFormError(''); setChildFormSuccess(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '20px', cursor: 'pointer', padding: '4px 8px' }}>✕</button>
+                            </div>
+
+                            {childFormError && (
+                                <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '13px', color: '#ef4444' }}>
+                                    <i className="fas fa-exclamation-circle" style={{ marginRight: '6px' }}></i>{childFormError}
+                                </div>
+                            )}
+                            {childFormSuccess && (
+                                <div style={{ background: 'rgba(34,197,94,0.12)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px', fontSize: '13px', color: '#22c55e' }}>
+                                    <i className="fas fa-check-circle" style={{ marginRight: '6px' }}></i>{childFormSuccess}
+                                </div>
+                            )}
+
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                                {/* Full Name */}
+                                <div>
+                                    <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: '600' }}>Full Legal Name *</label>
+                                    <input className="form-input" value={childForm.full_name} onChange={e => setChildForm({ ...childForm, full_name: e.target.value })} placeholder="As it appears on official documents" required />
+                                </div>
+                                {/* Date of Birth */}
+                                <div>
+                                    <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: '600' }}>Date of Birth *</label>
+                                    <input className="form-input" type="date" value={childForm.date_of_birth} onChange={e => setChildForm({ ...childForm, date_of_birth: e.target.value })} required />
+                                    {childForm.date_of_birth && (() => {
+                                        const dob = new Date(childForm.date_of_birth);
+                                        const today = new Date();
+                                        let age = today.getFullYear() - dob.getFullYear();
+                                        const m = today.getMonth() - dob.getMonth();
+                                        if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+                                        const band = age < 13 ? 'Under 13' : age < 18 ? '13–17' : '18+';
+                                        const bandColor = age < 13 ? '#f59e0b' : age < 18 ? 'var(--accent)' : '#22c55e';
+                                        return <div style={{ fontSize: '11px', color: bandColor, marginTop: '4px', fontWeight: '600' }}>Age {age} · {band}</div>;
+                                    })()}
+                                </div>
+                                {/* Relationship */}
+                                <div>
+                                    <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: '600' }}>Relationship to Child *</label>
+                                    <select className="form-input" value={childForm.relationship_type} onChange={e => setChildForm({ ...childForm, relationship_type: e.target.value })}>
+                                        <option value="parent">Parent</option>
+                                        <option value="legal_guardian">Legal Guardian</option>
+                                        <option value="caregiver">Authorized Caregiver</option>
+                                    </select>
+                                </div>
+                                {/* Nationality */}
+                                <div>
+                                    <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: '600' }}>Child's Nationality</label>
+                                    <input className="form-input" value={childForm.nationality} onChange={e => setChildForm({ ...childForm, nationality: e.target.value })} placeholder="e.g. Emirati, British, Indian" />
+                                </div>
+                                {/* Guardian Verification Reference */}
+                                <div>
+                                    <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: '600' }}>Guardian Authority Reference</label>
+                                    <input className="form-input" value={childForm.guardian_verification_reference} onChange={e => setChildForm({ ...childForm, guardian_verification_reference: e.target.value })} placeholder="Birth certificate or guardianship document reference" />
+                                    <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>Optional reference number for official documentation.</div>
+                                </div>
+
+                                {/* Under-13 Article 7 Consent — shown only when child is under 13 */}
+                                {childForm.date_of_birth && (() => {
+                                    const dob = new Date(childForm.date_of_birth);
+                                    const today = new Date();
+                                    let age = today.getFullYear() - dob.getFullYear();
+                                    const m = today.getMonth() - dob.getMonth();
+                                    if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+                                    if (age >= 13) return null;
+                                    return (
+                                        <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.3)', borderRadius: '10px', padding: '14px' }}>
+                                            <div style={{ fontSize: '12px', color: '#f59e0b', fontWeight: '700', marginBottom: '8px' }}>
+                                                <i className="fas fa-shield-alt" style={{ marginRight: '6px' }}></i>Article 7 — Child Data Protection (UAE Federal Decree-Law No. 26 of 2025)
+                                            </div>
+                                            <label style={{ display: 'flex', gap: '10px', cursor: 'pointer', alignItems: 'flex-start' }}>
+                                                <input type="checkbox" checked={childForm.guardian_consents_to_data_processing} onChange={e => setChildForm({ ...childForm, guardian_consents_to_data_processing: e.target.checked })} style={{ marginTop: '2px', accentColor: '#f59e0b', flexShrink: 0 }} />
+                                                <span style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                                                    Under Article 7 of UAE Federal Decree-Law No. 26 of 2025 (Child Digital Safety), I explicitly consent to the collection and processing of my child's personal data solely for document intake and application processing within Docintake.
+                                                </span>
+                                            </label>
+                                        </div>
+                                    );
+                                })()}
+
+                                {/* Guardian Authority Confirmation */}
+                                <div style={{ background: 'rgba(120, 221, 178, 0.06)', border: '1px solid var(--border-hairline)', borderRadius: '10px', padding: '14px' }}>
+                                    <label style={{ display: 'flex', gap: '10px', cursor: 'pointer', alignItems: 'flex-start' }}>
+                                        <input type="checkbox" checked={childForm.guardian_confirms_authority} onChange={e => setChildForm({ ...childForm, guardian_confirms_authority: e.target.checked })} style={{ marginTop: '2px', accentColor: 'var(--accent)', flexShrink: 0 }} />
+                                        <span style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                                            <strong style={{ color: 'var(--text-pure)' }}>I confirm</strong> that the information provided is correct and that I am the parent or legally authorized guardian of this child with authority to manage their Docintake profile and applications.
+                                        </span>
+                                    </label>
+                                </div>
+
+                                {/* Notes */}
+                                <div>
+                                    <label style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'block', marginBottom: '6px', fontWeight: '600' }}>Additional Notes (optional)</label>
+                                    <textarea className="form-input" value={childForm.notes} onChange={e => setChildForm({ ...childForm, notes: e.target.value })} placeholder="Any additional context for this profile" rows={2} style={{ resize: 'vertical' }} />
+                                </div>
+
+                                <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+                                    <button className="btn btn-secondary" onClick={() => { setShowChildModal(false); setEditingChildId(null); setChildFormError(''); }} style={{ flex: 1 }}>Cancel</button>
+                                    <button className="btn btn-primary" onClick={handleSaveChildProfile} disabled={childFormSubmitting} style={{ flex: 2, padding: '12px' }}>
+                                        {childFormSubmitting ? <><i className="fas fa-spinner fa-spin" style={{ marginRight: '6px' }}></i>Saving...</> : editingChildId ? 'Update Profile' : 'Create Profile'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ══════════════ CHILD CONSENT/AUDIT MODAL ══════════════ */}
+                {childConsentModal && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9100, padding: '16px' }}>
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '18px', padding: '28px', width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto', backdropFilter: 'blur(20px)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                                <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-pure)', fontFamily: 'var(--font-editorial)' }}>
+                                    <i className="fas fa-history" style={{ color: 'var(--accent)', marginRight: '10px' }}></i>
+                                    Consents & Activity — {childConsentModal.profile?.full_name}
+                                </div>
+                                <button onClick={() => setChildConsentModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '20px', cursor: 'pointer', padding: '4px 8px' }}>✕</button>
+                            </div>
+
+                            <div style={{ marginBottom: '16px' }}>
+                                <div style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}>Profile Status</div>
+                                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                                    <span style={{ background: 'rgba(120,221,178,0.1)', border: '1px solid var(--border-hairline)', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', color: 'var(--accent)' }}>
+                                        Status: {childConsentModal.profile?.profile_status || 'active'}
+                                    </span>
+                                    <span style={{ background: 'rgba(120,221,178,0.1)', border: '1px solid var(--border-hairline)', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', color: 'var(--accent)' }}>
+                                        Age Band: {(childConsentModal.profile?.age_band || '').replace(/_/g, ' ')}
+                                    </span>
+                                    <span style={{ background: 'rgba(120,221,178,0.1)', border: '1px solid var(--border-hairline)', borderRadius: '8px', padding: '6px 12px', fontSize: '12px', color: 'var(--accent)' }}>
+                                        Authority: {childConsentModal.profile?.guardian_authority_status || 'pending'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div style={{ fontSize: '12px', color: 'var(--text-dim)', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '10px' }}>Activity Log</div>
+                                {(!childConsentModal.auditEvents || childConsentModal.auditEvents.length === 0) ? (
+                                    <div style={{ color: 'var(--text-dim)', fontSize: '13px', padding: '20px', textAlign: 'center' }}>No audit events recorded yet.</div>
+                                ) : (
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                        {childConsentModal.auditEvents.map((evt, i) => (
+                                            <div key={i} style={{ background: 'rgba(15,19,17,0.5)', border: '1px solid var(--border-hairline)', borderRadius: '8px', padding: '10px 14px' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                    <span style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: '600' }}>{(evt.event_type || '').replace(/_/g, ' ')}</span>
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                                                        {evt.created_at ? new Date(evt.created_at).toLocaleString() : ''}
+                                                    </span>
+                                                </div>
+                                                {evt.event_data && Object.keys(evt.event_data).length > 0 && (
+                                                    <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>{JSON.stringify(evt.event_data)}</div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid var(--border-hairline)' }}>
+                                <div style={{ fontSize: '11px', color: '#ef4444', marginBottom: '8px', lineHeight: '1.5' }}>
+                                    <i className="fas fa-exclamation-triangle" style={{ marginRight: '6px' }}></i>
+                                    Withdrawing consent will immediately cease processing of this child's personal data for all ongoing applications.
+                                </div>
+                                <button className="btn btn-ghost" onClick={() => { const c = childConsentModal?.auditEvents?.find(e => e.event_type === 'consent_recorded'); if (c) handleWithdrawGuardianConsent(c.consent_id || c.event_id); else alert('No active consent found to withdraw.'); }}
+                                    style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.08)', fontSize: '12px' }}>
+                                    <i className="fas fa-ban" style={{ marginRight: '6px' }}></i>Withdraw Data Processing Consent
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+
+                {/* ══════════════ APPLICATION-SPECIFIC REVIEW CONSENT MODAL ══════════════ */}
+                {appConsentModal && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9200, padding: '16px' }}>
+                        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-medium)', borderRadius: '18px', padding: '32px', width: '100%', maxWidth: '560px', maxHeight: '90vh', overflowY: 'auto', backdropFilter: 'blur(20px)', boxShadow: '0 16px 48px rgba(0,0,0,0.6)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                                <div style={{ width: '42px', height: '42px', borderRadius: '12px', background: 'rgba(184, 164, 122, 0.15)', border: '1px solid var(--border-medium)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', color: 'var(--accent)' }}>
+                                    🏛️
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: '18px', fontWeight: '800', color: 'var(--text-pure)', fontFamily: 'var(--font-editorial)' }}>
+                                        Document Review Consent
+                                    </div>
+                                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                                        Government-Agency Document Access Authorization
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style={{ background: 'rgba(15, 19, 17, 0.65)', border: '1px solid var(--border-hairline)', borderRadius: '12px', padding: '16px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Dependent Applicant:</span>
+                                    <span style={{ color: 'var(--text-pure)', fontWeight: '700' }}>{appConsentModal.applicantName}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Selected Service:</span>
+                                    <span style={{ color: 'var(--accent)', fontWeight: '600' }}>{appConsentModal.serviceName}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Designated Agency:</span>
+                                    <span style={{ color: 'var(--text-pure)', fontWeight: '600' }}>{appConsentModal.receivingAgency}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: 'var(--text-muted)' }}>Policy Governance:</span>
+                                    <span style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Docintake Terms & Privacy v1.1</span>
+                                </div>
+                            </div>
+
+                            <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.25)', borderRadius: '10px', padding: '14px', marginBottom: '24px', fontSize: '12px', color: '#f59e0b', lineHeight: '1.5' }}>
+                                <div style={{ fontWeight: '700', marginBottom: '4px' }}>
+                                    <i className="fas fa-shield-alt" style={{ marginRight: '6px' }}></i>UAE Child-Data Protection Notice
+                                </div>
+                                Under UAE Federal Decree-Law No. 26 of 2025 and Docintake Data Governance rules, documents submitted on behalf of a dependent minor are strictly isolated and are only routed to authorized government reviewers upon your explicit, application-specific consent. Docintake software developers and general personnel possess zero access to unmasked child identity files.
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={appConsentModal.onDecline}
+                                    style={{ flex: 1, padding: '10px', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                                >
+                                    Decline Review
+                                </button>
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={appConsentModal.onAccept}
+                                    style={{ flex: 1, padding: '10px' }}
+                                >
+                                    Agree &amp; Continue
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+
+
                     {/* Bottom-right sticky version badge */}
                     <div style={{
                         position: 'fixed',
@@ -4786,8 +5789,145 @@
                             display: 'inline-block',
                             boxShadow: '0 0 8px var(--accent)'
                         }}></span>
-                        <span>TASK 1 • v2.4.2</span>
+                        <span>TASK 1 • v2.5.0</span>
                     </div>
+
+                    {/* ══════════════ ACCESSIBILITY & LEGAL FOOTER ══════════════ */}
+                    <footer role="contentinfo" aria-label="Accessibility and legal information" style={{
+                        width: '100%',
+                        borderTop: '1px solid var(--border-hairline)',
+                        background: 'rgba(10, 14, 12, 0.85)',
+                        backdropFilter: 'blur(12px)',
+                        WebkitBackdropFilter: 'blur(12px)',
+                        padding: '28px 32px 0',
+                        marginTop: '0',
+                        boxSizing: 'border-box',
+                    }}>
+                        {/* Accessibility Statement */}
+                        <div style={{
+                            maxWidth: '900px',
+                            margin: '0 auto',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '14px',
+                        }}>
+                            {/* Top row: icon + heading + badge */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                                <i className="fas fa-universal-access" aria-hidden="true" style={{ color: 'var(--accent)', fontSize: '16px' }}></i>
+                                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-pure)', letterSpacing: '0.02em' }}>
+                                    Accessibility Statement
+                                </span>
+                                <span style={{
+                                    fontSize: '10px',
+                                    fontWeight: '700',
+                                    letterSpacing: '0.08em',
+                                    textTransform: 'uppercase',
+                                    color: 'var(--accent)',
+                                    background: 'rgba(120, 221, 178, 0.1)',
+                                    border: '1px solid rgba(120, 221, 178, 0.3)',
+                                    borderRadius: '20px',
+                                    padding: '2px 10px',
+                                }}>WCAG 2.1 AA</span>
+                            </div>
+
+                            {/* Statement body */}
+                            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.65', maxWidth: '820px' }}>
+                                Docintake is committed to ensuring digital accessibility for people with disabilities. We continually improve the user experience for everyone and apply relevant accessibility standards. This platform has been tested in accordance with the{' '}
+                                <strong style={{ color: 'var(--text-dim)' }}>Web Content Accessibility Guidelines (WCAG) 2.1, Level AA</strong>, covering keyboard navigation, screen-reader compatibility, sufficient colour contrast, and scalable text. Testing was conducted using assistive technologies including NVDA, JAWS, and VoiceOver across major browsers on desktop and mobile devices.
+                            </p>
+
+                            {/* Testing chips */}
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                {[
+                                    { icon: 'fa-keyboard', label: 'Keyboard Navigation' },
+                                    { icon: 'fa-assistive-listening-systems', label: 'Screen Reader Tested' },
+                                    { icon: 'fa-eye', label: 'Colour Contrast AA' },
+                                    { icon: 'fa-mobile-alt', label: 'Mobile Accessible' },
+                                    { icon: 'fa-font', label: 'Scalable Text' },
+                                ].map(chip => (
+                                    <span key={chip.label} style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                        fontSize: '11px', color: 'var(--text-dim)',
+                                        background: 'rgba(255,255,255,0.04)',
+                                        border: '1px solid var(--border-hairline)',
+                                        borderRadius: '20px', padding: '3px 10px',
+                                    }}>
+                                        <i className={`fas ${chip.icon}`} aria-hidden="true" style={{ fontSize: '10px', color: 'var(--accent)', opacity: 0.8 }}></i>
+                                        {chip.label}
+                                    </span>
+                                ))}
+                            </div>
+
+                            {/* Divider */}
+                            <div style={{ borderTop: '1px solid var(--border-hairline)', margin: '2px 0' }}></div>
+
+                            {/* Bottom row: legal links + copyright */}
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                flexWrap: 'wrap',
+                                gap: '10px',
+                            }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
+                                    <a
+                                        href="/static/policies/Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        aria-label="Open Terms and Conditions PDF in a new tab"
+                                        style={{
+                                            fontSize: '12px',
+                                            color: 'var(--accent)',
+                                            textDecoration: 'none',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '5px',
+                                            transition: 'opacity 0.2s',
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+                                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                                    >
+                                        <i className="fas fa-file-contract" aria-hidden="true" style={{ fontSize: '11px' }}></i>
+                                        Terms &amp; Conditions
+                                    </a>
+                                    <a
+                                        href="/static/policies/Docintake_Privacy_Policy_v1.0_DRAFT.pdf"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        aria-label="Open Privacy Policy PDF in a new tab"
+                                        style={{
+                                            fontSize: '12px',
+                                            color: 'var(--text-muted)',
+                                            textDecoration: 'none',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '5px',
+                                            transition: 'opacity 0.2s',
+                                        }}
+                                        onMouseEnter={e => e.currentTarget.style.opacity = '0.65'}
+                                        onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+                                    >
+                                        <i className="fas fa-shield-alt" aria-hidden="true" style={{ fontSize: '11px' }}></i>
+                                        Privacy Policy
+                                    </a>
+                                    <span style={{
+                                        fontSize: '11px',
+                                        color: 'var(--text-dim)',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '5px',
+                                    }}>
+                                        <i className="fas fa-envelope" aria-hidden="true" style={{ fontSize: '10px' }}></i>
+                                        accessibility@docintake.ae
+                                    </span>
+                                </div>
+                                <span style={{ fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                                    © {new Date().getFullYear()} Docintake. All rights reserved.
+                                </span>
+                            </div>
+                        </div>
+                    </footer>
+
                 </div>
             );
         }

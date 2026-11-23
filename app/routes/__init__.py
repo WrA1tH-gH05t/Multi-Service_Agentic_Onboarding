@@ -16,6 +16,7 @@ from .health import router as health_router
 from .audit import router as audit_router
 from .policies import router as policies_router
 from .consent import router as consent_router
+from .children import router as children_router
 
 # Root API router (mounted at /api/v1 in main.py)
 router = APIRouter()
@@ -35,3 +36,4 @@ router.include_router(health_router)
 router.include_router(audit_router)
 router.include_router(policies_router)
 router.include_router(consent_router)
+router.include_router(children_router)

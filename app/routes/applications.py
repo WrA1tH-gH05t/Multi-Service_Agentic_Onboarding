@@ -25,6 +25,8 @@ async def create_application(
     service_id: str = Query(...),
     applicant_name: str = Query(...),
     token: Optional[str] = Query(None, alias="token"),
+    child_profile_id: Optional[str] = Query(None),
+    applicant_type: Optional[str] = Query("adult"),
 ):
     """Create a new onboarding application and initialise all downstream tracking."""
     state = get_state()
@@ -40,6 +42,29 @@ async def create_application(
             if not user:
                 raise HTTPException(status_code=401, detail="Invalid or expired token. Please sign in again.")
             user_id = user.user_id
+
+    # Enforce Child Dependent Profile Service Eligibility
+    if child_profile_id:
+        if not user_id or user_id == "anonymous":
+            raise HTTPException(status_code=401, detail="Sign-in is required to submit an application on behalf of a child profile.")
+        if db:
+            eligibility = db.check_service_eligibility_for_child(child_profile_id, user_id, service_id)
+            if not eligibility.get("eligible"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=eligibility.get("reason", f"Service '{service_id}' is not available for this child dependent profile.")
+                )
+            child = db.get_child_profile(child_profile_id, user_id)
+            if child and not applicant_name:
+                applicant_name = child.get("full_name")
+        applicant_type = "child_dependent"
+
+    # Also directly reject mobility_rental for child dependent applicants
+    if service_id == "mobility_rental" and (child_profile_id or applicant_type == "child_dependent"):
+        raise HTTPException(
+            status_code=400,
+            detail="Mobility / Rental is unavailable for dependent profiles under 18 because applicants must meet the minimum driving-licence age requirements. (Note: This service remains active for eligible adult applicants)."
+        )
 
     catalog = state["catalog"]
     service = catalog.get_service(service_id)
@@ -82,6 +107,8 @@ async def create_application(
                 applicant_name=applicant_name.strip(),
                 required_documents=service.required_documents,
                 collection_session_id=coll_session_id,
+                child_profile_id=child_profile_id,
+                applicant_type=applicant_type or "adult",
             )
         except Exception as e:
             logger.warning(f"Repository create_application failed ({e}), falling back to in-memory")
@@ -97,6 +124,8 @@ async def create_application(
         "status": "incomplete",
         "user_id": user_id,
         "collection_session_id": coll_session_id,
+        "child_profile_id": child_profile_id,
+        "applicant_type": applicant_type,
     }
 
     return {
@@ -108,6 +137,8 @@ async def create_application(
             "status": "incomplete",
             "required_documents": service.required_documents,
             "collection_session_id": coll_session_id,
+            "child_profile_id": child_profile_id,
+            "applicant_type": applicant_type,
         }
     }
 
@@ -151,6 +182,8 @@ async def list_applications(user_id: Optional[str] = None, token: Optional[str] 
                         "service_type": a.service_id,
                         "service_name": svc_name,
                         "applicant_name": a.applicant_name,
+                        "child_profile_id": a.child_profile_id,
+                        "applicant_type": a.applicant_type or ("child_dependent" if a.child_profile_id else "adult"),
                         "status": a.status,
                         "created_at": a.created_at.isoformat() if a.created_at else None,
                         "validation_result": a.validation_result or {},

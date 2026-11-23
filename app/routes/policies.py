@@ -12,8 +12,13 @@ def get_state():
     from app.main import app_state
     return app_state
 
-TERMS_PDF_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf")
-PRIVACY_PDF_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "Docintake_Privacy_Policy_v1.0_DRAFT.pdf")
+TERMS_V11_PDF_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "Docintake_Terms_and_Conditions_v1.1_DRAFT.pdf")
+TERMS_V10_PDF_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf")
+PRIVACY_V11_PDF_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "Docintake_Privacy_Policy_v1.1_DRAFT.pdf")
+PRIVACY_V10_PDF_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "docs", "Docintake_Privacy_Policy_v1.0_DRAFT.pdf")
+
+TERMS_PDF_PATH = TERMS_V11_PDF_PATH if os.path.exists(TERMS_V11_PDF_PATH) else TERMS_V10_PDF_PATH
+PRIVACY_PDF_PATH = PRIVACY_V11_PDF_PATH if os.path.exists(PRIVACY_V11_PDF_PATH) else PRIVACY_V10_PDF_PATH
 
 
 @router.get("/policies")
@@ -26,7 +31,8 @@ async def list_policies():
             with db.session_scope() as session:
                 from services.database import PolicyDocument
                 docs = session.query(PolicyDocument).all()
-                return {"success": True, "data": [d.to_dict() for d in docs]}
+                if docs:
+                    return {"success": True, "data": [d.to_dict() for d in docs]}
         except Exception as e:
             pass
     return {
@@ -35,16 +41,16 @@ async def list_policies():
             {
                 "policy_id": "terms_and_conditions",
                 "title": "Docintake Terms & Conditions and Service Policy",
-                "version": "1.0",
+                "version": "1.1",
                 "status": "DRAFT — PENDING LEGAL APPROVAL",
-                "pdf_filename": "Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf"
+                "pdf_filename": "Docintake_Terms_and_Conditions_v1.1_DRAFT.pdf"
             },
             {
                 "policy_id": "privacy_policy",
                 "title": "Docintake Privacy Policy and Data Protection Framework",
-                "version": "1.0",
+                "version": "1.1",
                 "status": "DRAFT — PENDING LEGAL APPROVAL",
-                "pdf_filename": "Docintake_Privacy_Policy_v1.0_DRAFT.pdf"
+                "pdf_filename": "Docintake_Privacy_Policy_v1.1_DRAFT.pdf"
             }
         ]
     }
@@ -54,12 +60,14 @@ async def list_policies():
 @router.get("/policies/terms/pdf")
 async def download_terms_pdf():
     """Serve the official Terms & Conditions PDF document for view/download."""
-    if os.path.exists(TERMS_PDF_PATH):
+    target_path = TERMS_V11_PDF_PATH if os.path.exists(TERMS_V11_PDF_PATH) else TERMS_V10_PDF_PATH
+    display_filename = "DocIntake_Terms_and_Conditions_v1.1_DRAFT.pdf"
+    if os.path.exists(target_path):
         return FileResponse(
-            path=TERMS_PDF_PATH,
-            filename="Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf",
+            path=target_path,
+            filename=display_filename,
             media_type="application/pdf",
-            headers={"Content-Disposition": 'inline; filename="Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf"'}
+            headers={"Content-Disposition": f'inline; filename="{display_filename}"'}
         )
     raise HTTPException(status_code=404, detail="Terms & Conditions PDF not found")
 
@@ -68,24 +76,26 @@ async def download_terms_pdf():
 @router.get("/policies/privacy/pdf")
 async def download_privacy_pdf():
     """Serve the official Privacy Policy PDF document for view/download."""
-    if os.path.exists(PRIVACY_PDF_PATH):
+    target_path = PRIVACY_V11_PDF_PATH if os.path.exists(PRIVACY_V11_PDF_PATH) else PRIVACY_V10_PDF_PATH
+    display_filename = "DocIntake_Privacy_Policy_v1.1_DRAFT.pdf"
+    if os.path.exists(target_path):
         return FileResponse(
-            path=PRIVACY_PDF_PATH,
-            filename="Docintake_Privacy_Policy_v1.0_DRAFT.pdf",
+            path=target_path,
+            filename=display_filename,
             media_type="application/pdf",
-            headers={"Content-Disposition": 'inline; filename="Docintake_Privacy_Policy_v1.0_DRAFT.pdf"'}
+            headers={"Content-Disposition": f'inline; filename="{display_filename}"'}
         )
     raise HTTPException(status_code=404, detail="Privacy Policy PDF not found")
 
 
 @router.get("/policies/terms", response_class=HTMLResponse)
 async def view_terms_html():
-    """Render the official in-app Terms & Conditions and Service Policy HTML view."""
+    """Render the official in-app Terms & Conditions and Service Policy HTML view (v1.1 DRAFT)."""
     return HTMLResponse(content="""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Docintake - Terms & Conditions and Service Policy (v1.0 DRAFT)</title>
+<title>Docintake - Terms & Conditions and Service Policy (v1.1 DRAFT)</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #f9fafb; }
   .card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -106,15 +116,15 @@ async def view_terms_html():
     <h1 style="margin:0 0 8px 0; font-size: 1.8rem;">DOCINTAKE</h1>
     <div style="font-size: 1.1rem; color: #93c5fd;">Terms & Conditions and Service Policy</div>
     <div style="font-size: 0.85rem; color: #d1d5db; margin-top: 4px;">Multi-Service Agentic Onboarding Platform Policy</div>
-    <div class="badge">DRAFT — PENDING UAE LEGAL APPROVAL</div>
+    <div class="badge">DRAFT — PENDING UAE LEGAL APPROVAL • v1.1</div>
   </div>
 
-  <a href="/api/v1/policies/terms/download" class="btn-download">📄 Download Official PDF (v1.0 DRAFT)</a>
+  <a href="/api/v1/policies/terms/download" class="btn-download">📄 Download Official PDF (v1.1 DRAFT)</a>
 
   <table class="meta-table">
     <tr><th>Company Name</th><td>Docintake</td><th>Jurisdiction</th><td>United Arab Emirates</td></tr>
     <tr><th>Registered Address</th><td>N/A</td><th>Document Status</th><td>DRAFT — PENDING LEGAL APPROVAL</td></tr>
-    <tr><th>Policy Version</th><td>1.0</td><th>Effective Date</th><td>Pending Approval</td></tr>
+    <tr><th>Policy Version</th><td>1.1</td><th>Effective Date</th><td>Pending Legal Approval</td></tr>
     <tr><th>Customer Support</th><td>[SUPPORT EMAIL PLACEHOLDER]</td><th>Privacy Contact</th><td>[PRIVACY CONTACT PLACEHOLDER]</td></tr>
   </table>
 
@@ -122,40 +132,41 @@ async def view_terms_html():
     <strong>LEGAL NOTICE:</strong> This policy document is a formal technical draft prepared for the Docintake onboarding system. Prior to public promulgation or enforceability, this policy requires formal review and sign-off by qualified legal counsel licensed within the United Arab Emirates.
   </div>
 
-  <h2>1. Introduction and Acceptance</h2>
-  <p>Welcome to Docintake. By accessing, browsing, registering an account, or submitting documents through Docintake, you agree to be bound by these Terms & Conditions. If you do not agree, you must immediately discontinue use of the platform.</p>
+  <h2>1. Scope, Applicability & Parent/Guardian Accounts</h2>
+  <p>These Terms govern Docintake ("Platform", "we", "us", or "our"), an agentic document intake and verification platform operating within the United Arab Emirates. These Terms govern primary adult accounts, parent/guardian management of child dependent profiles, application processing, document handling, and review by designated government review authorities.</p>
 
-  <h2>2. Company Identification</h2>
-  <p>Docintake operates this platform within the United Arab Emirates. The company's registered address is N/A. Inquiries may be addressed to [SUPPORT EMAIL PLACEHOLDER].</p>
+  <h2>2. Legal Capacity and Guardian Eligibility (Article 84)</h2>
+  <p>Under Article 84 of UAE Federal Decree-Law No. 25 of 2025 (Civil Transactions Law), full legal majority is attained at 18 Gregorian years. To register an account or create a child dependent profile, you represent and warrant that you are at least 18 Gregorian years old, possess full civil legal capacity, and are the parent or legally authorized caregiver/guardian of any minor child whose profile you manage.</p>
 
-  <h2>3. Platform Purpose & Limitations</h2>
-  <p>Docintake provides conversational guidance, structured document intake, optical and vision extraction, and completeness validation. Docintake does not conduct independent external government identity verification or database reconciliation unless an authorized integration exists. Automated extraction and validation completeness do not constitute government approval.</p>
+  <h2>3. Child Dependent Profiles & Profile Creation</h2>
+  <p>Child Dependent Profiles are dependent identity records linked exclusively to the parent or guardian's primary account. Minors do not hold independent login accounts, passwords, or autonomous sessions. Guardians may create child profiles via the Accounts Section or via the AI Assistant, providing the child's full legal name, date of birth, relationship, and nationality.</p>
 
-  <h2>4. Active Services Catalogue</h2>
-  <p><strong>1. Basic Registration:</strong> Requires one valid National ID card. (1-2 business days).<br>
-  <strong>2. Premium / Cross Border:</strong> Requires BOTH a valid National ID card AND a valid Passport. Both documents must arrive before the application is complete. (3-5 business days).<br>
-  <strong>3. Mobility / Rental:</strong> Requires an official Driving Licence. Uses dedicated licence extraction. (Same day).</p>
+  <h2>4. Child-Data Protection and Article 7 Consent</h2>
+  <p>In compliance with Article 7 of UAE Federal Decree-Law No. 26 of 2025 (Child Digital Safety), processing personal data of children under 13 requires explicit, verifiable parental consent. Consent may be revoked at any time via the Child Profiles management area, whereupon data processing for that child immediately ceases.</p>
 
-  <h2>5. Coming Soon Services</h2>
-  <p>Services marked 'Coming Soon' in the directory (bank account, insurance, loans, utility, tenancy, etc.) are demonstrations and cannot accept live submissions.</p>
+  <h2>5. Active Services Catalogue, SLAs & Demonstrator Services</h2>
+  <p>Docintake operates three (3) active services: <strong>Basic Registration</strong> (National ID, 1–2 business days), <strong>Premium / Cross Border</strong> (National ID + Passport, 3–5 business days), and <strong>Mobility / Rental</strong> (Driving Licence, Same-day/2–4 hours; restricted to adults 18+). Stated processing times represent operational estimates. Additional services marked "Coming Soon" (Bank Account, Insurance, SIM, Loan, Utility, Tenancy, Professional Licence, Vehicle Registration) are demonstrator listings that cannot accept live submissions.</p>
 
-  <h2>6. Account Creation & Mandatory Terms Acceptance</h2>
-  <p>Applicants must register an account and actively accept these Terms & Conditions via an unchecked checkbox. Credentials must remain confidential.</p>
+  <h2>6. Document Ingestion, Expiration & Automatic Purge Policy</h2>
+  <p>Accepted document formats include PDF, PNG, JPEG, and TIFF. All files undergo strict MIME magic byte validation, ClamAV antivirus scanning, and active-content PDF structural inspection. All submitted documents must be valid and unexpired; expired documents will fail automated validation, alert the user, and trigger automatic deletion of expired binaries and records from storage and the database.</p>
 
-  <h2>7. AI-Powered Extraction Disclaimer</h2>
-  <p>Extraction results are generated via on-premise vision models. NO EXTRACTION RESULT IS GUARANTEED TO BE ERROR-FREE. Applicants must review and confirm extracted values.</p>
+  <h2>7. AI-Assisted Extraction & Automated Validation</h2>
+  <p>Document field extraction is performed locally using on-premise vision models (Qwen2.5-VL via Ollama) without external cloud APIs. Algorithmic extraction does not guarantee error-free results; users must review and confirm extracted data in-app. Deterministic validation checks mandatory field presence, checksums, date consistency, and cross-document identity consistency (ID vs Passport).</p>
 
-  <h2>8. Human Review Escalation</h2>
-  <p>Applications with unreadable zones or confidence flags are escalated to authorized human reviewers.</p>
+  <h2>8. Human Review Procedures</h2>
+  <p>Applications encountering edge-case discrepancies, unreadable zones, or confidence scores requiring clarification are routed to an authorized Human Review queue under role-based access control and supervisory audit logging.</p>
 
-  <h2>9. Data Protection & On-Premise Storage</h2>
-  <p>Customer documents remain strictly within on-premise MinIO storage and PostgreSQL. Documents are never transmitted to public third-party AI APIs.</p>
+  <h2>9. Application-Specific Document Review Consent</h2>
+  <p>Prior to routing any application to designated UAE government reviewing authorities, separate, application-specific consent must be provided. If declined or withdrawn, the application is halted and staged document binaries are purged in accordance with data minimization.</p>
 
-  <h2>10. Strict Developer Document Access Restrictions</h2>
-  <p>Application developers are strictly prohibited from viewing or accessing customer document contents.</p>
+  <h2>10. Government Review & Developer Access Restrictions</h2>
+  <p>Submitted applications are transferred exclusively to authorized UAE government review bodies on a service-specific, agency-specific, and application-specific basis. Docintake software engineers and platform developers are subject to a strict Zero Routine Access Policy, preventing inspection of unmasked customer or child dependent documents.</p>
 
-  <h2>11. Governing Law & UAE Legal Review</h2>
-  <p>Governed by the laws of the United Arab Emirates, subject to UAE legal counsel review.</p>
+  <h2>11. Prohibited Platform Activities</h2>
+  <p>Users may not upload fraudulent or altered documents, attempt prompt injection, jailbreaking, or adversarial subversion against the AI model, bypass security checks, or upload synthetic/manipulated PDFs.</p>
+
+  <h2>12. Limitation of Scope, Liability & UAE Governing Law</h2>
+  <p>Docintake operates as an intake and routing gateway; a status of "Complete" indicates document ingestion completeness only and does not constitute government regulatory certification or approval. These Terms are governed exclusively by UAE federal law, subject to final review and sign-off by qualified UAE legal counsel.</p>
 </div>
 </body>
 </html>
@@ -164,12 +175,12 @@ async def view_terms_html():
 
 @router.get("/policies/privacy", response_class=HTMLResponse)
 async def view_privacy_html():
-    """Render the official in-app Privacy Policy HTML view."""
+    """Render the official in-app Privacy Policy HTML view (v1.1 DRAFT)."""
     return HTMLResponse(content="""<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Docintake - Privacy Policy and Data Protection Framework (v1.0 DRAFT)</title>
+<title>Docintake - Privacy Policy & Data Protection Framework (v1.1 DRAFT)</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #1f2937; max-width: 900px; margin: 40px auto; padding: 0 20px; background: #f9fafb; }
   .card { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
@@ -188,47 +199,38 @@ async def view_privacy_html():
 <div class="card">
   <div class="header-box">
     <h1 style="margin:0 0 8px 0; font-size: 1.8rem;">DOCINTAKE</h1>
-    <div style="font-size: 1.1rem; color: #93c5fd;">Privacy Policy and Data Protection Framework</div>
-    <div style="font-size: 0.85rem; color: #d1d5db; margin-top: 4px;">Multi-Service Agentic Onboarding Platform Policy</div>
-    <div class="badge">DRAFT — PENDING UAE LEGAL APPROVAL</div>
+    <div style="font-size: 1.1rem; color: #93c5fd;">Privacy Policy & Data Protection Framework</div>
+    <div style="font-size: 0.85rem; color: #d1d5db; margin-top: 4px;">Parent/Guardian Accounts & Child Dependent Data Protection</div>
+    <div class="badge">DRAFT — PENDING UAE LEGAL APPROVAL • v1.1</div>
   </div>
 
-  <a href="/api/v1/policies/privacy/download" class="btn-download">📄 Download Official PDF (v1.0 DRAFT)</a>
+  <a href="/api/v1/policies/privacy/download" class="btn-download">📄 Download Official PDF (v1.1 DRAFT)</a>
 
   <table class="meta-table">
     <tr><th>Company Name</th><td>Docintake</td><th>Jurisdiction</th><td>United Arab Emirates</td></tr>
     <tr><th>Registered Address</th><td>N/A</td><th>Document Status</th><td>DRAFT — PENDING LEGAL APPROVAL</td></tr>
-    <tr><th>Policy Version</th><td>1.0</td><th>Effective Date</th><td>Pending Approval</td></tr>
+    <tr><th>Policy Version</th><td>1.1</td><th>Effective Date</th><td>Pending Legal Approval</td></tr>
     <tr><th>Customer Support</th><td>[SUPPORT EMAIL PLACEHOLDER]</td><th>Privacy Contact</th><td>[PRIVACY CONTACT PLACEHOLDER]</td></tr>
   </table>
 
   <div class="note">
-    <strong>STATUTORY NOTICE:</strong> This policy reflects Docintake's technical architecture (on-premise storage, developer document exclusion, application-specific consent). Applicability of UAE Federal Decree-Law No. 45 of 2021 (PDPL) and public-sector exclusions must be reviewed by qualified UAE legal counsel.
+    <strong>LEGAL NOTICE:</strong> This Privacy Policy is a technical draft prepared for the Docintake onboarding system. Prior to formal promulgation, this document requires formal sign-off by qualified legal counsel licensed within the United Arab Emirates.
   </div>
 
-  <h2>1. Information Collected</h2>
-  <p>Docintake collects only necessary data: account details, submitted document binaries (National ID, Passport, Driving Licence), extracted identity fields, application status records, consent audit trails, and document access logs.</p>
+  <h2>1. Scope & Legal Authority</h2>
+  <p>Docintake processes personal information under UAE Federal Decree-Law No. 45 of 2021 (Personal Data Protection Law), Federal Decree-Law No. 25 of 2025 (Civil Transactions Law, Article 84 on majority at 18 Gregorian years), and Federal Decree-Law No. 26 of 2025 (Child Digital Safety, Article 7 on verifiable parental consent).</p>
 
-  <h2>2. Purpose of Processing</h2>
-  <p>Data is processed strictly for account management, service onboarding, document intake, field extraction, validation, authorized government-agency inspection, and security audit.</p>
+  <h2>2. Age Classification</h2>
+  <p>Docintake classifies dependent data into three categories: (a) Children Under 13: requires mandatory Article 7 verifiable guardian consent; (b) Minors 13 to 17: guardian-managed onboarding with age-appropriate privacy safeguards; (c) Adults 18 and Above: independent account holders with full legal capacity.</p>
 
-  <h2>3. On-Premise Storage Architecture</h2>
-  <p>All document binaries remain strictly within on-premise MinIO storage. Structured information is stored in PostgreSQL. Document binaries are NEVER transmitted to third-party public cloud AI providers.</p>
+  <h2>3. On-Premises Storage & Technical Isolation</h2>
+  <p>All document binaries reside in secure, self-hosted on-premises MinIO storage encrypted with AES-256. Structured records reside in PostgreSQL/SQLite. Zero document binaries or child personal data are transmitted to public third-party AI APIs.</p>
 
-  <h2>4. Authorized Government-Agency Review Access</h2>
-  <p>Applications requiring agency review (e.g. Mobility / Rental routed to designated mobility reviewers such as RTA if confirmed; Basic Registration to identity reviewers; Premium to cross-border reviewers) are accessible ONLY to authorized reviewers of that specific agency. Cross-agency access is strictly prohibited. Every document view is recorded in an immutable audit trail.</p>
+  <h2>4. Zero Developer Access & Government Review Access</h2>
+  <p>Platform developers and technical operators are strictly blocked from accessing unmasked document binaries or child PII. Documents are routed exclusively to designated UAE government reviewing authorities based on explicit, application-specific review consent.</p>
 
-  <h2>5. Developer Document Access Restrictions</h2>
-  <p>Platform developers are strictly restricted from viewing or downloading customer document contents. Developers only access source code, non-sensitive logs, metrics, and synthetic test suites. No developer bypass exists.</p>
-
-  <h2>6. Data Retention & Consent Staging</h2>
-  <p>Uploaded documents reside in a temporary staging area before consent. Upon explicit consent, documents are persisted. If consent is declined, temporary document binaries and sensitive extractions are purged immediately. Final retention periods remain configurable and subject to legal counsel approval.</p>
-
-  <h2>7. Consent & Withdrawal Rights</h2>
-  <p>Each application requires independent Document Review Consent. Applicants may decline consent (closing the application and purging staged files) or withdraw consent, halting future processing in accordance with UAE legal standards.</p>
-
-  <h2>8. Privacy Requests</h2>
-  <p>For data protection requests, contact: <strong>[PRIVACY CONTACT PLACEHOLDER]</strong>.</p>
+  <h2>5. Guardian Rights and Consent Revocation</h2>
+  <p>Guardians may withdraw consent at any time via the Child Profiles interface. Upon withdrawal, active processing ceases immediately and staged documents associated with drafts are deleted.</p>
 </div>
 </body>
 </html>

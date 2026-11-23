@@ -206,15 +206,28 @@ class DocumentAccessControl:
             app_id = doc.application_id
             owner_id = doc.user_id
 
-            # 2. APPLICANT ROLE: Can only access their own documents
-            if role_name == "applicant":
-                if owner_id == user_id:
+            # Check if document belongs to an application for a child profile owned by this parent
+            is_child_owner = False
+            if app_id:
+                app_record = session.query(Application).filter_by(application_id=app_id).first()
+                if app_record and app_record.child_profile_id:
+                    from services.database import ChildProfile
+                    cp = session.query(ChildProfile).filter_by(
+                        profile_id=app_record.child_profile_id,
+                        parent_user_id=user_id
+                    ).first()
+                    if cp:
+                        is_child_owner = True
+
+            # 2. APPLICANT ROLE: Can access their own documents or their dependent child's documents
+            if role_name in ("applicant", "parent", "guardian"):
+                if owner_id == user_id or is_child_owner:
                     cls._log_access_attempt(
                         db, document_id=document_id, application_id=app_id, user_id=user_id,
                         user_role=role_name, agency_id=None, action=action,
                         access_granted=True, denial_reason=None, ip_address=ip_address
                     )
-                    return True, "Authorized as document owner.", doc_dict
+                    return True, "Authorized as document owner or legal guardian.", doc_dict
                 else:
                     cls._log_access_attempt(
                         db, document_id=document_id, application_id=app_id, user_id=user_id,
@@ -237,24 +250,33 @@ class DocumentAccessControl:
                 if not app:
                     return False, "Application not found.", None
 
-                # Check valid consent
+                # Check valid consent (either adult ApplicationConsent or ChildApplicationReviewConsent)
                 consent = session.query(ApplicationConsent).filter_by(application_id=app_id, status="agreed").first()
+                child_consent = None
                 if not consent:
+                    from services.database import ChildApplicationReviewConsent
+                    child_consent = session.query(ChildApplicationReviewConsent).filter(
+                        ChildApplicationReviewConsent.application_id == app_id,
+                        ChildApplicationReviewConsent.consent_status == "accepted"
+                    ).first()
+
+                if not consent and not child_consent:
                     cls._log_access_attempt(
                         db, document_id=document_id, application_id=app_id, user_id=user_id,
                         user_role=role_name, agency_id=assigned_agency, action=action,
                         access_granted=False, denial_reason="no_active_consent", ip_address=ip_address
                     )
-                    return False, "Access denied: Applicant has not provided active document review consent.", None
+                    return False, "Access denied: Applicant or legal guardian has not provided active document review consent.", None
 
                 # Check Agency Scoping: Reviewer agency must match application designated agency
-                if assigned_agency != consent.designated_agency:
+                target_agency = consent.designated_agency if consent else child_consent.receiving_agency_id
+                if assigned_agency and target_agency and assigned_agency != target_agency:
                     cls._log_access_attempt(
                         db, document_id=document_id, application_id=app_id, user_id=user_id,
                         user_role=role_name, agency_id=assigned_agency, action=action,
                         access_granted=False, denial_reason="cross_agency_forbidden", ip_address=ip_address
                     )
-                    return False, f"Access denied: This application is designated for '{consent.designated_agency}', not your agency '{assigned_agency}'.", None
+                    return False, f"Access denied: This application is designated for '{target_agency}', not your agency '{assigned_agency}'.", None
 
                 cls._log_access_attempt(
                     db, document_id=document_id, application_id=app_id, user_id=user_id,

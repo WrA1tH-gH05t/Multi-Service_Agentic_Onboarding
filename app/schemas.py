@@ -25,8 +25,50 @@ class ApplicationCreate(BaseModel):
     """Request schema for instantiating a new service onboarding application."""
     service_id: str
     applicant_name: str
-    applicant_email: str
-    documents: List[str]
+    applicant_email: Optional[str] = None
+    documents: Optional[List[str]] = None
+    child_profile_id: Optional[str] = None
+    applicant_type: Optional[str] = "adult"
+
+
+class ChildProfileCreate(BaseModel):
+    """Schema for registering a child dependent profile."""
+    full_name: str
+    date_of_birth: str
+    relationship_type: str
+    nationality: Optional[str] = None
+    notes: Optional[str] = None
+    guardian_confirms_authority: bool = False
+    guardian_consents_to_data_processing: bool = False
+    guardian_verification_reference: Optional[str] = None
+
+
+class ChildProfileUpdate(BaseModel):
+    """Schema for updating child dependent profile."""
+    full_name: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    relationship_type: Optional[str] = None
+    nationality: Optional[str] = None
+    notes: Optional[str] = None
+    profile_status: Optional[str] = None
+
+
+class ChildProfileResponse(BaseModel):
+    """Schema for returning child dependent profile data."""
+    profile_id: str
+    parent_user_id: str
+    full_name: str
+    date_of_birth: str
+    relationship_type: str
+    nationality: Optional[str] = None
+    guardian_authority_status: Optional[str] = "pending"
+    guardian_verification_reference: Optional[str] = None
+    age_band: Optional[str] = None
+    age: Optional[int] = None
+    profile_status: str = "active"
+    notes: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
 
 
 class ApplicationResponse(BaseModel):
@@ -123,6 +165,8 @@ class ChatMessage(BaseModel):
     query: str
     context_limit: int = 5
     token: Optional[str] = None
+    time_greeting: Optional[str] = None
+    child_profile_id: Optional[str] = None  # Set by frontend when a child is currently selected
 
 
 class ChatResponse(BaseModel):
@@ -130,6 +174,8 @@ class ChatResponse(BaseModel):
     response: str
     intent: Optional[str] = None
     matched_service: Optional[str] = None
+    action: Optional[str] = None
+    data: Optional[Dict[str, Any]] = None
 
 
 class DocumentMatch(BaseModel):

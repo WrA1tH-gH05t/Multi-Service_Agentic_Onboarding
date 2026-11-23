@@ -112,7 +112,7 @@ async def register(req: UserRegistrationRequest):
 
                 # Record immutable Terms & Conditions acceptance
                 terms_policy = session.query(PolicyDocument).filter_by(policy_id="terms_and_conditions").first()
-                policy_version = terms_policy.version if terms_policy else "1.0"
+                policy_version = terms_policy.version if terms_policy else "1.1"
                 content_hash = terms_policy.content_hash if terms_policy else "default_terms_hash"
 
                 acceptance = UserTermsAcceptance(
@@ -126,6 +126,18 @@ async def register(req: UserRegistrationRequest):
                     user_agent="Docintake Onboarding Client",
                 )
                 session.add(acceptance)
+
+                from services.database import PolicyAcceptance
+                pol_acc = PolicyAcceptance(
+                    acceptance_id=str(uuid.uuid4()) if 'uuid' in globals() else f"pol_{secrets.token_hex(8)}",
+                    user_id=user.user_id,
+                    policy_type="terms_and_conditions",
+                    policy_version=policy_version,
+                    policy_hash=content_hash,
+                    accepted_at=datetime.now(timezone.utc),
+                    acceptance_status="accepted",
+                )
+                session.add(pol_acc)
 
                 # Assign role if specified
                 user_role = req.role if req.role in ("applicant", "government_reviewer", "developer", "platform_admin", "compliance_reviewer") else "applicant"

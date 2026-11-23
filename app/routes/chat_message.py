@@ -18,20 +18,20 @@ def get_state():
     return app_state
 
 @router.post("/chat/message")
-async def chat(req: ChatMessage):
+async def chat(req: ChatMessage, token: Optional[str] = Query(None, alias="token")):
     """Receive a user chat message and return Lynx's AI-generated reply."""
     import traceback
     try:
         state = get_state()
         db = state.get("database")
         
-        # Determine session user_id from token
+        # Determine session user_id from token (check body token or query token)
         user_id = None
-        token = getattr(req, 'token', None)
-        if token:
+        auth_token = getattr(req, 'token', None) or token
+        if auth_token:
             auth = state.get("auth")
             if auth:
-                user = auth.validate_token(token)
+                user = auth.validate_token(auth_token)
                 if user:
                     user_id = user.user_id
 
@@ -214,6 +214,44 @@ async def chat(req: ChatMessage):
         is_apply = any(kw in q for kw in apply_keywords)
         is_generic_apply = any(kw in q for kw in generic_apply_keywords)
 
+        # ── "Ok / got it / thanks" after the bot gave service info ───────────────
+        # Detect when the user sends a short acknowledgement (ok, sure, got it, etc.)
+        # right after the bot described a service (tracked in recent chat history).
+        # In that case, ask them whether they have any issues or want to start an
+        # application, and surface the service so the frontend can offer the wizard.
+        OK_PHRASES = {
+            "ok", "okay", "ok.", "okay.", "ok!", "okay!", "sure", "sure.", "alright",
+            "alright.", "got it", "got it.", "i see", "i see.", "understood",
+            "noted", "great", "thanks", "thank you", "cool", "nice", "good",
+        }
+        is_ok_ack = q.strip().rstrip("!.,") in OK_PHRASES or q.strip() in OK_PHRASES
+
+        if is_ok_ack and not service and not is_apply:
+            # Look at the last few assistant messages to see if a service was mentioned
+            if db and session_id:
+                try:
+                    recent = db.get_chat_session_messages(session_id)
+                    # Walk backwards through assistant turns only
+                    for m in reversed(recent[:-1]):  # exclude the message just persisted
+                        if m.get("role") != "assistant":
+                            continue
+                        content_lower = (m.get("content") or "").lower()
+                        for svc_id, svc_keywords in {
+                            "basic_registration": ["basic registration", "basic reg", "identity registration"],
+                            "premium_crossborder": ["premium cross-border", "premium cross border", "crossborder", "premium crossborder"],
+                            "mobility_rental": ["mobility rental", "vehicle rental", "mobility rental"],
+                        }.items():
+                            if any(kw in content_lower for kw in svc_keywords):
+                                svc = catalog.get_service(svc_id)
+                                if svc:
+                                    service = svc
+                                    status = svc.status
+                                break
+                        if service:
+                            break
+                except Exception as e:
+                    logger.warning(f"Could not inspect recent chat history for ok-ack: {e}")
+
         # Build context from service catalog
         context_parts = []
 
@@ -243,23 +281,46 @@ async def chat(req: ChatMessage):
 
         context = "\n\n".join(context_parts)
 
+        # Build dynamic time-of-day greeting context
+        user_time_greeting = req.time_greeting or "Good day"
+        greeting_instruction = (
+            f"USER TIME OF DAY CONTEXT: The user's current local time corresponds to '{user_time_greeting}'. "
+            f"If the user is saying hello, hi, hey, or greeting you, warmly greet them using '{user_time_greeting}! I\\'m Lynx, your DocIntake assistant.' "
+            f"Keep conversational responses natural, neat, and direct without robotic disclaimers or repetitive lists."
+        )
+
         # Build system prompt — friendly, fluent, service-grounded
         # Dedicated DocIntake Project-Scoped System Prompt
-        system_prompt = """You are Lynx, the dedicated AI assistant for the DocIntake Onboarding & Verification Platform.
-You operate EXCLUSIVELY within the scope of the DocIntake project (services, documents, application tracking, verification rules, platform architecture, and user authentication).
+        system_prompt = f"""You are Lynx, the dedicated AI assistant for the DocIntake Onboarding & Verification Platform.
+You operate EXCLUSIVELY within the scope of the DocIntake project (services, documents, application tracking, verification rules, platform architecture, user authentication, and child dependent profiles).
+
+CONVERSATIONAL BEHAVIOR & TONE:
+- {greeting_instruction}
+- NATURAL & COHERENT: Speak naturally and conversationally. Do not repeat the exact same service list or robotic disclaimer on every turn if the user is simply acknowledging or greeting you.
+- HELPFUL & DIRECT: Answer what the user asked cleanly and concisely (1-3 sentences for simple questions). When asked "what can you do" or "why are you here", explain your capabilities (document intake, onboarding service applications, automatic data validation, and parent-managed child dependent profiles) in a fluid, engaging manner.
+- DO NOT loop or regurgitate fixed menu lists unless the user specifically asks for service options or requirements.
 
 AVAILABLE SERVICES & SPECIFICATIONS:
-- Basic Registration (basic_registration): Simple identity onboarding. Required documents: National ID, proof of address. Processing SLA: 1-2 business days. Status: AVAILABLE.
-- Premium Cross-Border (premium_crossborder): International verification. Required documents: National ID AND Passport, proof of address. Processing SLA: 3-5 business days. Status: AVAILABLE.
-- Mobility Rental (mobility_rental): Vehicle and rental onboarding. Required documents: Valid Driving License. Processing SLA: 1-2 business days (or Same Day). Status: AVAILABLE.
+- Basic Registration (basic_registration): Simple identity onboarding. Required documents: National ID, proof of address. Processing SLA: 1-2 business days. Status: AVAILABLE. (Available to eligible adults and child dependent profiles).
+- Premium Cross-Border (premium_crossborder): International verification. Required documents: National ID AND Passport, proof of address. Processing SLA: 3-5 business days. Status: AVAILABLE. (Available to eligible adults and child dependent profiles).
+- Mobility Rental (mobility_rental): Vehicle and rental onboarding. Required documents: Valid Driving License. Processing SLA: 1-2 business days (or Same Day). Status: AVAILABLE for eligible adult applicants. STRICTLY NOT AVAILABLE to dependent child profiles under 18 due to minimum driving-licence age requirements.
+
+PARENT / GUARDIAN ACCOUNTS & CHILD DEPENDENT PROFILES:
+- Adult accounts: Account holders must be at least 18 Gregorian years old under UAE Civil Transactions Law (Federal Decree-Law No. 25 of 2025, Article 84).
+- Dependent profiles: Children do NOT have independent login accounts, emails, or passwords. Adult parents and legally authorized guardians manage child profiles through their own authenticated Docintake accounts. One parent can manage multiple child profiles.
+- Child profile creation: Collects child full legal name, date of birth, relationship to guardian, and nationality. Requires explicit confirmation of parental/caregiver authority.
+- Child data protection (UAE Federal Decree-Law No. 26 of 2025, Article 7): Children under 13 require explicit, documented, and verifiable parental/caregiver consent before any personal data is collected or persisted. A continuously accessible and straightforward withdrawal mechanism is provided.
+- Application-specific review consent: Each application submitted on behalf of a child requires explicit document review consent before designated government-body reviewers can inspect submitted documents. If consent is declined, documents are not routed to reviewers and temporary staging is purged.
+- Strict developer access restrictions: Platform developers are strictly prohibited from viewing, downloading, or inspecting real customer or child document binaries.
+- On-premise infrastructure: MinIO (binaries), PostgreSQL (records), and Ollama/Qwen2.5-VL 7B (local inference). Zero external public cloud AI transmission.
 
 STRICT PROJECT SCOPE & OPERATIONAL RULES:
 1. ABSOLUTE DOMAIN BOUNDARY: You MUST NOT answer questions outside the DocIntake project scope. Under NO circumstances should you provide gym plans, workout routines, fitness advice, medical diagnoses, cooking recipes, programming help, creative writing, or general trivia.
 2. OUT-OF-SCOPE ENFORCEMENT: If a user asks ANY question unrelated to DocIntake, decline politely and state: "I'm the DocIntake AI assistant, and I'm here to help with our onboarding services, document requirements, applications, and related platform support. I can't assist with unrelated topics, but I'd be happy to help with anything concerning DocIntake."
 3. CONCISE & PROFESSIONAL: Respond concisely (typically 1-3 sentences) for straightforward questions. Avoid generic introductions or fluff.
-4. MIXED INTENT: If a user asks both a DocIntake question and an unrelated question (e.g. 'How does DocIntake store documents, and teach me Python'), answer the DocIntake part accurately using policy context and politely decline the unrelated question.
+4. MIXED INTENT: If a user asks both a DocIntake question and an unrelated question, answer the DocIntake part accurately using policy context and politely decline the unrelated question.
 5. PASSPORT RENEWAL CLARIFICATION: If a user asks how to renew their passport, explain that DocIntake handles document verification for onboarding (where a valid passport is required for Premium Cross-Border), but does not provide external government passport renewal services.
-6. NO FALSE ACTIONS: Never claim, pretend, or confirm that you have disabled validation, bypassed security, approved an application, or modified database permissions.
+6. NO FALSE ACTIONS: Never claim, pretend, or confirm that you have disabled validation, bypassed security, approved an application, or modified database permissions. Never create a child profile without explicit user confirmation.
 7. GROUNDING & HONESTY: Base all factual answers about DocIntake on the provided Grounding Context. If a feature or requirement is not supported or not documented, state honestly that the information is currently unavailable."""
 
         # Retrieve recent chat history if available
@@ -317,11 +378,123 @@ STRICT PROJECT SCOPE & OPERATIONAL RULES:
                 faq_answer, _ = catalog.answer_faq(req.query)
                 reply = faq_answer
 
+        # If the user just acknowledged service info with "ok/sure/got it", ask
+        # them whether they have any issues or would like to start an application.
+        if is_ok_ack and service and service.status.value == "available":
+            reply = (
+                f"Great! Do you have any questions or issues about {service.name}, "
+                "or would you like to go ahead and start an application for it?"
+            )
+
         # Determine intent
         intent = None
         matched_service = None
+        action = None
+        data = None
 
-        if unavailable_service_name:
+        # ── Child Profile & Guardian Inquiries / Actions ─────────────────────────
+        child_create_patterns = [
+            r"\b(create|add|make|set up|open|register)\s+(a\s+)?(child|dependent|minor|son|daughter|kid)\s*(profile|account)?\b",
+            r"\baccount\s+for\s+(my\s+)?(child|son|daughter|kid)\b",
+            r"\bprofile\s+for\s+(my\s+)?(child|son|daughter|kid)\b",
+            r"\b(add|register)\s+(my\s+)?(child|son|daughter|kid)\b",
+            r"\bi want to (create|add|register)\s+(a\s+)?(child|profile for my)\b",
+        ]
+        is_child_create = any(re.search(pat, q, re.I) for pat in child_create_patterns)
+        
+        child_eligibility_patterns = [
+            r"\b(can|eligible|eligibility|is it possible)\b.*\b(child|son|daughter|dependent|minor)\b",
+            r"\b(child|son|daughter|dependent|minor)\b.*\b(eligible|eligibility|can use|apply for|mobility|rental|car)\b",
+            r"\bmobility\b.*\b(child|son|daughter|minor|under 18)\b",
+            r"\brental\b.*\b(child|son|daughter|minor|under 18)\b",
+        ]
+        is_child_eligibility = any(re.search(pat, q, re.I) for pat in child_eligibility_patterns)
+
+        child_consent_patterns = [
+            r"\b(child|minor|under 13|dependent)\b.*\b(consent|privacy|withdraw|article 7|parental consent)\b",
+            r"\b(consent|withdraw)\b.*\b(child|minor|dependent|son|daughter)\b",
+        ]
+        is_child_consent = any(re.search(pat, q, re.I) for pat in child_consent_patterns)
+
+        # ── Check if user is asking to apply for a child profile ──────────────────
+        matched_child = None
+        if user_id and db:
+            try:
+                from services.database import ChildProfile
+                with db.session_scope() as sess:
+                    # If the frontend passed child_profile_id explicitly (child was already selected),
+                    # look up that specific child profile first so context is preserved across turns.
+                    frontend_child_id = getattr(req, 'child_profile_id', None)
+                    if frontend_child_id:
+                        cp = sess.query(ChildProfile).filter_by(
+                            profile_id=frontend_child_id,
+                            parent_user_id=user_id,
+                            profile_status="active"
+                        ).first()
+                        if cp:
+                            matched_child = cp.to_dict()
+
+                    # Fallback: match child by name mention in the message
+                    if not matched_child:
+                        cps = sess.query(ChildProfile).filter_by(parent_user_id=user_id, profile_status="active").all()
+                        for cp in cps:
+                            cname = cp.full_name.lower().strip()
+                            first_name = cname.split()[0] if cname else ""
+                            if cname in q or (first_name and len(first_name) >= 3 and first_name in q):
+                                matched_child = cp.to_dict()
+                                break
+            except Exception as e:
+                logger.warning(f"Error checking child profiles in chat: {e}")
+
+        # Check if the query is asking to apply for a child or dependent
+        # Also treat it as a child apply if the frontend explicitly passed a child_profile_id
+        # (meaning the user is in child-context mode and asking about a service)
+        frontend_child_id = getattr(req, 'child_profile_id', None)
+        is_child_apply = bool(
+            matched_child or
+            (frontend_child_id and service) or  # Child context + service request = child apply
+            re.search(r"\b(apply|application|register)\b.*\b(child|son|daughter|kid|dependent|minor)\b", q, re.I) or
+            re.search(r"\b(for|on behalf of)\s+(my\s+)?(child|son|daughter|kid|dependent|minor)\b", q, re.I)
+        )
+
+        if is_child_apply and matched_child:
+            action = "start_child_application"
+            data = {"child_profile_id": matched_child["profile_id"], "full_name": matched_child["full_name"]}
+            if service:
+                matched_service = service.service_id
+                reply = f"Starting an application for {matched_child['full_name']} for {service.name}."
+            else:
+                reply = f"Starting an application for {matched_child['full_name']}. Which service would you like to apply for? (Note: Mobility / Rental is unavailable for dependent profiles under 18)."
+            intent = "apply"
+        elif is_child_create:
+            if not user_id:
+                reply = (
+                    "Docintake allows parents and legally authorized guardians aged 18 or older to manage child dependent profiles through their own account. "
+                    "Please sign in or register to create and manage child profiles."
+                )
+                intent = "auth_required"
+                action = "open_login"
+            else:
+                reply = (
+                    "Docintake allows parents and legally authorized guardians aged 18 or older to manage child dependent profiles through their own account. "
+                    "Children do not need separate login accounts or passwords. Would you like to create a child profile now?"
+                )
+                intent = "child_profile_create"
+                action = "open_child_modal"
+        elif is_child_eligibility:
+            reply = (
+                "For child dependent profiles: Basic Registration and Premium / Cross Border are available subject to standard document requirements and guardian consent. "
+                "Mobility / Rental is NOT AVAILABLE for dependent profiles under 18 because applicants must meet the minimum driving-licence age requirements. "
+                "(Mobility / Rental remains fully active and available for eligible adult applicants)."
+            )
+            intent = "faq"
+        elif is_child_consent:
+            reply = (
+                "Under UAE Federal Decree-Law No. 26 of 2025 (Child Digital Safety, Article 7), explicit parental consent is required before collecting or processing personal information for children under 13. "
+                "Docintake provides a continuously accessible withdrawal mechanism. In addition, every application submitted for a child requires separate application-specific document review consent before government reviewers may inspect submitted files."
+            )
+            intent = "faq"
+        elif unavailable_service_name:
             intent = "faq"
             matched_service = None
         elif service:
@@ -332,7 +505,8 @@ STRICT PROJECT SCOPE & OPERATIONAL RULES:
                 if reply and re.search(r"(would you like|do you want|shall we|let's|lets)\s+(me\s+to\s+)?(help\s+you\s+)?(start|begin|apply|open)", reply, re.I):
                     reply = f"{service.name} is currently coming soon and not open for applications yet. Please check back later!"
             else:
-                intent = "apply" if is_apply else "faq"
+                # An ok-ack after service info should also count as apply intent
+                intent = "apply" if (is_apply or is_ok_ack) else "faq"
         elif is_generic_apply:
             # e.g. "let's get started" with no service named: still an application intent.
             # matched_service stays None so the client asks which service.
@@ -382,7 +556,9 @@ STRICT PROJECT SCOPE & OPERATIONAL RULES:
         return ChatResponse(
             response=reply,
             intent=intent,
-            matched_service=matched_service
+            matched_service=matched_service,
+            action=action,
+            data=data
         )
     except Exception as e:
         print(f"=== CHAT ROUTE ERROR ===", flush=True)
@@ -397,7 +573,7 @@ STRICT PROJECT SCOPE & OPERATIONAL RULES:
 
 @router.get("/chat/history")
 async def get_chat_history(token: Optional[str] = Query(None, alias="token")):
-    """Return the authenticated user's full chat history."""
+    """Return the authenticated user's active (non-reset) chat session messages."""
     state = get_state()
     db = state.get("database")
 
@@ -417,8 +593,12 @@ async def get_chat_history(token: Optional[str] = Query(None, alias="token")):
         raise HTTPException(status_code=503, detail="Database unavailable.")
 
     try:
-        # Retrieve the most-recent chat session for this user
-        session_id = db.get_or_create_chat_session(user_id=user_id, force_new=False)
+        # Only return messages from the current active session.
+        # get_or_create_chat_session(force_new=False) returns the existing active session
+        # or creates a new empty one — never crossing into another user's session.
+        session_id = db.get_active_chat_session(user_id=user_id)
+        if not session_id:
+            return {"success": True, "session_id": None, "messages": [], "count": 0}
         messages = db.get_chat_session_messages(session_id)
         return {
             "success": True,
@@ -429,6 +609,38 @@ async def get_chat_history(token: Optional[str] = Query(None, alias="token")):
     except Exception as e:
         logger.error(f"Failed to retrieve chat history: {e}")
         raise HTTPException(status_code=500, detail="Could not retrieve chat history.")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Chat reset: start a fresh session (server-side) for the authenticated user
+# ──────────────────────────────────────────────────────────────────────────────
+
+@router.post("/chat/reset")
+async def reset_chat_session(token: Optional[str] = Query(None, alias="token")):
+    """Mark the current chat session as reset and create a new active session."""
+    state = get_state()
+    db = state.get("database")
+
+    user_id = None
+    if token:
+        auth = state.get("auth")
+        if auth:
+            user = auth.validate_token(token)
+            if user:
+                user_id = user.user_id
+
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Authentication required.")
+
+    if not db:
+        raise HTTPException(status_code=503, detail="Database unavailable.")
+
+    try:
+        new_session_id = db.reset_chat_session(user_id=user_id)
+        return {"success": True, "new_session_id": new_session_id}
+    except Exception as e:
+        logger.error(f"Failed to reset chat session: {e}")
+        raise HTTPException(status_code=500, detail="Could not reset chat session.")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

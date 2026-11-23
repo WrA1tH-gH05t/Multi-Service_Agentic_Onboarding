@@ -3,7 +3,8 @@
 import os
 import logging
 import hashlib
-from datetime import datetime, timezone
+import uuid
+from datetime import datetime, timezone, date
 from typing import Optional, Dict, Any, List, Tuple
 from contextlib import contextmanager
 
@@ -38,6 +39,10 @@ class User(Base):
 
     applications = relationship("Application", back_populates="user")
     chat_sessions = relationship("ChatSession", back_populates="user")
+    child_profiles = relationship("ChildProfile", back_populates="parent", foreign_keys="ChildProfile.parent_user_id")
+    guardian_consents = relationship("GuardianConsent", back_populates="guardian", foreign_keys="GuardianConsent.guardian_user_id")
+    policy_acceptances = relationship("PolicyAcceptance", back_populates="user", foreign_keys="PolicyAcceptance.user_id")
+    child_application_review_consents = relationship("ChildApplicationReviewConsent", back_populates="guardian", foreign_keys="ChildApplicationReviewConsent.guardian_user_id")
 
     def to_dict(self):
         return {
@@ -63,11 +68,14 @@ class Application(Base):
     required_documents = Column(JSON, nullable=True)
     status = Column(String(20), default="incomplete", index=True)  # incomplete, processing, complete, needs_review, rejected
     collection_session_id = Column(String(36), nullable=True)
+    child_profile_id = Column(String(36), ForeignKey("child_profiles.profile_id"), nullable=True, index=True)
+    applicant_type = Column(String(50), default="adult")  # "adult" or "child_dependent"
     validation_result = Column(JSON, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="applications")
+    child_profile = relationship("ChildProfile", back_populates="applications", foreign_keys=[child_profile_id])
     documents = relationship("Document", back_populates="application", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="application", cascade="all, delete-orphan")
 
@@ -77,6 +85,8 @@ class Application(Base):
             "user_id": self.user_id,
             "service_id": self.service_id,
             "applicant_name": self.applicant_name,
+            "child_profile_id": self.child_profile_id,
+            "applicant_type": self.applicant_type,
             "required_documents": self.required_documents,
             "status": self.status,
             "collection_session_id": self.collection_session_id,
@@ -140,6 +150,7 @@ class ChatSession(Base):
     uploaded_documents = Column(JSON, nullable=True)
     required_documents = Column(JSON, nullable=True)
     collection_session_id = Column(String(36), nullable=True)
+    is_active = Column(Boolean, default=True)   # False = session was reset; hidden from /chat/history
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
@@ -582,6 +593,204 @@ class DocumentAccessAudit(Base):
         }
 
 
+class ChildProfile(Base):
+    """Child dependent profile managed by a verified adult parent or legal guardian."""
+    __tablename__ = "child_profiles"
+
+    profile_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    parent_user_id = Column(String(36), ForeignKey("users.user_id"), nullable=False, index=True)
+    full_name = Column(String(255), nullable=False)
+    date_of_birth = Column(String(20), nullable=False)  # ISO YYYY-MM-DD
+    relationship_type = Column(String(100), nullable=False)  # parent, legal_guardian, caregiver, etc.
+    nationality = Column(String(100), nullable=True)
+    guardian_authority_status = Column(String(50), default="pending")  # pending, verified, rejected
+    guardian_verification_reference = Column(String(255), nullable=True)
+    age_band = Column(String(20), nullable=True)  # under_13, 13_to_17, 18_plus
+    profile_status = Column(String(50), default="active")  # active, suspended, transitioned
+    notes = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+    parent = relationship("User", back_populates="child_profiles", foreign_keys=[parent_user_id])
+    guardian_consents = relationship("GuardianConsent", back_populates="child_profile", cascade="all, delete-orphan")
+    applications = relationship("Application", back_populates="child_profile")
+    review_consents = relationship("ChildApplicationReviewConsent", back_populates="child_profile", cascade="all, delete-orphan")
+
+    def compute_age_band(self) -> Optional[str]:
+        try:
+            dob = date.fromisoformat(self.date_of_birth)
+            today = date.today()
+            age = today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+            if age < 13:
+                return "under_13"
+            elif age < 18:
+                return "13_to_17"
+            else:
+                return "18_plus"
+        except Exception:
+            return None
+
+    def get_age(self) -> Optional[int]:
+        try:
+            dob = date.fromisoformat(self.date_of_birth)
+            today = date.today()
+            return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
+        except Exception:
+            return None
+
+    def to_dict(self):
+        return {
+            "profile_id": self.profile_id,
+            "parent_user_id": self.parent_user_id,
+            "full_name": self.full_name,
+            "date_of_birth": self.date_of_birth,
+            "relationship_type": self.relationship_type,
+            "nationality": self.nationality,
+            "guardian_authority_status": self.guardian_authority_status,
+            "guardian_verification_reference": self.guardian_verification_reference,
+            "age_band": self.age_band or self.compute_age_band(),
+            "age": self.get_age(),
+            "profile_status": self.profile_status,
+            "notes": self.notes,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class GuardianConsent(Base):
+    """Explicit, documented parental/caregiver consent record under UAE Child Digital Safety Law."""
+    __tablename__ = "guardian_consents"
+
+    consent_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    guardian_user_id = Column(String(36), ForeignKey("users.user_id"), nullable=False, index=True)
+    child_profile_id = Column(String(36), ForeignKey("child_profiles.profile_id"), nullable=False, index=True)
+    consent_purpose = Column(String(255), nullable=False)  # child_data_processing, application_submission
+    privacy_policy_version = Column(String(50), default="v1.1")
+    consent_version = Column(String(50), default="v1.1")
+    verification_method = Column(String(100), nullable=True)  # checkbox_declaration, document_verified
+    consent_text_hash = Column(String(64), nullable=True)
+    accepted_at = Column(DateTime, nullable=True)
+    withdrawn_at = Column(DateTime, nullable=True)
+    consent_status = Column(String(50), default="pending")  # accepted, declined, withdrawn
+    ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    guardian = relationship("User", back_populates="guardian_consents", foreign_keys=[guardian_user_id])
+    child_profile = relationship("ChildProfile", back_populates="guardian_consents", foreign_keys=[child_profile_id])
+
+    def to_dict(self):
+        return {
+            "consent_id": self.consent_id,
+            "guardian_user_id": self.guardian_user_id,
+            "child_profile_id": self.child_profile_id,
+            "consent_purpose": self.consent_purpose,
+            "privacy_policy_version": self.privacy_policy_version,
+            "consent_version": self.consent_version,
+            "verification_method": self.verification_method,
+            "consent_text_hash": self.consent_text_hash,
+            "consent_status": self.consent_status,
+            "accepted_at": self.accepted_at.isoformat() if self.accepted_at else None,
+            "withdrawn_at": self.withdrawn_at.isoformat() if self.withdrawn_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class PolicyAcceptance(Base):
+    """User policy acceptance records (Terms & Conditions, Privacy Policy)."""
+    __tablename__ = "policy_acceptances"
+
+    acceptance_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), ForeignKey("users.user_id"), nullable=False, index=True)
+    policy_type = Column(String(100), nullable=False)  # terms_and_conditions, privacy_policy
+    policy_version = Column(String(50), nullable=False)  # v1.1
+    policy_hash = Column(String(64), nullable=True)
+    accepted_at = Column(DateTime, nullable=True)
+    acceptance_status = Column(String(50), default="accepted")
+    ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User", back_populates="policy_acceptances", foreign_keys=[user_id])
+
+    def to_dict(self):
+        return {
+            "acceptance_id": self.acceptance_id,
+            "user_id": self.user_id,
+            "policy_type": self.policy_type,
+            "policy_version": self.policy_version,
+            "policy_hash": self.policy_hash,
+            "acceptance_status": self.acceptance_status,
+            "accepted_at": self.accepted_at.isoformat() if self.accepted_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ChildApplicationReviewConsent(Base):
+    """Application-specific document review consent granted by guardian for child applications."""
+    __tablename__ = "child_application_review_consents"
+
+    consent_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    guardian_user_id = Column(String(36), ForeignKey("users.user_id"), nullable=False, index=True)
+    child_profile_id = Column(String(36), ForeignKey("child_profiles.profile_id"), nullable=True, index=True)
+    application_id = Column(String(36), ForeignKey("applications.application_id"), nullable=False, index=True)
+    service_id = Column(String(100), nullable=False)
+    receiving_agency_id = Column(String(100), nullable=True)
+    policy_version = Column(String(50), default="v1.1")
+    consent_text_version = Column(String(50), default="v1.1")
+    consent_text_hash = Column(String(64), nullable=True)
+    accepted_at = Column(DateTime, nullable=True)
+    declined_at = Column(DateTime, nullable=True)
+    withdrawn_at = Column(DateTime, nullable=True)
+    consent_status = Column(String(50), default="pending")  # accepted, declined, withdrawn
+    ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    guardian = relationship("User", back_populates="child_application_review_consents", foreign_keys=[guardian_user_id])
+    child_profile = relationship("ChildProfile", back_populates="review_consents", foreign_keys=[child_profile_id])
+    application = relationship("Application", foreign_keys=[application_id])
+
+    def to_dict(self):
+        return {
+            "consent_id": self.consent_id,
+            "guardian_user_id": self.guardian_user_id,
+            "child_profile_id": self.child_profile_id,
+            "application_id": self.application_id,
+            "service_id": self.service_id,
+            "receiving_agency_id": self.receiving_agency_id,
+            "policy_version": self.policy_version,
+            "consent_text_version": self.consent_text_version,
+            "consent_status": self.consent_status,
+            "accepted_at": self.accepted_at.isoformat() if self.accepted_at else None,
+            "declined_at": self.declined_at.isoformat() if self.declined_at else None,
+            "withdrawn_at": self.withdrawn_at.isoformat() if self.withdrawn_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ChildAuditEvent(Base):
+    """Immutable audit trail for child profile and consent events."""
+    __tablename__ = "child_audit_events"
+
+    event_id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    event_type = Column(String(100), nullable=False, index=True)
+    actor_user_id = Column(String(36), ForeignKey("users.user_id"), nullable=True, index=True)
+    child_profile_id = Column(String(36), nullable=True, index=True)
+    application_id = Column(String(36), nullable=True, index=True)
+    event_data = Column(JSON, nullable=True)
+    ip_address = Column(String(45), nullable=True)
+    created_at = Column(DateTime, server_default=func.now(), index=True)
+
+    def to_dict(self):
+        return {
+            "event_id": self.event_id,
+            "event_type": self.event_type,
+            "actor_user_id": self.actor_user_id,
+            "child_profile_id": self.child_profile_id,
+            "application_id": self.application_id,
+            "event_data": self.event_data,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 # ──────────────────────────────────────────────────────────────────────
 #  Engine & Session management
 # ──────────────────────────────────────────────────────────────────────
@@ -677,32 +886,44 @@ class DatabaseService:
         # Seed default policies and government agency routing if not already present
         try:
             with self.session_scope() as session:
-                # 1. Seed policy documents
-                terms_pdf = "docs/Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf"
+                # 1. Seed or update policy documents to v1.1
+                terms_pdf = "docs/Docintake_Terms_and_Conditions_v1.1_DRAFT.pdf" if os.path.exists("docs/Docintake_Terms_and_Conditions_v1.1_DRAFT.pdf") else "docs/Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf"
+                terms_ver = "1.1" if "v1.1" in terms_pdf else "1.0"
                 terms_hash = hashlib.sha256(open(terms_pdf, "rb").read()).hexdigest() if os.path.exists(terms_pdf) else "terms_v1_draft_hash"
-                if not session.query(PolicyDocument).filter_by(policy_id="terms_and_conditions").first():
+                terms_row = session.query(PolicyDocument).filter_by(policy_id="terms_and_conditions").first()
+                if not terms_row:
                     session.add(PolicyDocument(
                         policy_id="terms_and_conditions",
                         title="Docintake Terms & Conditions and Service Policy",
-                        version="1.0",
+                        version=terms_ver,
                         status="DRAFT — PENDING LEGAL APPROVAL",
                         effective_date="Pending Approval",
                         content_hash=terms_hash,
-                        pdf_filename="Docintake_Terms_and_Conditions_v1.0_DRAFT.pdf",
+                        pdf_filename=os.path.basename(terms_pdf),
                     ))
+                else:
+                    terms_row.version = terms_ver
+                    terms_row.pdf_filename = os.path.basename(terms_pdf)
+                    terms_row.content_hash = terms_hash
                 
-                priv_pdf = "docs/Docintake_Privacy_Policy_v1.0_DRAFT.pdf"
+                priv_pdf = "docs/Docintake_Privacy_Policy_v1.1_DRAFT.pdf" if os.path.exists("docs/Docintake_Privacy_Policy_v1.1_DRAFT.pdf") else "docs/Docintake_Privacy_Policy_v1.0_DRAFT.pdf"
+                priv_ver = "1.1" if "v1.1" in priv_pdf else "1.0"
                 priv_hash = hashlib.sha256(open(priv_pdf, "rb").read()).hexdigest() if os.path.exists(priv_pdf) else "privacy_v1_draft_hash"
-                if not session.query(PolicyDocument).filter_by(policy_id="privacy_policy").first():
+                priv_row = session.query(PolicyDocument).filter_by(policy_id="privacy_policy").first()
+                if not priv_row:
                     session.add(PolicyDocument(
                         policy_id="privacy_policy",
                         title="Docintake Privacy Policy and Data Protection Framework",
-                        version="1.0",
+                        version=priv_ver,
                         status="DRAFT — PENDING LEGAL APPROVAL",
                         effective_date="Pending Approval",
                         content_hash=priv_hash,
-                        pdf_filename="Docintake_Privacy_Policy_v1.0_DRAFT.pdf",
+                        pdf_filename=os.path.basename(priv_pdf),
                     ))
+                else:
+                    priv_row.version = priv_ver
+                    priv_row.pdf_filename = os.path.basename(priv_pdf)
+                    priv_row.content_hash = priv_hash
 
                 # 2. Seed government agencies
                 agencies = [
@@ -772,18 +993,25 @@ class DatabaseService:
     # ────────────────────────────────────────────────────────────────
 
     def create_application(self, user_id: str, service_id: str, applicant_name: str,
-                          required_documents: list, collection_session_id: str = None) -> str:
+                          required_documents: list = None, collection_session_id: str = None,
+                          child_profile_id: str = None, applicant_type: str = "adult",
+                          application_id: str = None, status: str = "incomplete") -> str:
         """Create a new application and persist it."""
         with self.session_scope() as session:
-            app_id = f"app_{session.query(text('upper(hex(randomblob(4)))')).scalar()}" if "sqlite" in str(self.engine.url) else f"app_{os.urandom(4).hex()}"
+            if not application_id:
+                app_id = f"app_{session.query(text('upper(hex(randomblob(4)))')).scalar()}" if "sqlite" in str(self.engine.url) else f"app_{os.urandom(4).hex()}"
+            else:
+                app_id = application_id
             app = Application(
                 application_id=app_id,
                 user_id=user_id,
                 service_id=service_id,
                 applicant_name=applicant_name.strip(),
-                required_documents=required_documents,
+                required_documents=required_documents or [],
                 collection_session_id=collection_session_id,
-                status="incomplete",
+                child_profile_id=child_profile_id,
+                applicant_type=applicant_type,
+                status=status,
             )
             session.add(app)
             session.flush()  # Get app_id
@@ -907,16 +1135,35 @@ class DatabaseService:
         """Get or create a chat session. If force_new=False and active session exists for user, reuse it."""
         with self.session_scope() as session:
             if user_id and not force_new:
-                existing = session.query(ChatSession).filter_by(user_id=user_id).order_by(ChatSession.created_at.desc()).first()
+                existing = session.query(ChatSession).filter_by(user_id=user_id, is_active=True).order_by(ChatSession.created_at.desc()).first()
                 if existing:
                     return existing.session_id
             session_id = f"chat_{os.urandom(4).hex()}"
             chat = ChatSession(
                 session_id=session_id,
                 user_id=user_id,
+                is_active=True,
             )
             session.add(chat)
             return session_id
+
+    def get_active_chat_session(self, user_id: str) -> Optional[str]:
+        """Return the session_id of the current active (non-reset) session, or None if none exists."""
+        with self.session_scope() as session:
+            existing = session.query(ChatSession).filter_by(user_id=user_id, is_active=True).order_by(ChatSession.created_at.desc()).first()
+            return existing.session_id if existing else None
+
+    def reset_chat_session(self, user_id: str) -> str:
+        """Mark all current active sessions for this user as inactive, then create a fresh one."""
+        with self.session_scope() as session:
+            # Mark every active session for this user as inactive (reset)
+            session.query(ChatSession).filter_by(user_id=user_id, is_active=True).update(
+                {"is_active": False}, synchronize_session="fetch"
+            )
+            # Create a brand-new active session
+            new_id = f"chat_{os.urandom(4).hex()}"
+            session.add(ChatSession(session_id=new_id, user_id=user_id, is_active=True))
+            return new_id
 
     def save_chat_message(self, session_id: str, user_id: str, role: str,
                          content: str, intent: str = None, matched_service: str = None,
@@ -1487,4 +1734,345 @@ class DatabaseService:
             )
             session.add(audit)
             return True, "marked_complete"
+
+    # ────────────────────────────────────────────────────────────────
+    #  Child Profiles & Guardian Consent Management
+    # ────────────────────────────────────────────────────────────────
+
+    def create_child_profile(self, parent_user_id: str, full_name: str, date_of_birth: str,
+                             relationship_type: str, nationality: str = None, notes: str = None,
+                             guardian_verification_reference: str = None) -> dict:
+        """Create a new child dependent profile linked to the parent account."""
+        with self.session_scope() as session:
+            profile = ChildProfile(
+                profile_id=str(uuid.uuid4()),
+                parent_user_id=parent_user_id,
+                full_name=full_name.strip(),
+                date_of_birth=date_of_birth.strip(),
+                relationship_type=relationship_type.strip(),
+                nationality=nationality.strip() if nationality else None,
+                notes=notes,
+                guardian_authority_status="verified" if guardian_verification_reference else "pending",
+                guardian_verification_reference=guardian_verification_reference,
+                profile_status="active",
+            )
+            profile.age_band = profile.compute_age_band()
+            session.add(profile)
+            session.flush()
+            profile_dict = profile.to_dict()
+
+        self.log_child_audit_event(
+            "profile_created",
+            actor_user_id=parent_user_id,
+            child_profile_id=profile_dict["profile_id"],
+            event_data={
+                "full_name": profile_dict["full_name"],
+                "age_band": profile_dict["age_band"],
+                "relationship_type": profile_dict["relationship_type"],
+            }
+        )
+        return profile_dict
+
+    def get_child_profiles(self, parent_user_id: str) -> List[dict]:
+        """Get all child profiles for a parent user."""
+        with self.session_scope() as session:
+            profiles = session.query(ChildProfile).filter(
+                ChildProfile.parent_user_id == parent_user_id,
+                ChildProfile.profile_status != "deleted"
+            ).order_by(ChildProfile.created_at.asc()).all()
+            return [p.to_dict() for p in profiles]
+
+    def get_child_profile(self, profile_id: str, parent_user_id: str = None) -> Optional[dict]:
+        """Get a single child profile, optionally verifying parent ownership."""
+        with self.session_scope() as session:
+            q = session.query(ChildProfile).filter(ChildProfile.profile_id == profile_id)
+            if parent_user_id:
+                q = q.filter(ChildProfile.parent_user_id == parent_user_id)
+            profile = q.first()
+            return profile.to_dict() if profile else None
+
+    def update_child_profile(self, profile_id: str, parent_user_id: str, updates: dict) -> Optional[dict]:
+        """Update a child profile. Only the owning parent can update."""
+        allowed_fields = {"full_name", "date_of_birth", "relationship_type", "nationality", "notes", "profile_status"}
+        with self.session_scope() as session:
+            profile = session.query(ChildProfile).filter(
+                ChildProfile.profile_id == profile_id,
+                ChildProfile.parent_user_id == parent_user_id
+            ).first()
+            if not profile:
+                return None
+            for field, value in updates.items():
+                if field in allowed_fields and value is not None:
+                    setattr(profile, field, value)
+            if "date_of_birth" in updates:
+                profile.age_band = profile.compute_age_band()
+            profile.updated_at = datetime.now(timezone.utc)
+            session.flush()
+            res = profile.to_dict()
+
+        self.log_child_audit_event(
+            "profile_updated",
+            actor_user_id=parent_user_id,
+            child_profile_id=profile_id,
+            event_data=updates
+        )
+        return res
+
+    def delete_child_profile(self, profile_id: str, parent_user_id: str) -> bool:
+        """Soft delete a child profile."""
+        with self.session_scope() as session:
+            profile = session.query(ChildProfile).filter(
+                ChildProfile.profile_id == profile_id,
+                ChildProfile.parent_user_id == parent_user_id
+            ).first()
+            if not profile:
+                return False
+            profile.profile_status = "deleted"
+            profile.updated_at = datetime.now(timezone.utc)
+
+        self.log_child_audit_event(
+            "profile_deleted",
+            actor_user_id=parent_user_id,
+            child_profile_id=profile_id
+        )
+        return True
+
+    def record_guardian_consent(self, guardian_user_id: str, child_profile_id: str,
+                                consent_purpose: str, policy_version: str = "v1.1",
+                                consent_version: str = "v1.1", verification_method: str = "checkbox_declaration",
+                                consent_text_hash: str = None, status: str = "accepted",
+                                ip_address: str = None) -> dict:
+        """Record a guardian consent event under UAE Child Digital Safety Law."""
+        with self.session_scope() as session:
+            consent = GuardianConsent(
+                consent_id=str(uuid.uuid4()),
+                guardian_user_id=guardian_user_id,
+                child_profile_id=child_profile_id,
+                consent_purpose=consent_purpose,
+                privacy_policy_version=policy_version,
+                consent_version=consent_version,
+                verification_method=verification_method,
+                consent_text_hash=consent_text_hash,
+                consent_status=status,
+                accepted_at=datetime.now(timezone.utc) if status == "accepted" else None,
+                ip_address=ip_address,
+            )
+            session.add(consent)
+            session.flush()
+            res = consent.to_dict()
+
+        self.log_child_audit_event(
+            f"guardian_consent_{status}",
+            actor_user_id=guardian_user_id,
+            child_profile_id=child_profile_id,
+            event_data={"purpose": consent_purpose, "policy_version": policy_version, "verification_method": verification_method},
+            ip_address=ip_address
+        )
+        return res
+
+    def get_guardian_consents(self, child_profile_id: str, guardian_user_id: str = None) -> List[dict]:
+        """Get all guardian consent records for a child profile."""
+        with self.session_scope() as session:
+            q = session.query(GuardianConsent).filter(GuardianConsent.child_profile_id == child_profile_id)
+            if guardian_user_id:
+                q = q.filter(GuardianConsent.guardian_user_id == guardian_user_id)
+            consents = q.order_by(GuardianConsent.created_at.desc()).all()
+            return [c.to_dict() for c in consents]
+
+    def withdraw_guardian_consent(self, consent_id: str, guardian_user_id: str) -> Optional[dict]:
+        """Support straightforward withdrawal of child data processing consent."""
+        with self.session_scope() as session:
+            consent = session.query(GuardianConsent).filter(
+                GuardianConsent.consent_id == consent_id,
+                GuardianConsent.guardian_user_id == guardian_user_id
+            ).first()
+            if not consent:
+                return None
+            consent.consent_status = "withdrawn"
+            consent.withdrawn_at = datetime.now(timezone.utc)
+            session.flush()
+            res = consent.to_dict()
+
+        self.log_child_audit_event(
+            "guardian_consent_withdrawn",
+            actor_user_id=guardian_user_id,
+            child_profile_id=res["child_profile_id"],
+            event_data={"consent_id": consent_id}
+        )
+        return res
+
+    def record_policy_acceptance(self, user_id: str, policy_type: str,
+                                policy_version: str = "v1.1", policy_hash: str = None,
+                                ip_address: str = None) -> dict:
+        """Record acceptance of a policy version."""
+        with self.session_scope() as session:
+            acceptance = PolicyAcceptance(
+                acceptance_id=str(uuid.uuid4()),
+                user_id=user_id,
+                policy_type=policy_type,
+                policy_version=policy_version,
+                policy_hash=policy_hash,
+                acceptance_status="accepted",
+                accepted_at=datetime.now(timezone.utc),
+                ip_address=ip_address,
+            )
+            session.add(acceptance)
+            session.flush()
+            return acceptance.to_dict()
+
+    def get_policy_acceptances(self, user_id: str) -> List[dict]:
+        """Get all policy acceptance events for a user."""
+        with self.session_scope() as session:
+            acceptances = session.query(PolicyAcceptance).filter(
+                PolicyAcceptance.user_id == user_id
+            ).order_by(PolicyAcceptance.created_at.desc()).all()
+            return [a.to_dict() for a in acceptances]
+
+    def record_child_application_review_consent(self, guardian_user_id: str, application_id: str,
+                                                service_id: str, policy_version: str = "v1.1",
+                                                consent_text_version: str = "v1.1", child_profile_id: str = None,
+                                                receiving_agency_id: str = None, consent_text_hash: str = None,
+                                                status: str = "accepted", ip_address: str = None) -> dict:
+        """Record application-specific document review consent for child applications."""
+        with self.session_scope() as session:
+            consent = ChildApplicationReviewConsent(
+                consent_id=str(uuid.uuid4()),
+                guardian_user_id=guardian_user_id,
+                child_profile_id=child_profile_id,
+                application_id=application_id,
+                service_id=service_id,
+                receiving_agency_id=receiving_agency_id,
+                policy_version=policy_version,
+                consent_text_version=consent_text_version,
+                consent_text_hash=consent_text_hash,
+                consent_status=status,
+                accepted_at=datetime.now(timezone.utc) if status == "accepted" else None,
+                declined_at=datetime.now(timezone.utc) if status == "declined" else None,
+                ip_address=ip_address,
+            )
+            session.add(consent)
+            session.flush()
+            res = consent.to_dict()
+
+        self.log_child_audit_event(
+            f"review_consent_{status}",
+            actor_user_id=guardian_user_id,
+            child_profile_id=child_profile_id,
+            application_id=application_id,
+            event_data={"service_id": service_id, "agency": receiving_agency_id, "status": status},
+            ip_address=ip_address
+        )
+        return res
+
+    def get_child_application_review_consent(self, application_id: str) -> Optional[dict]:
+        """Get latest application review consent for an application."""
+        with self.session_scope() as session:
+            consent = session.query(ChildApplicationReviewConsent).filter(
+                ChildApplicationReviewConsent.application_id == application_id
+            ).order_by(ChildApplicationReviewConsent.created_at.desc()).first()
+            return consent.to_dict() if consent else None
+
+    def withdraw_child_application_review_consent(self, consent_id: str, guardian_user_id: str) -> Optional[dict]:
+        """Withdraw application review consent."""
+        with self.session_scope() as session:
+            consent = session.query(ChildApplicationReviewConsent).filter(
+                ChildApplicationReviewConsent.consent_id == consent_id,
+                ChildApplicationReviewConsent.guardian_user_id == guardian_user_id
+            ).first()
+            if not consent:
+                return None
+            consent.consent_status = "withdrawn"
+            consent.withdrawn_at = datetime.now(timezone.utc)
+            session.flush()
+            res = consent.to_dict()
+
+        self.log_child_audit_event(
+            "review_consent_withdrawn",
+            actor_user_id=guardian_user_id,
+            child_profile_id=res["child_profile_id"],
+            application_id=res["application_id"],
+            event_data={"consent_id": consent_id}
+        )
+        return res
+
+    def log_child_audit_event(self, event_type: str, actor_user_id: str = None,
+                              child_profile_id: str = None, application_id: str = None,
+                              event_data: dict = None, ip_address: str = None):
+        """Append-only audit trail for all child profile and consent events."""
+        try:
+            with self.session_scope() as session:
+                ev = ChildAuditEvent(
+                    event_id=str(uuid.uuid4()),
+                    event_type=event_type,
+                    actor_user_id=actor_user_id,
+                    child_profile_id=child_profile_id,
+                    application_id=application_id,
+                    event_data=event_data or {},
+                    ip_address=ip_address,
+                )
+                session.add(ev)
+        except Exception as e:
+            logger.warning(f"Could not log child audit event {event_type}: {e}")
+
+    def get_child_audit_events(self, child_profile_id: str = None, actor_user_id: str = None, limit: int = 50) -> List[dict]:
+        """Query audit events for a child profile or actor."""
+        with self.session_scope() as session:
+            q = session.query(ChildAuditEvent)
+            if child_profile_id:
+                q = q.filter(ChildAuditEvent.child_profile_id == child_profile_id)
+            if actor_user_id:
+                q = q.filter(ChildAuditEvent.actor_user_id == actor_user_id)
+            events = q.order_by(ChildAuditEvent.created_at.desc()).limit(limit).all()
+            return [e.to_dict() for e in events]
+
+    def check_service_eligibility_for_child(self, profile_id: str, parent_user_id: str, service_id: str) -> dict:
+        """Check if a child profile is eligible for a specific service."""
+        profile = self.get_child_profile(profile_id, parent_user_id)
+        if not profile:
+            return {
+                "eligible": False,
+                "reason": "Child profile not found or does not belong to the authenticated parent/guardian",
+                "service_id": service_id,
+                "profile_id": profile_id,
+            }
+
+        age_band = profile.get("age_band")
+        age = profile.get("age")
+
+        # STRICT RULE: Mobility / Rental is completely blocked for dependent child profiles under 18
+        if service_id == "mobility_rental":
+            return {
+                "eligible": False,
+                "service_id": service_id,
+                "service_name": "Mobility / Rental",
+                "profile_id": profile_id,
+                "child_name": profile.get("full_name"),
+                "age_band": age_band,
+                "age": age,
+                "reason": "Mobility / Rental is unavailable for dependent profiles under 18 because applicants must meet the minimum driving-licence age requirements. (Note: This service remains active for eligible adult applicants)."
+            }
+
+        # Basic Registration & Premium Crossborder are available to child profiles
+        if service_id in ("basic_registration", "premium_crossborder"):
+            service_names = {
+                "basic_registration": "Basic Registration",
+                "premium_crossborder": "Premium / Cross Border",
+            }
+            return {
+                "eligible": True,
+                "service_id": service_id,
+                "service_name": service_names.get(service_id, service_id),
+                "profile_id": profile_id,
+                "child_name": profile.get("full_name"),
+                "age_band": age_band,
+                "age": age,
+                "reason": f"Eligible for {service_names.get(service_id, service_id)} subject to standard document requirements and guardian consent."
+            }
+
+        return {
+            "eligible": False,
+            "service_id": service_id,
+            "profile_id": profile_id,
+            "reason": f"Unknown service or service is not active for child applications."
+        }
 

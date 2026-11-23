@@ -74,7 +74,9 @@ class Repository:
 
     def create_application(self, user_id: str, service_id: str,
                            applicant_name: str, required_documents: list,
-                           collection_session_id: str = None) -> str:
+                           collection_session_id: str = None,
+                           child_profile_id: str = None,
+                           applicant_type: str = "adult") -> str:
         """Create a new onboarding application bound to the user's scope."""
         if not user_id:
             raise ValueError("user_id is required")
@@ -86,6 +88,8 @@ class Repository:
             applicant_name=applicant_name,
             required_documents=required_documents,
             collection_session_id=collection_session_id,
+            child_profile_id=child_profile_id,
+            applicant_type=applicant_type,
         )
 
     # ────────────────────────────────────────────────────────────────

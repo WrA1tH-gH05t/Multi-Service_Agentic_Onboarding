@@ -176,6 +176,8 @@ class WizardSession:
     application_id: str = ""
 
     service_id: str = ""
+    child_profile_id: Optional[str] = None
+    applicant_type: str = "adult"
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def update_step(self, step: WizardStep):
@@ -224,6 +226,8 @@ class WizardSession:
             "status": self.status,
             "application_id": self.application_id,
             "service_id": self.service_id,
+            "child_profile_id": self.child_profile_id,
+            "applicant_type": self.applicant_type,
             "metadata": self.metadata,
         }
 

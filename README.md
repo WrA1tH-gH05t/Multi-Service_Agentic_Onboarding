@@ -1,29 +1,38 @@
-|Multi-Service Agentic Onboarding System v2.4.2|
-|A conversational agent that guides customers through sign up, document upload, and verification across multiple services — now with **vision AI**, enterprise MinIO storage with SSE, resilient cross-document validation, and multi-format date handling.|
+|Multi-Service Agentic Onboarding System v2.5.0|
+|A conversational agent that guides customers through sign up, document upload, and verification across multiple services — now with **child dependent profiles**, statutory legal consent architecture (Articles 7 & 84), **vision AI**, enterprise MinIO storage with SSE, resilient cross-document validation, and multi-format date handling.|
 |Built for fully on-premise deployment with Docker Desktop. Runs on consumer GPUs (RTX 4060 Laptop).|
 
-## 🎯 What This System Does (v2.4.2 — Vision AI & Enterprise Hardening)
+## 🎯 What This System Does (v2.5.0 — Child Profiles, Statutory Consent & Enterprise Hardening)
 
 This system helps you:
 - **Discover services**: Ask about available services and what documents they require
 - **Apply through guided conversation**: Upload documents step-by-step with real-time feedback
+- **Manage Child Dependent Profiles**: Lawful parent/guardian accounts can register and manage child dependent profiles with age-band safeguards (<13, 13–17, 18+ transition)
+- **Three-Tier Statutory Consent Architecture**: Consent Event A (Registration), Consent Event B (Child Profile Creation with Article 7 explicit parental consent), and Consent Event C (Application-Specific Document Review Consent)
 - **Vision-based field extraction**: Upload document images (PDF, PNG, JPG) → Qwen2.5-VL 7B extracts all fields directly from the image — no separate OCR pipeline needed
 - **Validate applications**: Cross-document consistency checks (e.g., name/DOB match across ID+passport with support for GCC patronymics and middle-name subsets)
 - **Multi-format date validation**: Parses dot-delimited, ISO, text-month, and hyphenated expiry and DOB dates
 - **S3 collision-resistant storage**: Standardized `name_idnumber_date.ext` naming with automatic collision disambiguation (`_v_<hash>`) and server-side encryption (SSE-S3 / SSE-KMS)
 - **Chat**: Interact with an AI assistant that understands your application status
 
-## 🆕 What's New in v2.4.2 (Bug Fix Release)
+## 🆕 What's New in v2.5.0 (Major Milestone Release)
 
-### Bug Fixes
+### Major Changes
+- **Child Dependent Profiles & Parent/Guardian Management**:
+  - Full parent/guardian account governance under UAE Federal Decree-Law No. 25 of 2025 (Article 84 age-of-majority enforcement).
+  - Child profile creation with age-band categorization: `<13` (Child Digital Safety protection), `13–17` (teen safeguards), and `18+` (automatic adulthood transition flow).
+  - Complete document and application data isolation per child dependent profile.
+- **Three-Event Statutory Consent Architecture**:
+  - Implementation of Consent Event A (account registration), Consent Event B (explicit verifiable parental consent per Article 7 of UAE Federal Decree-Law No. 26 of 2025), and Consent Event C (application-specific government review consent).
+  - Dynamic consent withdrawal with immediate staged document purging upon declined or revoked consent.
+- **Official Legal Policies & Terms & Conditions v1.1 Integration**:
+  - Fully consolidated `Docintake_Terms_and_Conditions_v1.1_DRAFT` (both Markdown and 10-page ReportLab PDF) closing all operational gaps from v1.0 (active service SLAs, demonstrator coming-soon services, strict unexpired document policy, and zero-routine developer access restrictions).
+  - Synchronized in-app HTML policies (`/policies/terms` and `/policies/privacy`).
+- **Autonomous Service Orchestration in Startup**:
+  - `start.py` automatically detects and launches Docker Desktop, starts project containers (`docker compose up -d`), and spawns the Ollama daemon if not already online.
 - **Model Project Scope Boundary Enforcement**:
-  - Fixed an issue where the model could answer questions outside the project scope (e.g. producing gym/workout plans, recipes, general programming help, or trivia) instead of remaining strictly bound to DocIntake operations.
-  - Implemented zero-trust domain anchor validation in `ScopeClassifier`: any query lacking contextual anchors to DocIntake services, documents, onboarding workflows, or platform architecture is immediately rejected without invoking the LLM.
-  - Added explicit regex triggers for gym routines, workouts, fitness plans, diet/nutrition, medical queries, academic homework, and gaming.
-  - Hardened LLM system prompt directives with strict refusal mandates.
-  - Added post-generation output guardrails (`is_out_of_scope_reply`) to catch and redact any leaked out-of-scope guidance.
-  - Added a 66-case regression test suite in `tests/test_scope_boundaries.py`.
-- **UI Version Indicator**: Web interface displays the active `v2.4.2` status tag.
+  - Zero-trust domain anchor validation in `ScopeClassifier` with post-generation output guardrails preventing out-of-scope prompt leakage.
+- **UI Version Indicator**: Web interface displays the active `v2.5.0` status tag.
 
 ## 🆕 Previous Release Highlights (v2.4.0)
 - **Conversational Details Guard**: Asking for service details no longer prematurely prompts the user to start a new application.

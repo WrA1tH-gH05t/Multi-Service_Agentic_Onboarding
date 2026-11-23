@@ -326,7 +326,12 @@ def _failure_count(session, doc_type: str, reason: str) -> int:
 # Session routes
 # ======================================================================
 
-def _new_session(service_id: str, token: Optional[str]):
+def _new_session(
+    service_id: str,
+    token: Optional[str],
+    child_profile_id: Optional[str] = None,
+    applicant_type: str = "adult",
+):
     state = get_state()
     user_id = _require_user(state, token)
     db = state.get("database")
@@ -338,32 +343,87 @@ def _new_session(service_id: str, token: Optional[str]):
     if user:
         user_full_name = getattr(user, "full_name", None) or getattr(user, "username", None)
 
+    # ── Child-applicant path ──────────────────────────────────────────────
+    child_name = None
+    if child_profile_id:
+        applicant_type = "child_dependent"
+        if db:
+            try:
+                from services.database import ChildProfile
+                with db.session_scope() as sess:
+                    cp = sess.query(ChildProfile).filter_by(
+                        profile_id=child_profile_id,
+                        parent_user_id=user_id
+                    ).first()
+                    if not cp:
+                        raise HTTPException(
+                            status_code=403,
+                            detail="Child profile not found or you are not the responsible guardian."
+                        )
+                    if cp.profile_status == "inactive":
+                        raise HTTPException(
+                            status_code=400,
+                            detail="This child profile is inactive and cannot be used for applications."
+                        )
+                    # Eligibility: mobility_rental is blocked for children
+                    if service_id == "mobility_rental":
+                        raise HTTPException(
+                            status_code=400,
+                            detail=(
+                                "Mobility / Rental is unavailable for dependent profiles under 18 "
+                                "because applicants must meet the minimum driving-licence age requirements."
+                            )
+                        )
+                    child_name = cp.full_name
+            except HTTPException:
+                raise
+            except Exception as e:
+                logger.warning(f"Could not verify child profile: {e}")
+
     # Check if there is already an existing completed or under-review application for this service
     if db:
         try:
             with db.session_scope() as sess:
                 from services.database import Application
                 from sqlalchemy import func
-                
+
                 # Check by user_id OR by applicant name
                 query = sess.query(Application).filter(
                     Application.service_id == service_id,
                     Application.status.in_(["complete", "needs_human_review", "processing"])
                 )
-                if user_full_name:
+                if child_profile_id:
+                    # For child applications, deduplicate strictly by child_profile_id or child's name
+                    # NEVER match against the parent user's adult applications!
+                    if child_name:
+                        query = query.filter(
+                            (Application.child_profile_id == child_profile_id) |
+                            (func.lower(func.trim(Application.applicant_name)) == child_name.strip().lower())
+                        )
+                    else:
+                        query = query.filter(Application.child_profile_id == child_profile_id)
+                elif user_full_name:
                     query = query.filter(
-                        (Application.user_id == user_id) | 
-                        (func.lower(func.trim(Application.applicant_name)) == user_full_name.strip().lower())
+                        (Application.applicant_type != "child_dependent"),
+                        (Application.child_profile_id.is_(None)),
+                        (
+                            (Application.user_id == user_id) |
+                            (func.lower(func.trim(Application.applicant_name)) == user_full_name.strip().lower())
+                        )
                     )
                 else:
-                    query = query.filter(Application.user_id == user_id)
+                    query = query.filter(
+                        Application.user_id == user_id,
+                        Application.child_profile_id.is_(None)
+                    )
 
                 existing_app = query.first()
                 if existing_app:
                     svc_title = service_id.replace("_", " ").title()
+                    target_display_name = existing_app.applicant_name or (child_name if child_profile_id else user_full_name)
                     raise HTTPException(
                         status_code=409,
-                        detail=f"An application for {svc_title} is already active under this name ({existing_app.applicant_name}). Please cancel or delete your existing application before creating a new one."
+                        detail=f"An application for {svc_title} is already active under this name ({target_display_name}). Please cancel or delete your existing application before creating a new one."
                     )
         except HTTPException:
             raise
@@ -372,10 +432,19 @@ def _new_session(service_id: str, token: Optional[str]):
 
     mgr = _wizard_mgr(state)
     session = mgr.create_session(user_id=user_id, service_id=service_id)
-    
-    if user and user_full_name:
+
+    # Attach child fields to session
+    session.child_profile_id = child_profile_id
+    session.applicant_type = applicant_type
+
+    effective_name = child_name if child_name else user_full_name
+    if effective_name:
+        session.applicant_name = effective_name
+        from services.wizard import WizardStep
+        if session.current_step == WizardStep.NAME:
+            session.current_step = WizardStep.ID_UPLOAD
+    elif user and user_full_name:
         session.applicant_name = user_full_name
-        # If the initial step was 'name', advance to 'id_upload' directly
         from services.wizard import WizardStep
         if session.current_step == WizardStep.NAME:
             session.current_step = WizardStep.ID_UPLOAD
@@ -386,7 +455,9 @@ def _new_session(service_id: str, token: Optional[str]):
             "session_id": session.session_id,
             "step": session.current_step.value,
             "service_id": service_id,
-            "applicant_name": session.applicant_name
+            "applicant_name": session.applicant_name,
+            "applicant_type": session.applicant_type,
+            "child_profile_id": session.child_profile_id,
         },
         "message": "Wizard session created",
     }
@@ -396,18 +467,22 @@ def _new_session(service_id: str, token: Optional[str]):
 async def create_wizard_session_get(
     service_id: str = Query("basic_registration", description="Service type"),
     token: Optional[str] = Query(None, alias="token"),
+    child_profile_id: Optional[str] = Query(None, description="Child dependent profile ID"),
+    applicant_type: str = Query("adult", description="adult | child_dependent"),
 ):
     """Create a new wizard session (the frontend uses GET)."""
-    return _new_session(service_id, token)
+    return _new_session(service_id, token, child_profile_id=child_profile_id, applicant_type=applicant_type)
 
 
 @router.post("/wizard/create")
 async def create_wizard_session_post(
     service_id: str = Query("basic_registration", description="Service type"),
     token: Optional[str] = Query(None, alias="token"),
+    child_profile_id: Optional[str] = Query(None, description="Child dependent profile ID"),
+    applicant_type: str = Query("adult", description="adult | child_dependent"),
 ):
     """Create a new wizard session."""
-    return _new_session(service_id, token)
+    return _new_session(service_id, token, child_profile_id=child_profile_id, applicant_type=applicant_type)
 
 
 @router.get("/wizard/status")
@@ -1329,6 +1404,8 @@ async def submit_wizard_application(session_id: str, token: Optional[str] = Quer
                     applicant_name=session.applicant_name or "Unknown",
                     status=status,
                     validation_result=outcome,   # reference ID lives here (no reference_id column)
+                    child_profile_id=getattr(session, "child_profile_id", None),
+                    applicant_type=getattr(session, "applicant_type", "adult"),
                 ))
                 sess.flush()
 
