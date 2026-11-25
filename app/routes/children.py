@@ -12,7 +12,7 @@ import logging
 from datetime import datetime, timezone, date
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, HTTPException, Query, Request, Body
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 from services.database import User
 
@@ -84,8 +84,9 @@ class CreateChildProfileRequest(BaseModel):
     guardian_consents_to_data_processing: bool = Field(False, description="Explicit consent under Art. 7 for under-13 data")
     guardian_verification_reference: Optional[str] = Field(None, description="Reference to birth certificate or guardianship decree")
 
-    @validator("full_name")
-    def validate_name(cls, v):
+    @field_validator("full_name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("Child full name is required.")
         v_clean = v.strip()
@@ -95,8 +96,9 @@ class CreateChildProfileRequest(BaseModel):
             raise ValueError("Child full name contains invalid characters.")
         return v_clean
 
-    @validator("date_of_birth")
-    def validate_dob(cls, v):
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_dob(cls, v: str) -> str:
         try:
             dob = date.fromisoformat(v.strip())
         except ValueError:
@@ -109,8 +111,9 @@ class CreateChildProfileRequest(BaseModel):
             raise ValueError("Child profile is for minors under 18 years of age. Adults must register an independent account.")
         return v.strip()
 
-    @validator("relationship_type")
-    def validate_relationship(cls, v):
+    @field_validator("relationship_type")
+    @classmethod
+    def validate_relationship(cls, v: str) -> str:
         allowed = {"parent", "legal_guardian", "caregiver", "authorized_caregiver"}
         if v.strip().lower() not in allowed:
             raise ValueError(f"Relationship type must be one of: {', '.join(sorted(allowed))}")

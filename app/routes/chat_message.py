@@ -22,6 +22,7 @@ async def chat(req: ChatMessage, token: Optional[str] = Query(None, alias="token
     """Receive a user chat message and return Lynx's AI-generated reply."""
     import traceback
     try:
+        steps_taken = []
         state = get_state()
         db = state.get("database")
         
@@ -60,6 +61,11 @@ async def chat(req: ChatMessage, token: Optional[str] = Query(None, alias="token
         from services.security import detect_prompt_injection, SAFE_INJECTION_REPLY
         _is_injection, _inj_reason = detect_prompt_injection(req.query)
         if _is_injection:
+            steps_taken.append({
+                "step": "Security & Guardrails",
+                "status": "failed",
+                "details": f"Blocked prompt injection attempt: {_inj_reason}"
+            })
             logger.warning("Prompt injection attempt blocked for user %s: %s", user_id, _inj_reason)
             # Persist the blocked attempt so it appears in the audit trail
             if db and session_id:
@@ -79,12 +85,24 @@ async def chat(req: ChatMessage, token: Optional[str] = Query(None, alias="token
                 response=SAFE_INJECTION_REPLY,
                 intent="blocked_injection",
                 matched_service=None,
+                execution_steps=steps_taken
             )
+        else:
+            steps_taken.append({
+                "step": "Security & Guardrails",
+                "status": "passed",
+                "details": "Passed security and anti-injection pattern validation"
+            })
                 # ──────────────────────────────────────────────────────────────────────────
 
         # ── Project-Scope Classification Layer ────────────────────────────────────
         from services.scope_classifier import ScopeClassifier, OUT_OF_SCOPE_RESPONSE
         scope_category, scope_reason, scope_special = ScopeClassifier.classify(req.query)
+        steps_taken.append({
+            "step": "Scope Classifier",
+            "status": "passed" if scope_category != "OUT_OF_SCOPE" else "rejected",
+            "details": f"Category: {scope_category} ({scope_reason or 'DocIntake domain valid'})"
+        })
 
         if scope_category == "OUT_OF_SCOPE":
             logger.info("Out-of-scope query rejected for user %s: %s", user_id, scope_reason)
@@ -106,6 +124,7 @@ async def chat(req: ChatMessage, token: Optional[str] = Query(None, alias="token
                 response=rejection_text,
                 intent="out_of_scope",
                 matched_service=None,
+                execution_steps=steps_taken
             )
 
         if scope_category == "NEEDS_CLARIFICATION":
@@ -131,6 +150,7 @@ async def chat(req: ChatMessage, token: Optional[str] = Query(None, alias="token
                 response=clarification_text,
                 intent="needs_clarification",
                 matched_service=None,
+                execution_steps=steps_taken
             )
         # ──────────────────────────────────────────────────────────────────────────
 
@@ -539,18 +559,31 @@ STRICT PROJECT SCOPE & OPERATIONAL RULES:
                 logger.warning(f"Failed to persist assistant message: {e}")
 
         # Phase 3: Auth gate for application intent ONLY for available services
+        steps_taken.append({
+            "step": "Intent & Service Routing",
+            "status": "passed",
+            "details": f"Intent: {intent}, Service: {matched_service or 'None'} (status: {status.value if service else 'N/A'})"
+        })
+        steps_taken.append({
+            "step": "Response Generation",
+            "status": "passed",
+            "details": f"Generated response ({len(reply) if reply else 0} chars)"
+        })
+
         if intent == "apply" and not user_id:
             # If a service was matched and is coming soon, do not gate behind login
             if service and status.value == "coming_soon":
                 return ChatResponse(
                     response=f"{service.name} is currently coming soon and not open for applications yet. Please check back later!",
                     intent="faq",
-                    matched_service=matched_service
+                    matched_service=matched_service,
+                    execution_steps=steps_taken
                 )
             return ChatResponse(
                 response="To apply for a service, please sign in or sign up first. You can continue asking general questions without signing in.",
                 intent=intent,
-                matched_service=matched_service
+                matched_service=matched_service,
+                execution_steps=steps_taken
             )
 
         return ChatResponse(
@@ -558,7 +591,8 @@ STRICT PROJECT SCOPE & OPERATIONAL RULES:
             intent=intent,
             matched_service=matched_service,
             action=action,
-            data=data
+            data=data,
+            execution_steps=steps_taken
         )
     except Exception as e:
         print(f"=== CHAT ROUTE ERROR ===", flush=True)

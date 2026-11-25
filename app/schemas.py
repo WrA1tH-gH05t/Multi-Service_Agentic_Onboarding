@@ -176,6 +176,7 @@ class ChatResponse(BaseModel):
     matched_service: Optional[str] = None
     action: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
+    execution_steps: Optional[List[Dict[str, Any]]] = None
 
 
 class DocumentMatch(BaseModel):

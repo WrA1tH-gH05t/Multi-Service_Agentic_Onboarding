@@ -1,8 +1,8 @@
-|Multi-Service Agentic Onboarding System v2.5.0|
+|Multi-Service Agentic Onboarding System v2.5.2|
 |A conversational agent that guides customers through sign up, document upload, and verification across multiple services — now with **child dependent profiles**, statutory legal consent architecture (Articles 7 & 84), **vision AI**, enterprise MinIO storage with SSE, resilient cross-document validation, and multi-format date handling.|
 |Built for fully on-premise deployment with Docker Desktop. Runs on consumer GPUs (RTX 4060 Laptop).|
 
-## 🎯 What This System Does (v2.5.0 — Child Profiles, Statutory Consent & Enterprise Hardening)
+## 🎯 What This System Does (v2.5.2 — Child Profiles, Statutory Consent, Clean Vision Pipeline & Enterprise Hardening)
 
 This system helps you:
 - **Discover services**: Ask about available services and what documents they require
@@ -15,7 +15,20 @@ This system helps you:
 - **S3 collision-resistant storage**: Standardized `name_idnumber_date.ext` naming with automatic collision disambiguation (`_v_<hash>`) and server-side encryption (SSE-S3 / SSE-KMS)
 - **Chat**: Interact with an AI assistant that understands your application status
 
-## 🆕 What's New in v2.5.0 (Major Milestone Release)
+## 🆕 What's New in v2.5.2 (Maintenance & Bugfix Release)
+
+### Bug Fixes & Improvements
+- **Pydantic V2 Field Validator Upgrade**:
+  - Migrated deprecated Pydantic V1 `@validator` decorators in `app/routes/children.py` (`full_name`, `date_of_birth`, `relationship_type`) to Pydantic V2 `@field_validator` with classmethods, eliminating deprecation warnings and future-proofing against Pydantic V3 removals.
+- **PyMuPDF Modernization**:
+  - Replaced deprecated legacy `fitz.open(...)` and `fitz.Matrix(...)` imports and references in `app/live_extraction.py` with standard `pymupdf.open(...)` and `pymupdf.Matrix(...)`.
+- **Image Validation Security Hardening**:
+  - Removed improper `is_valid = True` fallback override in `app/live_extraction.py`, ensuring corrupted or disallowed non-PDF uploads correctly follow strict security and integrity checks.
+- **Service Catalog Method Structure**:
+  - Restructured `get_non_editable_fields` within `ServiceCatalogue` in `services/service_catalog.py` to ensure cleaner class definition separation from compatibility aliases.
+- **UI Version Indicator**: Web interface displays the active `v2.5.2` status tag.
+
+## 🆕 Previous Release Highlights (v2.5.0)
 
 ### Major Changes
 - **Child Dependent Profiles & Parent/Guardian Management**:

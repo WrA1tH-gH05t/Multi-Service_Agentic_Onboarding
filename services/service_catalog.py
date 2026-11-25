@@ -177,14 +177,33 @@ class ServiceCatalogue:
         """Route a user request to the correct service."""
         input_lower = user_input.lower()
 
-        # Check if input mentions a "coming soon" service
+        # Check if input mentions a "coming soon" service using word boundary regex
+        import re
         for svc_id, svc in self._services.items():
             if svc.status == ServiceStatus.COMING_SOON:
-                keywords = [svc_id, svc.name.lower()]
-                for doc in svc.required_documents:
-                    keywords.append(doc)
-                for keyword in keywords:
-                    if keyword in input_lower:
+                patterns = [
+                    r'\b' + re.escape(svc_id) + r'\b',
+                    r'\b' + re.escape(svc_id.replace("_", " ")) + r'\b',
+                    r'\b' + re.escape(svc.name.lower()) + r'\b',
+                ]
+                # Distinct service stem keywords
+                if svc_id == "bank_account":
+                    patterns.extend([r'\bbank\b', r'\bbank\s+account\b'])
+                elif svc_id == "sim_registration":
+                    patterns.extend([r'\bsim\b', r'\bsim\s+card\b'])
+                elif svc_id == "loan_application":
+                    patterns.extend([r'\bloan\b', r'\bmortgage\b'])
+                elif svc_id == "utility_connection":
+                    patterns.extend([r'\butility\b', r'\belectricity\b', r'\bwater\s+connection\b'])
+                elif svc_id == "tenancy_agreement":
+                    patterns.extend([r'\btenancy\b', r'\blease\s+agreement\b'])
+                elif svc_id == "professional_license":
+                    patterns.extend([r'\bprofessional\s+licen[sc]e\b'])
+                elif svc_id == "vehicle_registration":
+                    patterns.extend([r'\bvehicle\s+registration\b', r'\bcar\s+registration\b'])
+
+                for pat in patterns:
+                    if re.search(pat, input_lower):
                         return (ServiceStatus.COMING_SOON, svc)
 
         # Check exact keyword match
@@ -250,6 +269,17 @@ class ServiceCatalogue:
             f"Which service are you interested in?"
         )
         return answer, 0.4
+
+
+    def get_non_editable_fields(self, doc_type: str) -> Set[str]:
+        """Return field names that are non-editable (biometric / immutable identity fields)."""
+        dt = (doc_type or "").lower()
+        if "passport" in dt:
+            return {"passport_number", "date_of_birth", "nationality", "sex"}
+        elif "driving" in dt or "license" in dt or "dl" in dt:
+            return {"license_no", "date_of_birth", "traffic_code_no"}
+        else:
+            return {"national_id_number", "date_of_birth", "gender", "nationality"}
 
 
 # Alias for backward compatibility

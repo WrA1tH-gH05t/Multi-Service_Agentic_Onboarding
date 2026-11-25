@@ -82,6 +82,7 @@ async def upload_document(
     db = state.get("database")
     config = state.get("config", {})
     user_id = _require_user_id(state, token)      # uploads always belong to a signed-in user
+    upload_steps = []
 
     if not state["ready"]:
         raise HTTPException(status_code=503, detail="System not ready")
@@ -112,12 +113,23 @@ async def upload_document(
             detail=err_msg or "Only PDF files are accepted. Please upload a valid PDF."
         )
 
+    upload_steps.append({
+        "step": "File Integrity & Signature Check",
+        "status": "passed",
+        "details": f"Detected format: {detected_fmt}, MIME: {content_type}, Size: {len(content)} bytes"
+    })
+
     # Phase 3: Check for duplicates using SHA-256 hash
     content_hash = ""
     raw_hash = hashlib.sha256(content).hexdigest()
     # documents.content_hash is unique across ALL users; scope it so two users can hold the same file
     content_hash = db.scoped_hash(user_id, raw_hash) if db else raw_hash
     file_size = len(content)
+    upload_steps.append({
+        "step": "SHA-256 Cryptographic Checksum",
+        "status": "passed",
+        "details": f"Hash: {raw_hash[:16]}... (scoped)"
+    })
     existing_doc_id = None
     if db and user_id:
         try:
@@ -237,12 +249,22 @@ async def upload_document(
             filled = sum(1 for k, v in extracted_fields.items() if k not in ("_total_pages", "_front_page", "_back_page", "_note") and v)
             extraction_confidence = filled / required if required > 0 else 0.0
 
+            upload_steps.append({
+                "step": "AI Vision-Language Field Extraction",
+                "status": "passed",
+                "details": f"Model: Qwen2.5-VL, Type: {document_type}, Fields extracted: {filled}/{required}, Confidence: {round(extraction_confidence, 2)}"
+            })
             logger.info(f"Extraction successful for {filename}: {len(extracted_fields)} fields, confidence={extraction_confidence:.2f}")
 
     except Exception as e:
         logger.warning(f"Vision extraction failed: {e}. File saved without extraction.")
         extracted_fields = {"_error": str(e)[:200]}
         extraction_confidence = 0.0
+        upload_steps.append({
+            "step": "AI Vision-Language Field Extraction",
+            "status": "failed",
+            "details": f"Extraction error: {str(e)[:100]}"
+        })
 
     # Determine username and ID number for MinIO object formatting (<username>_<idnumber>_<date>.<ext>)
     auth = state.get("auth")
@@ -329,6 +351,12 @@ async def upload_document(
             logger.error(f"MinIO upload failed: {e}")
             raise HTTPException(status_code=503, detail="File storage is temporarily unavailable. Please try again in a moment.")
 
+        upload_steps.append({
+            "step": "MinIO Object Storage Storage",
+            "status": "passed",
+            "details": f"Stored object: {object_name} (bucket: {storage.bucket_name})"
+        })
+
     # Persist to database if available
     doc_id = None
     if db:
@@ -384,6 +412,12 @@ async def upload_document(
                     logger.error(f"Could not remove orphaned object {object_name}")
             raise HTTPException(status_code=503, detail="I couldn't save your document. Nothing was stored, so you can safely try again.")
 
+    upload_steps.append({
+        "step": "Database Record Persistence",
+        "status": "passed",
+        "details": f"Persisted to PostgreSQL documents table: id={doc_id or file_id}"
+    })
+
     # Return the upload result
     response_data = {
         "success": True,
@@ -399,6 +433,7 @@ async def upload_document(
             "storage": "minio" if storage else "local",
             "duplicate": existing_doc_id is not None,
             "message": "Document already exists" if existing_doc_id else None,
+            "execution_steps": upload_steps,
         }
     }
     

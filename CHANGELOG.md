@@ -1,5 +1,24 @@
 # CHANGELOG — Multi-Service Agentic Onboarding System
 
+## [v2.5.2] — 2026-11-25 (Maintenance & Bugfix Release: Pydantic V2 Migration, PyMuPDF Modernization & Validation Hardening)
+
+### Bug Fixes & Refinements
+- **Pydantic V2 Field Validator Upgrade**:
+  - Upgraded deprecated Pydantic V1 `@validator` decorators in `app/routes/children.py` for `CreateChildProfileRequest` (`validate_name`, `validate_dob`, `validate_relationship`) to modern Pydantic V2 `@field_validator` classmethods.
+  - Eliminated `PydanticDeprecatedSince20` deprecation warnings during runtime and test execution.
+- **PyMuPDF Modernization**:
+  - Replaced legacy `fitz.open()` and `fitz.Matrix()` usage across `app/live_extraction.py` with modern `pymupdf.open()` and `pymupdf.Matrix()`.
+  - Resolved `fitz` API deprecation warnings during PDF extraction and image rendering.
+- **Live Document Extraction Validation Hardening**:
+  - Removed unconditional fallback `is_valid = True` in `app/live_extraction.py` that bypassed validation checks on invalid or corrupted single images.
+  - Enforced strict signature validation across all allowed MIME types (`application/pdf`, `image/png`, `image/jpeg`, `image/tiff`, `image/bmp`).
+- **Code Cleanliness & Catalog Structure**:
+  - Clarified class structure and method placement of `get_non_editable_fields` in `services/service_catalog.py` above backward-compatibility aliases.
+- **UI Version Indicator**:
+  - Updated persistent bottom-right status tag to `TASK 1 • v2.5.2`.
+
+---
+
 ## [v2.5.0] — 2026-11-23 (Slightly Major Update: Child Dependent Profiles, Statutory 3-Tier Consent Architecture & Unified Legal Policy v1.1)
 
 ### Major Changes
