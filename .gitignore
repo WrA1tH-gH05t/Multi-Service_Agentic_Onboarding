@@ -74,3 +74,8 @@ htmlcov/
 coverage/
 
 backups/
+
+# Database backups and export archives
+database_backup.sql
+*.zip
+

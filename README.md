@@ -1,67 +1,17 @@
-|Multi-Service Agentic Onboarding System v2.5.2|
-|A conversational agent that guides customers through sign up, document upload, and verification across multiple services — now with **child dependent profiles**, statutory legal consent architecture (Articles 7 & 84), **vision AI**, enterprise MinIO storage with SSE, resilient cross-document validation, and multi-format date handling.|
+|Multi-Service Agentic Onboarding System v2.0|
+|A conversational agent that guides customers through sign up, document upload, and verification across multiple services — now with **vision AI** for direct image understanding and structured field extraction.|
 |Built for fully on-premise deployment with Docker Desktop. Runs on consumer GPUs (RTX 4060 Laptop).|
 
-## 🎯 What This System Does (v2.5.2 — Child Profiles, Statutory Consent, Clean Vision Pipeline & Enterprise Hardening)
+## 🎯 What This System Does (v2.0 — Vision AI)
 
 This system helps you:
 - **Discover services**: Ask about available services and what documents they require
 - **Apply through guided conversation**: Upload documents step-by-step with real-time feedback
-- **Manage Child Dependent Profiles**: Lawful parent/guardian accounts can register and manage child dependent profiles with age-band safeguards (<13, 13–17, 18+ transition)
-- **Three-Tier Statutory Consent Architecture**: Consent Event A (Registration), Consent Event B (Child Profile Creation with Article 7 explicit parental consent), and Consent Event C (Application-Specific Document Review Consent)
-- **Vision-based field extraction**: Upload document images (PDF, PNG, JPG) → Qwen2.5-VL 7B extracts all fields directly from the image — no separate OCR pipeline needed
-- **Validate applications**: Cross-document consistency checks (e.g., name/DOB match across ID+passport with support for GCC patronymics and middle-name subsets)
-- **Multi-format date validation**: Parses dot-delimited, ISO, text-month, and hyphenated expiry and DOB dates
-- **S3 collision-resistant storage**: Standardized `name_idnumber_date.ext` naming with automatic collision disambiguation (`_v_<hash>`) and server-side encryption (SSE-S3 / SSE-KMS)
+- **Vision-based field extraction**: Upload document images (PDF, PNG, JPG) → Qwen2.5-VL 3B extracts all fields directly from the image — no separate OCR pipeline needed
+- **Validate applications**: Cross-document consistency checks (e.g., name/DOB match across ID+passport)
 - **Chat**: Interact with an AI assistant that understands your application status
 
-## 🆕 What's New in v2.5.2 (Maintenance & Bugfix Release)
-
-### Bug Fixes & Improvements
-- **Pydantic V2 Field Validator Upgrade**:
-  - Migrated deprecated Pydantic V1 `@validator` decorators in `app/routes/children.py` (`full_name`, `date_of_birth`, `relationship_type`) to Pydantic V2 `@field_validator` with classmethods, eliminating deprecation warnings and future-proofing against Pydantic V3 removals.
-- **PyMuPDF Modernization**:
-  - Replaced deprecated legacy `fitz.open(...)` and `fitz.Matrix(...)` imports and references in `app/live_extraction.py` with standard `pymupdf.open(...)` and `pymupdf.Matrix(...)`.
-- **Image Validation Security Hardening**:
-  - Removed improper `is_valid = True` fallback override in `app/live_extraction.py`, ensuring corrupted or disallowed non-PDF uploads correctly follow strict security and integrity checks.
-- **Service Catalog Method Structure**:
-  - Restructured `get_non_editable_fields` within `ServiceCatalogue` in `services/service_catalog.py` to ensure cleaner class definition separation from compatibility aliases.
-- **UI Version Indicator**: Web interface displays the active `v2.5.2` status tag.
-
-## 🆕 Previous Release Highlights (v2.5.0)
-
-### Major Changes
-- **Child Dependent Profiles & Parent/Guardian Management**:
-  - Full parent/guardian account governance under UAE Federal Decree-Law No. 25 of 2025 (Article 84 age-of-majority enforcement).
-  - Child profile creation with age-band categorization: `<13` (Child Digital Safety protection), `13–17` (teen safeguards), and `18+` (automatic adulthood transition flow).
-  - Complete document and application data isolation per child dependent profile.
-- **Three-Event Statutory Consent Architecture**:
-  - Implementation of Consent Event A (account registration), Consent Event B (explicit verifiable parental consent per Article 7 of UAE Federal Decree-Law No. 26 of 2025), and Consent Event C (application-specific government review consent).
-  - Dynamic consent withdrawal with immediate staged document purging upon declined or revoked consent.
-- **Official Legal Policies & Terms & Conditions v1.1 Integration**:
-  - Fully consolidated `Docintake_Terms_and_Conditions_v1.1_DRAFT` (both Markdown and 10-page ReportLab PDF) closing all operational gaps from v1.0 (active service SLAs, demonstrator coming-soon services, strict unexpired document policy, and zero-routine developer access restrictions).
-  - Synchronized in-app HTML policies (`/policies/terms` and `/policies/privacy`).
-- **Autonomous Service Orchestration in Startup**:
-  - `start.py` automatically detects and launches Docker Desktop, starts project containers (`docker compose up -d`), and spawns the Ollama daemon if not already online.
-- **Model Project Scope Boundary Enforcement**:
-  - Zero-trust domain anchor validation in `ScopeClassifier` with post-generation output guardrails preventing out-of-scope prompt leakage.
-- **UI Version Indicator**: Web interface displays the active `v2.5.0` status tag.
-
-## 🆕 Previous Release Highlights (v2.4.0)
-- **Conversational Details Guard**: Asking for service details no longer prematurely prompts the user to start a new application.
-- **Expired Document Auto-Purge**: Expired identity documents are detected, flagged to the user, and purged from storage and the database.
-- **Confirmation State & Locked UX**: Reviewed applications show a `✓ Reviewed` badge and prevent deselecting or unticking confirmation checkboxes once submitted.
-- **Accurate Extraction Confidence & Completion Flow**: Scoring is strictly based on semantic field validity and format accuracy, ensuring verified complete applications correctly display `complete` status without false human-review locks.
-
-## 🆕 Previous Release Highlights (v2.2.1)
-- **AI Vision Model Prompt Injection Guard**: Hardened document vision extraction prompts against embedded indirect prompt injections (e.g., text instructions placed inside document images attempting to override extraction schemas or alter classification fields).
-- **Edge-Case Date Formats**: Added validation and normalization for dot-separated dates (`DD.MM.YYYY`), textual months (`DD-Mon-YYYY`), and month-year validity.
-- **Name Variant & Patronymic Resilience**: Added intelligent subset/patronymic matching in `ValidationAgent`, routing regional variations (e.g. `Al`, `Bin`, passport middle names) to review instead of hard failures.
-- **Same-Day Re-upload Disambiguation**: MinIO uploads now detect existing keys and append version tokens (`v_<hash>`) to preserve history and prevent accidental overwrites.
-- **Self-Healing Database Sessions**: `DatabaseService` automatically initializes and connects on first session access.
-- **UI Version Indicator**: The frontend interface now displays a persistent bottom-right status tag with the active version number (`v2.2.0`).
-
-**Key change from v1**: We replaced the text-only `qwen3:0.6b` model with the multimodal `qwen2.5vl:7b` vision model. This eliminates the need for a separate OCR pipeline — documents are now processed as images directly.
+**Key change from v1**: We replaced the text-only `qwen3:0.6b` model with the multimodal `qwen2.5vl:3b` vision model. This eliminates the need for a separate OCR pipeline — documents are now processed as images directly.
 
 ## 🏗️ System Architecture
 
@@ -165,19 +115,19 @@ docker exec -i doc-intake-postgres psql -U intake -d doc_intake -f /docker-entry
 psql -h 127.0.0.1 -U intake -d doc_intake -f scripts/init_db.sql
 ```
 
-### Step 4: AI Model — Qwen2.5-VL 7B (Vision)
+### Step 4: AI Model — Qwen2.5-VL 3B (Vision)
 
 ```bash
 # Pull the vision-language model (accepts images + text, outputs structured JSON)
-ollama pull qwen2.5vl:7b
+ollama pull qwen2.5vl:3b
 ```
 
 **Model details:**
 - **Architecture**: Vision-language model (multimodal)
-- **VRAM requirement**: ~6.0GB (fits on RTX 4060 Laptop, 8GB VRAM)
+- **VRAM requirement**: ~3.5GB (fits on RTX 4060 Laptop, 8GB VRAM)
 - **Capabilities**: Understands document images, extracts structured fields, generates JSON responses
 - **License**: Apache 2.0 (permissive)
-- **DocVQA accuracy**: 92.9% on document visual question answering benchmarks
+- **DocVQA accuracy**: 91.6% on document visual question answering benchmarks
 
 The model handles both text chat and image understanding from a single endpoint. No separate embedding or OCR models needed.
 
@@ -222,7 +172,7 @@ task 1/
 │   ├── service_catalog.py  # Service definitions & FAQ data
 │   ├── validation.py       # File type/size validation (supports images)
 │   ├── ocr.py              # OCR fallback (unused in main flow)
-│   ├── generation.py       # Vision model (Qwen2.5-VL 7B) — replaces qwen3
+│   ├── generation.py       # Vision model (Qwen2.5-VL 3B) — replaces qwen3
 │   ├── golden_dataset.py   # Golden dataset management
 │   └── user_store.py       # User storage
 ├── workers/                # Background task processing (placeholder)
@@ -252,13 +202,13 @@ task 1/
 - `services/embedding.py` — Embedding service removed (vision model embeds internally)
 - `services/classifier.py` — Document classification via vision prompts
 - `services/confidence.py` — OCR confidence scoring removed
-- `services/storage.py` — Hardened MinIO Object Store with SSE, SHA-256 verification & standardized naming
+- `services/storage.py` — SeaweedFS not implemented
 
 ## 🎓 How It Works (v2.0 — Vision AI Flow)
 
 ### Vision-Based Document Processing (v2.0)
 1. **You upload a document** (PDF, PNG, JPG, TIFF, BMP)
-2. **Vision Model Processing** → Qwen2.5-VL 7B receives the image directly — no OCR step needed
+2. **Vision Model Processing** → Qwen2.5-VL 3B receives the image directly — no OCR step needed
 3. **Structured Field Extraction** → Model outputs JSON with all identified fields (name, DOB, document number, etc.)
 4. **Document Type Detection** → System classifies as passport, driving license, or national ID based on extracted fields
 5. **Response** → Extracted fields shown in chat with confidence score
@@ -271,7 +221,7 @@ task 1/
    - System asks for each document one at a time, with feedback on upload success
    - If wrong document uploaded: "That doesn't look like a National ID Card. Please upload a government-issued ID card."
    - If unclear image: "The image is blurry. Please take a clearer photo with all text visible."
-4. **Vision Extraction**: Qwen2.5-VL 7B extracts fields from uploaded image (replaces separate OCR pipeline)
+4. **Vision Extraction**: Qwen2.5-VL 3B extracts fields from uploaded image (replaces separate OCR pipeline)
 5. **Validation Agent**:
    - For Premium/Cross Border: Checks ID card AND passport fields match (name, DOB, etc.)
    - Checks document validity (not expired)
@@ -303,15 +253,13 @@ The agent will recognize these and clearly state they are not yet available:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/v1/documents/upload` | POST | Upload a document to MinIO (`<name>_<idnumber>_<date>.<ext>`) |
+| `/api/v1/documents/upload` | POST | Upload a document (saved to filesystem) |
 | `/api/v1/documents/extract` | POST | Extract fields from image (returns JSON, no save) |
 | `/api/v1/documents` | GET | List all uploaded documents |
-| `/api/v1/documents/{id}/delete` | POST | Delete a document from database and MinIO |
+| `/api/v1/documents/{id}/delete` | POST | Delete a document |
 | `/api/v1/chat/message` | POST | Chat with the AI assistant |
 | `/api/v1/golden-dataset/*` | GET/POST | Golden dataset operations (search, validate, compare) |
-| `/api/v1/health` | GET | System component health check |
-| `/api/v1/health/ready` | GET | Kubernetes/Docker readiness probe (200 / 503) |
-| `/api/v1/metrics/storage` | GET | In-memory MinIO telemetry & operation metrics |
+| `/api/v1/health` | GET | System health check |
 | `/docs` | GET | Interactive API documentation |
 
 > **Key change**: `/api/v1/documents/extract` is the primary extraction endpoint. It uses the vision model to process images and return structured JSON.
@@ -319,9 +267,9 @@ The agent will recognize these and clearly state they are not yet available:
 ## 🔧 Troubleshooting (v2.0)
 
 ### "Vision model not responding"
-- Verify Qwen2.5-VL 7B is running: `ollama list | grep qwen2.5vl`
+- Verify Qwen2.5-VL 3B is running: `ollama list | grep qwen2.5vl`
 - Check Ollama is running: `docker ps | grep ollama` or `ollama serve`
-- Model not found? Run: `ollama pull qwen2.5vl:7b`
+- Model not found? Run: `ollama pull qwen2.5vl:3b`
 - VRAM overflow? Check GPU usage: `nvidia-smi`
 
 ### "File upload fails"
@@ -376,7 +324,7 @@ When uploading documents or testing the onboarding intake pipeline, adhere to th
   - Driving License (`driving_license`): Front and back of official driver's license.
   - Emirates ID (`emirates_id`): Front and back national identity cards.
   - Passports (`passport`): Main biometric photo page / MRZ data page.
-  - Proof of Address / Tenancy: Ejari contracts, utility bills (utility/power).
+  - Proof of Address / Tenancy: Ejari contracts, utility bills (DEWA/SEWA).
   - Corporate Documents: Trade licenses, VAT registration certificates.
 - **Allowed File Extensions**:
   - Strictly `.pdf` (standard PDFs and scanned/raster PDF documents).
